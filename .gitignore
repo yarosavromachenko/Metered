@@ -1,0 +1,36 @@
+/.idea
+/.phpunit.cache
+/.vscode
+/node_modules
+/public/build
+/public/hot
+/public/storage
+/storage/*.key
+/storage/pail
+/vendor
+.env
+.env.backup
+.env.production
+.phpunit.result.cache
+Homestead.json
+Homestead.yaml
+auth.json
+npm-debug.log
+yarn-error.log
+
+# Quality gate artifacts — never commit, CI publishes them
+/build
+/coverage
+/.php-cs-fixer.cache
+/infection.log
+/infection-report
+/deptrac.cache
+/.rector.cache
+/.phpstan.cache
+
+# Generated
+/docs/api/openapi.json
+/storage/app/invoices
+
+# Load testing output
+/load/results
