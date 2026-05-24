@@ -1,0 +1,132 @@
+# Module boundaries (see docs/engineering-guidelines.md).
+#
+# A module may only reach another module through its published contract:
+#   Metered\<Module>\Application\Contract\*
+# Everything else — Domain internals, Eloquent models, HTTP clients — is private.
+#
+# `Shared` is the shared kernel: everyone may use it, it may use nobody.
+# `Admin` is presentation-only: it composes other modules' contracts.
+# `Simulation` is dev-only and drives the system through its public API.
+deptrac:
+  paths:
+    - ./src
+
+  layers:
+    - name: Shared
+      collectors:
+        - type: className
+          regex: '^Metered\\Shared\\.*'
+
+    - name: TenancyContract
+      collectors:
+        - type: className
+          regex: '^Metered\\Tenancy\\Application\\Contract\\.*'
+    - name: Tenancy
+      collectors:
+        - type: className
+          regex: '^Metered\\Tenancy\\(?!Application\\Contract\\).*'
+
+    - name: UsageContract
+      collectors:
+        - type: className
+          regex: '^Metered\\Usage\\Application\\Contract\\.*'
+    - name: Usage
+      collectors:
+        - type: className
+          regex: '^Metered\\Usage\\(?!Application\\Contract\\).*'
+
+    - name: BillingContract
+      collectors:
+        - type: className
+          regex: '^Metered\\Billing\\Application\\Contract\\.*'
+    - name: Billing
+      collectors:
+        - type: className
+          regex: '^Metered\\Billing\\(?!Application\\Contract\\).*'
+
+    - name: InvoicingContract
+      collectors:
+        - type: className
+          regex: '^Metered\\Invoicing\\Application\\Contract\\.*'
+    - name: Invoicing
+      collectors:
+        - type: className
+          regex: '^Metered\\Invoicing\\(?!Application\\Contract\\).*'
+
+    - name: WebhooksContract
+      collectors:
+        - type: className
+          regex: '^Metered\\Webhooks\\Application\\Contract\\.*'
+    - name: Webhooks
+      collectors:
+        - type: className
+          regex: '^Metered\\Webhooks\\(?!Application\\Contract\\).*'
+
+    - name: Admin
+      collectors:
+        - type: className
+          regex: '^Metered\\Admin\\.*'
+
+    - name: Simulation
+      collectors:
+        - type: className
+          regex: '^Metered\\Simulation\\.*'
+
+  ruleset:
+    Shared: ~
+
+    Tenancy:
+      - Shared
+      - TenancyContract
+
+    Usage:
+      - Shared
+      - UsageContract
+      - TenancyContract
+      - BillingContract          # needs meter and customer lookups
+
+    Billing:
+      - Shared
+      - BillingContract
+      - TenancyContract
+      - UsageContract            # reads usage aggregates for pricing
+
+    Invoicing:
+      - Shared
+      - InvoicingContract
+      - TenancyContract
+      - BillingContract
+      - UsageContract
+
+    Webhooks:
+      - Shared
+      - WebhooksContract
+      - TenancyContract
+
+    Admin:
+      - Shared
+      - TenancyContract
+      - UsageContract
+      - BillingContract
+      - InvoicingContract
+      - WebhooksContract
+
+    Simulation:
+      - Shared
+      - TenancyContract
+      - UsageContract
+      - BillingContract
+      - InvoicingContract
+      - WebhooksContract
+
+    # Contract layers are pure interfaces and DTOs: they may only lean on Shared.
+    TenancyContract:
+      - Shared
+    UsageContract:
+      - Shared
+    BillingContract:
+      - Shared
+    InvoicingContract:
+      - Shared
+    WebhooksContract:
+      - Shared

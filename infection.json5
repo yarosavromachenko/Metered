@@ -1,0 +1,48 @@
+{
+    $schema: "vendor/infection/infection/resources/schema.json",
+
+    // Mutation testing runs only where it pays for itself: pure domain logic.
+    // Infrastructure and Presentation are covered by integration and feature
+    // tests, where mutation scores measure the mocks, not the behaviour.
+    source: {
+        directories: [
+            "src/Shared/Domain",
+            "src/Usage/Domain",
+            "src/Billing/Domain",
+            "src/Invoicing/Domain",
+        ],
+    },
+
+    timeout: 30,
+    tmpDir: "build/infection",
+
+    logs: {
+        text: "build/infection/infection.log",
+        html: "build/infection/infection.html",
+        summary: "build/infection/summary.log",
+        github: true,
+        stryker: {
+            badge: "main",
+        },
+    },
+
+    // Thresholds from docs/testing.md. Lowering them requires an ADR.
+    minMsi: 85,
+    minCoveredMsi: 90,
+
+    testFramework: "pest",
+    testFrameworkOptions: "--testsuite=Unit,Architecture",
+
+    mutators: {
+        "@default": true,
+
+        // Money and quantity arithmetic is the point of this project, so the
+        // arithmetic mutators stay on everywhere. Only genuinely untestable
+        // constructs are excluded, each with a reason.
+        IncrementInteger: {
+            ignoreSourceCodeByRegex: [
+                ".*assert.*",
+            ],
+        },
+    },
+}

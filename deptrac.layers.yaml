@@ -1,0 +1,90 @@
+# Layer rules inside a module (see docs/engineering-guidelines.md).
+#
+#   Domain          knows nothing but itself and a short allow-list of value libraries
+#   Application     knows Domain and its own ports
+#   Infrastructure  knows Domain, Application and the framework
+#   Presentation    knows Application and the framework; may read its own module's
+#                   Eloquent models (CQRS read side) — writes go through handlers,
+#                   which is enforced by a Pest arch test, not by Deptrac.
+deptrac:
+  paths:
+    - ./src
+    - ./app
+
+  layers:
+    - name: Domain
+      collectors:
+        - type: className
+          regex: '^Metered\\[A-Za-z]+\\Domain\\.*'
+
+    - name: Application
+      collectors:
+        - type: className
+          regex: '^Metered\\[A-Za-z]+\\Application\\.*'
+
+    - name: Infrastructure
+      collectors:
+        - type: className
+          regex: '^Metered\\[A-Za-z]+\\Infrastructure\\.*'
+
+    - name: Presentation
+      collectors:
+        - type: className
+          regex: '^Metered\\[A-Za-z]+\\Presentation\\.*'
+
+    - name: LaravelGlue
+      collectors:
+        - type: className
+          regex: '^App\\.*'
+
+    # Third-party groupings, so that "Domain must not see Laravel" is a rule
+    # Deptrac can actually check rather than silently ignore.
+    - name: Laravel
+      collectors:
+        - type: className
+          regex: '^(Illuminate|Laravel)\\.*'
+
+    - name: Filament
+      collectors:
+        - type: className
+          regex: '^(Filament|Livewire)\\.*'
+
+    # The only third-party code Domain is allowed to touch.
+    - name: DomainSafeVendor
+      collectors:
+        - type: className
+          regex: '^(Brick\\(Money|Math)|Psr\\Clock|Ramsey\\Uuid|Symfony\\Component\\Clock)\\.*'
+
+  ruleset:
+    Domain:
+      - DomainSafeVendor
+
+    Application:
+      - Domain
+      - DomainSafeVendor
+
+    Infrastructure:
+      - Domain
+      - Application
+      - DomainSafeVendor
+      - Laravel
+
+    Presentation:
+      - Application
+      - Infrastructure   # read models only; mutations are blocked by an arch test
+      - Domain           # read-only value objects rendered in the UI
+      - DomainSafeVendor
+      - Laravel
+      - Filament
+
+    LaravelGlue:
+      - Application
+      - Infrastructure
+      - Presentation
+      - DomainSafeVendor
+      - Laravel
+      - Filament
+
+    Laravel: ~
+    Filament: ~
+    DomainSafeVendor: ~
