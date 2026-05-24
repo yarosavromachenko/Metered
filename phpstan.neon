@@ -1,0 +1,32 @@
+includes:
+    - vendor/larastan/larastan/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+
+parameters:
+    level: max
+
+    paths:
+        - app
+        - src
+        - tests
+        - database
+        - config
+
+    # No baseline. A baseline is a list of problems nobody will ever fix.
+    # If something cannot pass, it gets an ADR, not an ignore line.
+
+    checkMissingCallableSignature: true
+    checkUninitializedProperties: true
+    treatPhpDocTypesAsCertain: false
+
+    reportUnmatchedIgnoredErrors: true
+
+    excludePaths:
+        analyse:
+            - bootstrap/cache
+            - storage
+
+    ignoreErrors:
+        # Eloquent model properties are resolved by Larastan, but dynamic
+        # scopes on query builders still need help in a few generated spots.
+        # Each entry added here must carry a comment explaining why.

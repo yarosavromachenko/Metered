@@ -1,0 +1,46 @@
+{
+    "preset": "per",
+    "rules": {
+        "declare_strict_types": true,
+        "strict_param": true,
+        "strict_comparison": true,
+        "final_class": false,
+        "global_namespace_import": {
+            "import_classes": true,
+            "import_constants": false,
+            "import_functions": false
+        },
+        "no_unused_imports": true,
+        "ordered_imports": {
+            "sort_algorithm": "alpha"
+        },
+        "ordered_class_elements": {
+            "order": [
+                "use_trait",
+                "case",
+                "constant_public",
+                "constant_protected",
+                "constant_private",
+                "property_public",
+                "property_protected",
+                "property_private",
+                "construct",
+                "destruct",
+                "magic",
+                "phpunit",
+                "method_public",
+                "method_protected",
+                "method_private"
+            ]
+        },
+        "php_unit_method_casing": false,
+        "single_line_throw": false,
+        "void_return": true,
+        "nullable_type_declaration_for_default_null_value": true
+    },
+    "exclude": [
+        "bootstrap/cache",
+        "storage",
+        "vendor"
+    ]
+}
