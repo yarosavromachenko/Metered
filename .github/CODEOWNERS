@@ -1,0 +1,8 @@
+# Single maintainer, but the file keeps review routing explicit and makes
+# branch protection meaningful.
+*                       @yarosavromachenko
+
+# Decisions and guarantees: never merge these without reading them twice.
+/docs/adr/                          @yarosavromachenko
+/docs/engineering-guidelines.md     @yarosavromachenko
+/.github/workflows/                 @yarosavromachenko

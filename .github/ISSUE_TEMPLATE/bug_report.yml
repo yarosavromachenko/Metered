@@ -1,0 +1,52 @@
+name: Bug report
+description: Something behaves differently from what the docs or ADRs promise
+labels: [bug]
+body:
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behaviour
+      description: Quote the README, an ADR, or the plan if it states the promise.
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behaviour
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Reproduction
+      description: Smallest sequence of commands or requests that shows it.
+      placeholder: |
+        make up
+        php artisan sim:seed --profile=small
+        curl -X POST ...
+    validations:
+      required: true
+
+  - type: input
+    id: trace
+    attributes:
+      label: Trace id
+      description: If the request produced a trace, paste the id — it makes this ten times faster.
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - Usage ingestion
+        - Billing / pricing
+        - Invoicing / ledger
+        - Webhooks
+        - Tenancy / auth
+        - Admin panel
+        - Observability
+        - Infrastructure / docker
+    validations:
+      required: true
