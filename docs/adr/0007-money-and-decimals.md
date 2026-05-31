@@ -21,6 +21,14 @@ Money is a `Money` value object wrapping integer minor units plus an ISO 4217
 currency, backed by `brick/money`. It is stored as `bigint` plus `char(3)`.
 Money of different currencies cannot be added; the type refuses.
 
+**Currency is a property of the project.** Each project declares one currency at
+creation, and every price, invoice and ledger entry beneath it uses that
+currency. An invoice is therefore always single-currency, and there is no
+conversion anywhere in the system. Different projects — including two projects of
+the same organization — may use different currencies, which is what keeps the
+`Money` type honest: the refusal to add `EUR` to `USD` is exercised by real data
+rather than only by a unit test.
+
 Quantities and unit prices are `BigDecimal` (`brick/math`), stored as
 `numeric(20,6)` for quantities and `numeric(20,8)` for unit prices. The extra
 precision on prices exists because per-unit prices are routinely fractions of a
@@ -52,6 +60,11 @@ and the precision would be lost on the way in.
 `numeric` arithmetic in PostgreSQL is slower than `bigint`, which matters on the
 aggregate upsert path. Accepted: correctness at that particular point is not
 negotiable.
+
+Currency per project means every cross-project total in a dashboard has to be
+either grouped by currency or refused. Refusing is the correct answer — a single
+number summing EUR and USD is worse than no number — and the admin dashboards
+group instead of summing.
 
 ## Alternatives considered
 

@@ -36,14 +36,15 @@ of the demo data, isolated from any other account on that machine.
 | Profile | Contents | Purpose |
 |---|---|---|
 | `small` | 2 organizations, 10 customers, a few thousand events | Development and the test suite |
-| `demo` | 3 organizations, 120 customers, 4 plans covering all four pricing models, ~2M usage events across 90 days, closed invoices for past periods | What `make demo` loads |
+| `demo` | 3 organizations, 5 projects across two currencies, 120 customers, 4 plans covering all four pricing models, ~2M usage events across 90 days, closed invoices for past periods | What `make demo` loads |
 | `heavy` | ~20M events | Benchmarking and index work only |
 
 The `demo` profile deliberately includes awkward data, because a demo of only
 happy paths demonstrates nothing: subscriptions anchored on the 29th, 30th and
 31st; duplicate events; events arriving late; a customer with zero usage; an
 invoice that was voided and re-issued; a webhook endpoint whose circuit breaker
-is open.
+is open; and two projects in different currencies under one organization, so the
+dashboards have to group rather than sum.
 
 ## Why seeding does not go through the API
 

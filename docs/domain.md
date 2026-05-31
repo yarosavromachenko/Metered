@@ -20,7 +20,7 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | Term | Definition |
 |---|---|
 | **Organization** | A tenant of the platform: the company that bills its own customers. |
-| **Project** | An isolated environment inside an organization, typically `live` and `test`. Keys, meters, plans and customers belong to a project, never to an organization directly. |
+| **Project** | An isolated environment inside an organization, typically `live` and `test`. Keys, meters, plans and customers belong to a project, never to an organization directly. A project declares its **currency** at creation, and everything priced beneath it uses that currency. |
 | **API key** | A secret granting access to one project's API, carrying scopes (`usage:write`, `admin`). Format `mk_<env>_<prefix>_<secret>`; only the prefix and a SHA-256 hash of the secret are stored. |
 | **Customer** | The end customer of the organization — the party being billed. Identified inside a project by `external_id`, the id the tenant already uses in their own system. |
 | **Meter** | The definition of something measurable: a `code` and an aggregation type (`sum`, `count`, `max`). |
@@ -56,6 +56,7 @@ These are the statements the test suite exists to defend.
 5. Periods never overlap and never leave a gap: the end of one is the start of the next.
 6. Pricing is a pure function of (plan version, usage, period). Same inputs, same money, forever.
 7. Rounding happens exactly once, at the invoice line, `HALF_UP`.
+7a. Every price, invoice and ledger entry uses its project's currency. Money of two currencies is never added — the type refuses, and no conversion exists.
 
 **Invoicing**
 

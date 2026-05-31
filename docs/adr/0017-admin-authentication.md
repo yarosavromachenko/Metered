@@ -21,13 +21,22 @@ users                 id, name, email, password, last_signed_in_at
 organization_members  organization_id, user_id, role
 ```
 
-Roles are `owner`, `admin` and `viewer` — three levels, no finer permissions.
+Four roles, no per-resource permissions:
 
-- `viewer` reads everything within the organization.
-- `admin` additionally performs operational actions: finalize, void, pay, replay
-  a delivery, rotate a secret, manage the catalog.
-- `owner` additionally manages members, projects and API keys, and deletes the
-  organization.
+| Role | May do |
+|---|---|
+| `viewer` | Read everything within the organization |
+| `admin` | Manage the catalog — meters, plans, versions, prices, customers, subscriptions — and operate webhooks: rotate a secret, replay a delivery |
+| `billing_operator` | Everything `viewer` may do, plus the actions that move money: finalize an invoice, void it, record a payment, issue a credit note |
+| `owner` | Everything, plus members, projects, API keys, and deleting the organization |
+
+`admin` and `billing_operator` are deliberately **not** nested. Changing a price
+and finalizing an invoice are different kinds of authority, and in a real billing
+organization they usually belong to different people: one shapes the catalog, the
+other signs off on what a customer is charged. Separating them is also what makes
+the policy tests interesting — the two roles overlap on reads and are disjoint on
+writes, so a policy that quietly grants everything to everyone fails a test
+instead of passing unnoticed.
 
 Authorization is enforced by policies at the handler boundary, not only by hiding
 buttons in the UI. Tenant scope always comes from the session, never from the
@@ -46,9 +55,11 @@ The panel has real access control that can be demonstrated, and the "hidden
 button" anti-pattern is avoided — an `admin` calling an owner-only handler
 directly is refused by the policy.
 
-Three roles cover every screen this project has. Introducing per-resource
-permissions later means a migration and a policy rewrite, which is recorded in
-the assumptions as a cost accepted knowingly.
+Four roles cover every screen this project has, and the split between catalog
+authority and money authority is the part worth demonstrating: it is the
+difference between a permission model and a list of checkboxes. Introducing
+per-resource permissions later still means a migration and a policy rewrite,
+which is recorded in the assumptions as a cost accepted knowingly.
 
 Keeping users separate from API keys means two authentication paths to test, and
 two places where authorization can be wrong. The alternative — deriving keys from
@@ -65,8 +76,13 @@ is acceptable for a demo and stated in the UI.
 **No users at all, HTTP basic auth on the panel.** Trivial and incompatible with
 demo sign-up, per-organization scoping and any meaningful authorization story.
 
-**A full RBAC package with per-resource permissions.** More capable than three
+**A full RBAC package with per-resource permissions.** More capable than four
 roles, and a configuration surface larger than the application it protects.
+
+**Three roles, with money actions folded into `admin`.** One role fewer, and it
+conflates catalog authority with the authority to charge someone — the
+separation those two need is exactly what an admin panel for a billing system
+should show.
 
 **Reusing API keys to sign into the panel.** Removes a concept and conflates a
 machine credential with a person, so revoking a key would sign someone out and a

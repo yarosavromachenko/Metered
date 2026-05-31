@@ -48,7 +48,7 @@ sequence exists.
 
 | Module | Screens |
 |---|---|
-| Tenancy | Organizations, projects, API keys (create shows the secret once), members and roles |
+| Tenancy | Organizations, projects (each with its currency), API keys (create shows the secret once), members and their roles |
 | Usage | Event explorer with filters, rejections with their reason, aggregates, stream lag widget |
 | Billing | Meters, plans and versions, prices, customers, subscriptions with their phases |
 | Invoicing | Invoice list, invoice detail showing how each line was computed, PDF, void, pay, ledger view |
