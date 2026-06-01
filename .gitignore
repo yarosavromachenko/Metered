@@ -24,7 +24,7 @@ yarn-error.log
 /.php-cs-fixer.cache
 /infection.log
 /infection-report
-/deptrac.cache
+/.deptrac.cache
 /.rector.cache
 /.phpstan.cache
 
