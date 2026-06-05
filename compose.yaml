@@ -1,0 +1,134 @@
+name: metered
+
+# Host ports are overridable, because a developer machine usually has another
+# project already holding 8080. Set APP_PORT in .env to move them.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: development
+    ports:
+      - "${APP_PORT:-8080}:8080"
+    volumes:
+      - .:/app
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      OCTANE_SERVER: frankenphp
+      # The web tier goes through the pool...
+      DB_CONNECTION: pgsql
+      DB_HOST: pgbouncer
+      DB_PORT: "6432"
+      # ...and keeps a direct route for the daemons and for migrations, which
+      # need session state PgBouncer's transaction pooling does not preserve.
+      DB_DIRECT_HOST: postgres
+      DB_DIRECT_PORT: "5432"
+      DB_DATABASE: metered
+      DB_USERNAME: metered
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      pgbouncer:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 30s
+
+  postgres:
+    image: postgres:18-alpine
+    environment:
+      POSTGRES_DB: metered
+      POSTGRES_USER: metered
+      POSTGRES_PASSWORD: secret
+      # scram-sha-256 is the default in modern PostgreSQL; stating it keeps the
+      # PgBouncer userlist and the server in agreement.
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256"
+    ports:
+      - "${POSTGRES_PORT:-55432}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql
+      - ./docker/postgres/init-metered.sh:/docker-entrypoint-initdb.d/10-metered.sh:ro
+    command:
+      # Room for the daemons plus the pool, and enough work memory for the
+      # aggregate upserts to sort in memory rather than on disk.
+      - postgres
+      - -c
+      - max_connections=200
+      - -c
+      - shared_buffers=256MB
+      - -c
+      - work_mem=16MB
+      - -c
+      - max_wal_size=2GB
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U metered -d metered"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  pgbouncer:
+    image: edoburu/pgbouncer:v1.23.1-p0
+    environment:
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_NAME: metered
+      # The image listens on 5432 by default. Moving the pool to 6432 keeps the
+      # two routes to the database distinguishable at a glance: 6432 is pooled,
+      # 5432 is direct.
+      LISTEN_PORT: "6432"
+      DB_USER: metered
+      DB_PASSWORD: secret
+      # Transaction pooling is what lets a handful of PostgreSQL backends serve
+      # many Octane workers: a backend is held for a transaction, not for a
+      # request. The cost is session state — advisory locks, LISTEN/NOTIFY and
+      # server-side prepared statements — which is why the daemons bypass this
+      # service entirely. See docs/adr/0003-redis-streams-ingestion.md.
+      POOL_MODE: transaction
+      AUTH_TYPE: scram-sha-256
+      MAX_CLIENT_CONN: "1000"
+      DEFAULT_POOL_SIZE: "25"
+      MIN_POOL_SIZE: "5"
+      RESERVE_POOL_SIZE: "5"
+      MAX_PREPARED_STATEMENTS: "200"
+      IGNORE_STARTUP_PARAMETERS: extra_float_digits,options
+    ports:
+      - "${PGBOUNCER_PORT:-56432}:6432"
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  redis:
+    image: redis:8-alpine
+    # appendonly with everysec is the durability the ingestion design assumes,
+    # and the reason a 202 can cost up to one second of events on a crash.
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "${REDIS_PORT_HOST:-56379}:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  postgres-data:
+  redis-data:
