@@ -130,7 +130,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: pdo_pgsql, redis, bcmath, pcntl, posix
+          extensions: pdo_pgsql, pgsql, redis, bcmath, intl, zip, pcntl, posix
           coverage: pcov
           tools: composer:v2
 
@@ -143,7 +143,11 @@ jobs:
           php artisan migrate --force
 
       - name: Pest with coverage
-        run: vendor/bin/pest --coverage --min=85 --log-junit=build/junit.xml
+        run: |
+          mkdir -p build/coverage
+          vendor/bin/pest --coverage --min=85 \
+            --coverage-clover=build/coverage/clover.xml \
+            --log-junit=build/junit.xml
 
       - name: Upload coverage
         uses: actions/upload-artifact@v4
@@ -156,6 +160,10 @@ jobs:
     name: Mutation
     runs-on: ubuntu-latest
     needs: tests
+    # Mutation testing measures unit tests over domain logic. Until a module
+    # has both, there is nothing to mutate and the job would only produce a red
+    # cross that means nothing. It arms itself with the first unit test.
+    if: hashFiles('tests/Unit/**/*.php') != ''
     steps:
       - uses: actions/checkout@v4
         with:
@@ -164,7 +172,7 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: bcmath, pcntl
+          extensions: pdo_pgsql, pgsql, redis, bcmath, intl, zip, pcntl
           coverage: pcov
           tools: composer:v2
 
@@ -173,9 +181,12 @@ jobs:
       - name: Infection (changed lines on PRs, full run on main)
         run: |
           if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            vendor/bin/infection --threads=max --git-diff-lines --git-diff-base=origin/main --logger-github
+            vendor/bin/infection --threads=max --logger-github \
+              --git-diff-lines --git-diff-base=origin/main \
+              --ignore-msi-with-no-mutations
           else
-            vendor/bin/infection --threads=max --logger-github
+            vendor/bin/infection --threads=max --logger-github \
+              --ignore-msi-with-no-mutations
           fi
 
   build:

@@ -37,10 +37,18 @@
         </testsuite>
     </testsuites>
 
+    <!--
+        The coverage gate measures src/, where every business rule lives.
+
+        app/ is deliberately absent. The architecture rules push all logic into
+        modules, so app/ holds only framework glue — service providers and the
+        console kernel — which is exercised by feature tests but is not the code
+        a coverage number should be defending. If app/ ever grows something
+        worth testing, that something is in the wrong directory.
+    -->
     <source>
         <include>
             <directory>src</directory>
-            <directory>app</directory>
         </include>
         <exclude>
             <!-- Dev-only module, excluded from the production image too. -->

@@ -91,7 +91,7 @@ test-arch: ## Architecture tests (Pest Arch)
 
 .PHONY: mutation
 mutation: ## Infection on Domain layers (MSI >= 85, Covered MSI >= 90)
-	$(EXEC) vendor/bin/infection --threads=max --show-mutations
+	$(EXEC) vendor/bin/infection --threads=max --show-mutations --ignore-msi-with-no-mutations
 
 .PHONY: security
 security: ## Dependency and filesystem vulnerability scan

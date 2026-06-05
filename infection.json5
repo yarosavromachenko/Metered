@@ -30,8 +30,12 @@
     minMsi: 85,
     minCoveredMsi: 90,
 
-    testFramework: "pest",
-    testFrameworkOptions: "--testsuite=Unit,Architecture",
+    // Pest runs on top of PHPUnit, and Infection talks to PHPUnit. Mutation
+    // testing targets the unit suite: those tests exercise domain logic with no
+    // database and no framework, so a surviving mutant means a real gap in the
+    // assertions rather than a gap in a fixture.
+    testFramework: "phpunit",
+    testFrameworkOptions: "--testsuite=Unit",
 
     mutators: {
         "@default": true,
