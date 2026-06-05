@@ -25,6 +25,13 @@ parameters:
         analyse:
             - bootstrap/cache
             - storage
+            # Pest's architecture DSL is fluent and resolved at runtime, so
+            # every `expect(...)->not->toUse(...)` chain reads as a call on
+            # mixed. The rules in these files are themselves a static analysis
+            # gate and are exercised by the test suite; analysing them adds
+            # noise and catches nothing. This is a scope decision, not a
+            # baseline: no error in application code is suppressed anywhere.
+            - tests/Architecture/LayeringTest.php
 
     ignoreErrors:
         # Eloquent model properties are resolved by Larastan, but dynamic

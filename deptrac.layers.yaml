@@ -14,46 +14,46 @@ deptrac:
   layers:
     - name: Domain
       collectors:
-        - type: className
-          regex: '^Metered\\[A-Za-z]+\\Domain\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\[A-Za-z]+\\Domain\\.*#'
 
     - name: Application
       collectors:
-        - type: className
-          regex: '^Metered\\[A-Za-z]+\\Application\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\[A-Za-z]+\\Application\\.*#'
 
     - name: Infrastructure
       collectors:
-        - type: className
-          regex: '^Metered\\[A-Za-z]+\\Infrastructure\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\[A-Za-z]+\\Infrastructure\\.*#'
 
     - name: Presentation
       collectors:
-        - type: className
-          regex: '^Metered\\[A-Za-z]+\\Presentation\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\[A-Za-z]+\\Presentation\\.*#'
 
     - name: LaravelGlue
       collectors:
-        - type: className
-          regex: '^App\\.*'
+        - type: classNameRegex
+          value: '#^App\\.*#'
 
     # Third-party groupings, so that "Domain must not see Laravel" is a rule
     # Deptrac can actually check rather than silently ignore.
     - name: Laravel
       collectors:
-        - type: className
-          regex: '^(Illuminate|Laravel)\\.*'
+        - type: classNameRegex
+          value: '#^(Illuminate|Laravel)\\.*#'
 
     - name: Filament
       collectors:
-        - type: className
-          regex: '^(Filament|Livewire)\\.*'
+        - type: classNameRegex
+          value: '#^(Filament|Livewire)\\.*#'
 
     # The only third-party code Domain is allowed to touch.
     - name: DomainSafeVendor
       collectors:
-        - type: className
-          regex: '^(Brick\\(Money|Math)|Psr\\Clock|Ramsey\\Uuid|Symfony\\Component\\Clock)\\.*'
+        - type: classNameRegex
+          value: '#^(Brick\\(Money|Math)|Psr\\Clock|Ramsey\\Uuid|Symfony\\Component\\Clock)\\.*#'
 
   ruleset:
     Domain:

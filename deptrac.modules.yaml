@@ -14,63 +14,63 @@ deptrac:
   layers:
     - name: Shared
       collectors:
-        - type: className
-          regex: '^Metered\\Shared\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Shared\\.*#'
 
     - name: TenancyContract
       collectors:
-        - type: className
-          regex: '^Metered\\Tenancy\\Application\\Contract\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Tenancy\\Application\\Contract\\.*#'
     - name: Tenancy
       collectors:
-        - type: className
-          regex: '^Metered\\Tenancy\\(?!Application\\Contract\\).*'
+        - type: classNameRegex
+          value: '#^Metered\\Tenancy\\(?!Application\\Contract\\).*#'
 
     - name: UsageContract
       collectors:
-        - type: className
-          regex: '^Metered\\Usage\\Application\\Contract\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Usage\\Application\\Contract\\.*#'
     - name: Usage
       collectors:
-        - type: className
-          regex: '^Metered\\Usage\\(?!Application\\Contract\\).*'
+        - type: classNameRegex
+          value: '#^Metered\\Usage\\(?!Application\\Contract\\).*#'
 
     - name: BillingContract
       collectors:
-        - type: className
-          regex: '^Metered\\Billing\\Application\\Contract\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Billing\\Application\\Contract\\.*#'
     - name: Billing
       collectors:
-        - type: className
-          regex: '^Metered\\Billing\\(?!Application\\Contract\\).*'
+        - type: classNameRegex
+          value: '#^Metered\\Billing\\(?!Application\\Contract\\).*#'
 
     - name: InvoicingContract
       collectors:
-        - type: className
-          regex: '^Metered\\Invoicing\\Application\\Contract\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Invoicing\\Application\\Contract\\.*#'
     - name: Invoicing
       collectors:
-        - type: className
-          regex: '^Metered\\Invoicing\\(?!Application\\Contract\\).*'
+        - type: classNameRegex
+          value: '#^Metered\\Invoicing\\(?!Application\\Contract\\).*#'
 
     - name: WebhooksContract
       collectors:
-        - type: className
-          regex: '^Metered\\Webhooks\\Application\\Contract\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Webhooks\\Application\\Contract\\.*#'
     - name: Webhooks
       collectors:
-        - type: className
-          regex: '^Metered\\Webhooks\\(?!Application\\Contract\\).*'
+        - type: classNameRegex
+          value: '#^Metered\\Webhooks\\(?!Application\\Contract\\).*#'
 
     - name: Admin
       collectors:
-        - type: className
-          regex: '^Metered\\Admin\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Admin\\.*#'
 
     - name: Simulation
       collectors:
-        - type: className
-          regex: '^Metered\\Simulation\\.*'
+        - type: classNameRegex
+          value: '#^Metered\\Simulation\\.*#'
 
   ruleset:
     Shared: ~
