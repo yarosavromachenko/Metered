@@ -8,8 +8,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 
 | | Milestone | Size | Status |
 |---|---|---|---|
-| M0 | Foundation | S–M | 🔜 next |
-| M1 | Shared kernel | M | ⬜ |
+| M0 | Foundation | S–M | ✅ done |
+| M1 | Shared kernel | M | 🔜 next |
 | M2 | Tenancy and the admin shell | M | ⬜ |
 | M3 | Usage ingestion | L | ⬜ |
 | M4 | Billing catalog and subscriptions | M | ⬜ |
@@ -31,10 +31,10 @@ Repository skeleton, Laravel with Octane and FrankenPHP, docker compose (app,
 postgres, pgbouncer, redis), Makefile, quality tool configuration, CI, commit
 hooks, documentation skeleton.
 
-- [ ] `make up && make check` green on a clean clone
-- [ ] CI green
-- [ ] A demonstration arch test fails when `Domain` imports `Illuminate\*` or calls `now()`
-- [ ] ADR-0001, ADR-0009, ADR-0013 accepted
+- [x] `make up && make check` green on a clean clone
+- [x] CI green
+- [x] A demonstration arch test fails when `Domain` imports `Illuminate\*` or calls `now()` — verified by writing the violation and watching three tests and both Deptrac configurations reject it
+- [x] ADR-0001, ADR-0009, ADR-0013 accepted
 
 ## M1 — Shared kernel
 

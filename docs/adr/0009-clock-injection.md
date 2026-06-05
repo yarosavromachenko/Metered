@@ -1,6 +1,6 @@
 # 0009. Time through an injected clock
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -56,3 +56,12 @@ invisible in its signature.
 **Passing a timestamp into every method.** Explicit, and it spreads the parameter
 through every call site until the signatures are unreadable. The clock is the
 same idea with one dependency instead of a parameter everywhere.
+
+
+## Accepted in M0
+
+The ban is mechanical: `now()`, `today()`, `time()` and `date()` are in the
+banned-helper list checked by the architecture suite for every module's domain
+and application layer, and `Carbon` is refused there outright. The container
+sets `date.timezone = UTC` so that a machine's local timezone can never leak
+into a result.

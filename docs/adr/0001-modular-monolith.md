@@ -1,6 +1,6 @@
 # 0001. Modular monolith with machine-enforced boundaries
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 
 ## Context
@@ -67,3 +67,16 @@ is a convention until the first deadline.
 because the pricing and ledger logic is the part of this system worth getting
 right, and it is far easier to test as pure objects with no database and no
 clock.
+
+
+## Accepted in M0
+
+The boundaries are enforced, not just described. Deptrac runs two
+configurations — one for the layers inside a module, one for the module
+boundaries — and both were verified by introducing a violation on purpose: a
+domain class reaching for `Illuminate\Support\Collection` and for another
+module's infrastructure trips two layer rules and one module rule.
+
+Forty-one Pest architecture tests cover what Deptrac cannot express, including
+the two rules read straight from the source: no `float` in a domain or
+application layer, and no Eloquent write from a presentation class.

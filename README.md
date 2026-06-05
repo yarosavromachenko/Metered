@@ -2,12 +2,13 @@
 
 [![CI](https://github.com/yarosavromachenko/Metered/actions/workflows/ci.yml/badge.svg)](https://github.com/yarosavromachenko/Metered/actions/workflows/ci.yml)
 ![PHP](https://img.shields.io/badge/PHP-8.4-777BB4)
-![Laravel](https://img.shields.io/badge/Laravel-latest%20stable-FF2D20)
+![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: Phase A — documentation and rules.** No business code yet.
-> The architecture, decisions, and quality gates below are committed; the
-> implementation follows milestone by milestone (`docs/roadmap.md`).
+> **Status: M0 complete — the foundation runs.** `make up` brings up Octane,
+> PostgreSQL, PgBouncer and Redis; `make check` is green through Pint, Rector,
+> Larastan at level max, both Deptrac configurations and the test suite. The
+> domain arrives milestone by milestone ([`docs/roadmap.md`](docs/roadmap.md)).
 
 Metered meters what customers consume, prices it, invoices it, books it into a
 double-entry ledger, and notifies the customer's systems over signed webhooks —
@@ -24,18 +25,24 @@ gives that reviewer a working admin panel with a system under live load).
 ```bash
 git clone https://github.com/yarosavromachenko/Metered.git metered
 cd metered
-make demo
+make up      # build, start, migrate
+make check   # every gate CI runs
 ```
 
-That builds the stack, migrates, seeds a demo dataset (~2M usage events over 90
-days), and starts a traffic generator. Then open:
+Docker and Docker Compose are the only requirements — PHP, PostgreSQL and Redis
+all run in containers. If something on the machine already holds port 8080, set
+`APP_PORT` in `.env`.
+
+From M7 onwards, `make demo` additionally seeds a demo dataset (~2M usage events
+over 90 days) and starts a traffic generator, so the graphs have shape. Then
+open:
 
 | What | Where |
 |---|---|
-| Admin panel | <http://localhost:8080/admin> — sign up, you get your own isolated demo tenant |
-| API | <http://localhost:8080/api/v1> — key is printed by `sim:seed` |
-| Horizon | <http://localhost:8080/horizon> |
-| Grafana | <http://localhost:3000> — ingestion rate, stream lag, outbox lag, webhook success |
+| Admin panel | <http://localhost:8080/admin> — sign up, you get your own isolated demo tenant (M2) |
+| API | <http://localhost:8080/api/v1> — key is printed by `sim:seed` (M3) |
+| Horizon | <http://localhost:8080/horizon> (M1) |
+| Grafana | <http://localhost:3000> — ingestion rate, stream lag, outbox lag, webhook success (M8) |
 
 Nothing is hosted publicly: the whole system, including observability, runs from
 this repository on your machine. `make help` lists every other entrypoint.
@@ -97,15 +104,19 @@ decision has an ADR in [`docs/adr/`](docs/adr/).
 
 ## What is interesting to read first
 
-If you have ten minutes, read these three:
+Once the modules land, these three are the ones worth ten minutes:
 
 1. `src/Billing/Domain/Pricing/` — the pricing calculator. Pure domain, table-driven
-   tests on every tier boundary, no framework in sight.
+   tests on every tier boundary, no framework in sight. *(M4)*
 2. `src/Usage/Infrastructure/Stream/` — the consumer daemon: consumer groups,
-   `XAUTOCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown.
+   `XAUTOCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown. *(M3)*
 3. `src/Shared/Infrastructure/Outbox/` — transactional outbox with
    `SELECT ... FOR UPDATE SKIP LOCKED` relay and the inbox that makes consumers
-   idempotent.
+   idempotent. *(M1)*
+
+Today, the part worth reading is [`tests/Architecture/`](tests/Architecture) with
+the two Deptrac configurations next to it: the rules are enforced before there is
+any code to break them.
 
 ## Quality gates
 

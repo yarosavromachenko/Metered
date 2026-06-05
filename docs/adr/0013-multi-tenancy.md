@@ -1,6 +1,6 @@
 # 0013. Multi-tenancy by row scoping
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -67,3 +67,12 @@ unreliable on the web tier. Kept as defence in depth where it can be applied.
 **A `tenant_id` on a single top-level table, joining for the rest.** Fewer
 columns, more joins, and a scoping mistake in one join leaks everything beneath
 it.
+
+
+## Accepted in M0
+
+Accepted as the model to build against; the tables that carry
+`organization_id` and `project_id` arrive with the modules that own them. What
+M0 fixes is the shape: repositories live behind module contracts, so the tenant
+argument has a single place to be required rather than being reconstructed from
+ambient state at each call site.

@@ -90,6 +90,16 @@ Line coverage ≥ 85% over `src/`, ≥ 90% over `Domain`. Infection MSI ≥ 85 a
 covered MSI ≥ 90 on `Shared/Domain`, `Usage/Domain`, `Billing/Domain`,
 `Invoicing/Domain`.
 
+The coverage gate measures `src/` and not `app/`. That is not an exemption:
+the architecture rules push every business rule into a module, so `app/`
+holds service providers and the console kernel and nothing else. If `app/`
+ever grows something a coverage number should defend, that something is in
+the wrong directory.
+
+Mutation testing arms itself with the first unit test. Until a module has
+both domain logic and tests over it there is nothing to mutate, and a job
+that fails on an empty tree teaches nobody anything.
+
 Mutation testing runs only on domain code on purpose. Against infrastructure it
 measures how thoroughly the mocks are asserted, which is not a useful number.
 
