@@ -27,7 +27,7 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: composer validate
         run: composer validate --strict
@@ -50,7 +50,7 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Larastan (level max, no baseline)
         run: vendor/bin/phpstan analyse --error-format=github --memory-limit=1G
@@ -73,13 +73,13 @@ jobs:
           coverage: none
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: composer audit
         run: composer audit --locked
 
       - name: Trivy (filesystem)
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: fs
           scan-ref: .
@@ -90,6 +90,11 @@ jobs:
   tests:
     name: Tests
     runs-on: ubuntu-latest
+
+    # Whether the unit suite exists yet. hashFiles() cannot answer this in a
+    # job-level `if`, because that is evaluated before any checkout happens.
+    outputs:
+      has_unit_tests: ${{ steps.unit_suite.outputs.found }}
 
     services:
       postgres:
@@ -134,7 +139,16 @@ jobs:
           coverage: pcov
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
+
+      - name: Detect the unit suite
+        id: unit_suite
+        run: |
+          if [ -n "$(find tests/Unit -name '*.php' -print -quit 2>/dev/null)" ]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "found=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Prepare environment
         run: |
@@ -150,7 +164,7 @@ jobs:
             --log-junit=build/junit.xml
 
       - name: Upload coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage
           path: build/coverage
@@ -163,7 +177,7 @@ jobs:
     # Mutation testing measures unit tests over domain logic. Until a module
     # has both, there is nothing to mutate and the job would only produce a red
     # cross that means nothing. It arms itself with the first unit test.
-    if: hashFiles('tests/Unit/**/*.php') != ''
+    if: needs.tests.outputs.has_unit_tests == 'true'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -176,7 +190,7 @@ jobs:
           coverage: pcov
           tools: composer:v2
 
-      - uses: ramsey/composer-install@v3
+      - uses: ramsey/composer-install@v4
 
       - name: Infection (changed lines on PRs, full run on main)
         run: |
@@ -203,34 +217,81 @@ jobs:
         uses: hadolint/hadolint-action@v3.1.0
         with:
           dockerfile: docker/app/Dockerfile
+          failure-threshold: info
 
-      - uses: docker/setup-buildx-action@v3
+      - uses: docker/setup-buildx-action@v4
 
       - name: Log in to GHCR
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      # github.repository keeps the repository's own capitalisation, and an OCI
+      # repository name must be lowercase. Fold it once, here, and use the
+      # result everywhere the image is named.
+      - name: Image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v6.1.0
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=${{ github.sha }}
+            type=raw,value=latest,enable={{is_default_branch}}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
       - name: Build (and push on main/tags)
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/app/Dockerfile
           target: production
           push: ${{ github.event_name != 'pull_request' }}
-          tags: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
-      - name: Trivy (image)
+      # Two image scans, because the two halves of the image are not equally
+      # actionable. Operating system packages are ours to fix by rebuilding on a
+      # patched base, so they gate the build. The FrankenPHP binary statically
+      # links its own Go dependencies, and their advisories can only be resolved
+      # by an upstream release — blocking a build on those would train everyone
+      # to ignore a red cross. They are reported and kept as an artifact instead.
+      - name: Trivy (image, OS packages)
         if: github.event_name != 'pull_request'
-        uses: aquasecurity/trivy-action@master
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
-          image-ref: ghcr.io/${{ github.repository }}:${{ github.sha }}
+          image-ref: ${{ steps.image.outputs.name }}:${{ github.sha }}
           severity: HIGH,CRITICAL
           exit-code: '1'
           ignore-unfixed: true
+          vuln-type: os
+
+      - name: Trivy (image, full inventory)
+        if: github.event_name != 'pull_request'
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: ${{ steps.image.outputs.name }}:${{ github.sha }}
+          severity: HIGH,CRITICAL
+          exit-code: '0'
+          ignore-unfixed: true
+          format: table
+          output: trivy-image.txt
+
+      - name: Upload the image vulnerability report
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: trivy-image-report
+          path: trivy-image.txt
+          retention-days: 30

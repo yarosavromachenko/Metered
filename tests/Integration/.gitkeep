@@ -1,0 +1,2 @@
+# The suite is declared in phpunit.xml before it has tests, so the directory
+# has to exist in a fresh clone. Delete this file once the suite is populated.
