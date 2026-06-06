@@ -70,25 +70,31 @@ ENV APP_ENV=production \
     APP_DEMO=false
 
 COPY docker/app/php.ini /usr/local/etc/php/conf.d/99-metered.ini
+COPY docker/app/entrypoint.sh /usr/local/bin/entrypoint
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
 # The simulation module seeds data, generates traffic and kills processes on
-# purpose. It has no business being in an image that could reach real data.
-RUN rm -rf src/Simulation tests docs .github \
-    && composer dump-autoload --no-dev --optimize --classmap-authoritative \
-    && php artisan config:cache \
-    && php artisan event:cache
+# purpose. It has no business in an image that could reach real data.
+#
+# Config is NOT cached here. Caching it at build time freezes every env() call
+# to the values present during the build — which is none of them — and the
+# runtime environment would then be silently ignored. The entrypoint caches it
+# on start instead, when the real environment exists.
+RUN chmod +x /usr/local/bin/entrypoint \
+    && rm -rf src/Simulation tests docs .github \
+    && composer dump-autoload --no-dev --optimize --classmap-authoritative
 
 RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin metered \
-    && chown -R metered:metered /app/storage /app/bootstrap/cache \
+    && chown -R 10001:10001 /app/storage /app/bootstrap/cache \
     && setcap -r /usr/local/bin/frankenphp || true
 
-USER metered
+USER 10001
 
 EXPOSE 8080
 
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
-    CMD php artisan octane:status || exit 1
+    CMD ["php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
 
+ENTRYPOINT ["entrypoint"]
 CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080"]

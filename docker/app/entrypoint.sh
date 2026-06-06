@@ -22,12 +22,21 @@ if [ "${SKIP_DEPENDENCY_WAIT:-false}" != "true" ]; then
     wait_for "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "Redis"
 fi
 
-if [ ! -f /app/.env ] && [ -f /app/.env.example ]; then
-    cp /app/.env.example /app/.env
-fi
+if [ "${APP_ENV:-local}" = "production" ]; then
+    # Cached here rather than at build time: caching config during the build
+    # freezes every env() call to the values present then, and the runtime
+    # environment would be ignored for the life of the image.
+    php artisan config:cache
+    php artisan route:cache
+    php artisan event:cache
+else
+    if [ ! -f /app/.env ] && [ -f /app/.env.example ]; then
+        cp /app/.env.example /app/.env
+    fi
 
-if ! grep -q '^APP_KEY=base64:' /app/.env 2>/dev/null; then
-    php artisan key:generate --force --no-interaction
+    if ! grep -q '^APP_KEY=base64:' /app/.env 2>/dev/null; then
+        php artisan key:generate --force --no-interaction
+    fi
 fi
 
 exec "$@"
