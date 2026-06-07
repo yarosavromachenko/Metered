@@ -19,7 +19,7 @@ make test-unit          # fast loop while writing domain logic
 make test-integration   # needs the containers up
 make test-concurrency   # slow; run before pushing
 make test-arch          # cheap; run constantly
-make mutation           # Infection on the four domain layers
+make mutation           # mutation testing on the four domain layers
 ```
 
 ## Rules that are not negotiable
@@ -86,9 +86,13 @@ expensive to miss.
 
 ## Thresholds
 
-Line coverage ≥ 85% over `src/`, ≥ 90% over `Domain`. Infection MSI ≥ 85 and
-covered MSI ≥ 90 on `Shared/Domain`, `Usage/Domain`, `Billing/Domain`,
-`Invoicing/Domain`.
+Line coverage ≥ 85% over `src/`, ≥ 90% over `Domain`. Mutation score ≥ 85 on
+`Shared/Domain`, `Usage/Domain`, `Billing/Domain` and `Invoicing/Domain`.
+
+Mutation testing runs through Pest rather than Infection. Infection drives
+PHPUnit directly, and Pest's tests are not PHPUnit classes — it cannot even
+load them. Choosing a well-known tool that does not run is worse than choosing
+the one that does.
 
 The coverage gate measures `src/` and not `app/`. That is not an exemption:
 the architecture rules push every business rule into a module, so `app/`

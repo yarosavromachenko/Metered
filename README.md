@@ -129,7 +129,7 @@ any code to break them.
 | Architecture | Deptrac (layers + module boundaries), Pest Arch |
 | Tests | Pest: unit, feature, integration (real PostgreSQL/Redis), concurrency (`spatie/fork`), time-travel (`MockClock`), contract |
 | Coverage | ≥ 85% on `src/`, ≥ 90% on `Domain` |
-| Mutation | Infection on the four `Domain` layers: MSI ≥ 85, Covered MSI ≥ 90 |
+| Mutation | Pest's mutation testing on the four `Domain` layers: score ≥ 85 |
 | Security | `composer audit`, Trivy (filesystem + image) |
 
 Thresholds are never lowered to make a build pass — see

@@ -23,8 +23,6 @@ yarn-error.log
 /build
 /coverage
 /.php-cs-fixer.cache
-/infection.log
-/infection-report
 /.deptrac.cache
 /.rector.cache
 /.phpstan.cache

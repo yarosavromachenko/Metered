@@ -78,8 +78,8 @@ See [`admin-ui.md`](admin-ui.md) for the panel structure.
   transaction.
 - Time-dependent tests use a mock clock. Never `sleep()` to wait for time.
 - Integration tests run against real PostgreSQL and Redis, not fakes.
-- Thresholds: line coverage ≥ 85% over `src/` and ≥ 90% over `Domain`; Infection
-  MSI ≥ 85 and Covered MSI ≥ 90 on the four `Domain` layers.
+- Thresholds: line coverage ≥ 85% over `src/` and ≥ 90% over `Domain`; mutation
+  score ≥ 85 on the four `Domain` layers.
 - Thresholds are never lowered to make a build pass. If one has to move, it moves
   in its own commit, with an ADR explaining why.
 

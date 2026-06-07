@@ -33,7 +33,7 @@ is wrong, fix the gate in its own commit with an explanation — do not weaken i
 The pull request template repeats this as a checklist:
 
 - [ ] Tests written first for domain logic; all relevant levels covered
-- [ ] `make check` green: Pint, Rector, Larastan max, Deptrac, Pest, coverage, Infection on touched domain paths
+- [ ] `make check` green: Pint, Rector, Larastan max, Deptrac, Pest, coverage; `make mutation` green for touched domain paths
 - [ ] No architecture rule violations (`docs/engineering-guidelines.md`)
 - [ ] Docs updated in the same PR (README / `docs/` / ADR / OpenAPI)
 - [ ] Migrations are reversible and do not hold long locks (`CONCURRENTLY` on big tables)

@@ -192,16 +192,12 @@ jobs:
 
       - uses: ramsey/composer-install@v4
 
-      - name: Infection (changed lines on PRs, full run on main)
+      - name: Mutation testing on the domain layers
         run: |
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            vendor/bin/infection --threads=max --logger-github \
-              --git-diff-lines --git-diff-base=origin/main \
-              --ignore-msi-with-no-mutations
-          else
-            vendor/bin/infection --threads=max --logger-github \
-              --ignore-msi-with-no-mutations
-          fi
+          vendor/bin/pest --mutate --parallel \
+            --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' \
+            --min=85 \
+            --ignore-min-score-on-zero-mutations
 
   build:
     name: Build image

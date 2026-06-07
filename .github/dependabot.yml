@@ -14,8 +14,7 @@ updates:
           - "laravel/pint"
           - "larastan/*"
           - "rector/*"
-          - "qossmic/deptrac*"
-          - "infection/*"
+          - "deptrac/deptrac"
           - "pestphp/*"
       laravel:
         patterns:

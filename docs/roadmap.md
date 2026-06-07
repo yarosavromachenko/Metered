@@ -83,7 +83,7 @@ service. Admin: CRUD for all of it.
 
 - [ ] Table-driven tests for all four pricing models, with cases sitting exactly on tier boundaries
 - [ ] Time-travel tests: 31 Jan → 28/29 Feb, year rollover, DST independence (everything is UTC)
-- [ ] Infection MSI ≥ 85 on `Billing/Domain`
+- [ ] Mutation score ≥ 85 on `Billing/Domain`
 
 ## M5 — Invoicing and ledger
 
@@ -99,7 +99,7 @@ Stretch: immediate plan change with proration of fixed fees.
 - [ ] Concurrency test: 50 parallel finalizations → numbering with no gaps and no duplicates
 - [ ] Ledger invariant: debits equal credits; `UPDATE`/`DELETE` rejected by the database
 - [ ] Time-travel tests across period edges and the grace window; a late event lands on the next invoice
-- [ ] Infection MSI ≥ 85 on `Invoicing/Domain`
+- [ ] Mutation score ≥ 85 on `Invoicing/Domain`
 - [ ] ADR-0008, ADR-0010 accepted
 
 ## M6 — Webhooks

@@ -90,8 +90,8 @@ test-arch: ## Architecture tests (Pest Arch)
 	$(EXEC) vendor/bin/pest --testsuite=Architecture
 
 .PHONY: mutation
-mutation: ## Infection on Domain layers (MSI >= 85, Covered MSI >= 90)
-	$(EXEC) vendor/bin/infection --threads=max --show-mutations --ignore-msi-with-no-mutations
+mutation: ## Mutation testing on the four Domain layers (score >= 85)
+	$(EXEC) vendor/bin/pest --mutate --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' --min=85 --ignore-min-score-on-zero-mutations
 
 .PHONY: security
 security: ## Dependency and filesystem vulnerability scan

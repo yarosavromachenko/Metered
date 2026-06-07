@@ -19,7 +19,7 @@ Milestone: <!-- M0 / M1 / ... -->
 
 - [ ] Tests written first for domain logic; every relevant level covered
 - [ ] `make check` green (Pint, Rector, Larastan max, Deptrac, Pest, coverage)
-- [ ] Infection green on touched Domain paths
+- [ ] `make mutation` green on touched Domain paths
 - [ ] No architecture rule violations (see `docs/engineering-guidelines.md`)
 - [ ] Docs updated in this PR (README / `docs/` / ADR / OpenAPI)
 - [ ] Migrations reversible, no long table locks (`CONCURRENTLY` where needed)
