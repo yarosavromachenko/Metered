@@ -94,6 +94,13 @@ PHPUnit directly, and Pest's tests are not PHPUnit classes — it cannot even
 load them. Choosing a well-known tool that does not run is worse than choosing
 the one that does.
 
+A handful of mutations are reported as *uncovered* rather than tested: those on
+class constant declarations, which carry no line coverage because a constant is
+resolved at compile time. Mutating `Quantity::SCALE` would genuinely change
+behaviour and the test suite would catch it, but the tool cannot run that
+mutation, so it counts against the score. This is worth knowing before reading
+a score of 90% as four missing tests.
+
 The coverage gate measures `src/` and not `app/`. That is not an exemption:
 the architecture rules push every business rule into a module, so `app/`
 holds service providers and the console kernel and nothing else. If `app/`
