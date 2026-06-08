@@ -25,7 +25,16 @@ deptrac:
     - name: Infrastructure
       collectors:
         - type: classNameRegex
-          value: '#^Metered\\[A-Za-z]+\\Infrastructure\\.*#'
+          value: '#^Metered\\[A-Za-z]+\\Infrastructure\\(?!Laravel\\[A-Za-z]*ServiceProvider$).*#'
+
+    # A service provider is a composition root: its whole job is to know every
+    # layer well enough to wire them together. Pretending otherwise would mean
+    # either a layer violation or a second place where wiring lives, and both
+    # are worse than naming the exception.
+    - name: CompositionRoot
+      collectors:
+        - type: classNameRegex
+          value: '#^Metered\\[A-Za-z]+\\Infrastructure\\Laravel\\[A-Za-z]*ServiceProvider$#'
 
     - name: Presentation
       collectors:
@@ -77,10 +86,20 @@ deptrac:
       - Laravel
       - Filament
 
+    CompositionRoot:
+      - Domain
+      - Application
+      - Infrastructure
+      - Presentation
+      - DomainSafeVendor
+      - Laravel
+      - Filament
+
     LaravelGlue:
       - Application
       - Infrastructure
       - Presentation
+      - CompositionRoot
       - DomainSafeVendor
       - Laravel
       - Filament

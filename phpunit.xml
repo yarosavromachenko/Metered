@@ -67,8 +67,18 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="OTEL_SDK_DISABLED" value="true"/>
-        <!-- Integration and concurrency suites override these to hit real services. -->
+        <!-- Integration and concurrency suites talk to real services. They go
+             straight to PostgreSQL rather than through PgBouncer: transaction
+             pooling hands a backend to whoever asks next, and a concurrency
+             test that cannot rely on holding its own session proves nothing.
+             CI sets these in the job environment, which takes precedence. -->
         <env name="DB_CONNECTION" value="pgsql"/>
+        <env name="DB_HOST" value="postgres"/>
+        <env name="DB_PORT" value="5432"/>
         <env name="DB_DATABASE" value="metered_testing"/>
+
+        <!-- The relay's own connection is the direct one in production; under
+             test it must be the connection the test transaction is on. -->
+        <env name="OUTBOX_CONNECTION" value="pgsql"/>
     </php>
 </phpunit>

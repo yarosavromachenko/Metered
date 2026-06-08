@@ -37,6 +37,12 @@ Modules live in `src/<Module>/{Domain,Application,Infrastructure,Presentation}`:
   forgetting it is a compile-time shape error rather than a data leak.
 - IDs are UUIDv7. Timestamps are `timestamptz` in UTC.
 
+One named exception: a module's service provider is a **composition root**. Its
+job is to know every layer well enough to wire them together, so it is declared
+as its own layer in the tooling rather than quietly granted an extra dependency.
+The alternative is either a layer violation nobody enforces, or a second place
+where wiring lives — both worse than naming the exception.
+
 Enforcement: [`deptrac.layers.yaml`](../deptrac.layers.yaml) for the layering,
 [`deptrac.modules.yaml`](../deptrac.modules.yaml) for the module boundaries, plus
 Pest Arch tests for the rules Deptrac cannot express (banned helpers, no `float`
