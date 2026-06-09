@@ -26,7 +26,12 @@ cannot rot, cost money, or be abused.
 | Admin panel | <http://localhost:8080/admin> |
 | API | <http://localhost:8080/api/v1> |
 | Horizon | <http://localhost:8080/horizon> |
+| Mailpit | <http://localhost:8025> |
 | Grafana | <http://localhost:3000> |
+
+If another project on your machine already holds one of those ports, set
+`APP_PORT`, `MAILPIT_WEB_PORT` and friends in `.env`; nothing inside the network
+cares which host port it is reached on.
 
 At the panel, sign up. You get your own organization, project, API key and a copy
 of the demo data, isolated from any other account on that machine.
@@ -76,8 +81,29 @@ scenario ends by running `usage:reconcile`, which must report zero drift — no
 lost events and no double counting. Those runs are the evidence behind the
 reliability claims in the README.
 
+## What is running
+
+| Container | Role |
+|---|---|
+| `app` | Octane on FrankenPHP: the API, the admin panel and Horizon's dashboard |
+| `outbox-relay` | Publishes committed integration events to the queue |
+| `horizon` | Queue workers: `billing`, `webhooks`, `default`, each supervised separately |
+| `usage-consumer` | Redis Stream → PostgreSQL, with aggregates in the same transaction *(M3)* |
+| `scheduler` | Period close, partition creation, expiry sweeps *(M3)* |
+| `postgres` | PostgreSQL 18 |
+| `pgbouncer` | Transaction pooling for the web tier only; the daemons connect directly |
+| `redis` | Cache, sessions, queues and the ingestion stream |
+| `mailpit` | Catches every outgoing message and shows it in a browser |
+| `webhook-sink` | A local endpoint to deliver webhooks to, including on purpose-broken ones *(M6)* |
+| `otel-collector`, `tempo`, `prometheus`, `grafana` | Traces, metrics and dashboards *(M8)* |
+| `k6` | Load scenarios, under the `load` profile *(M7)* |
+
 ## Requirements
 
 Docker and Docker Compose. Nothing else — no local PHP, PostgreSQL or Redis.
 The `demo` profile needs roughly 4 GB of RAM; the full profile with the
 observability stack is more comfortable with 6 GB.
+
+The containers that mount the source tree run as your own user, so a file one of
+them creates — a published config, a generated migration — belongs to you rather
+than to root. If your ids are not 1000, set `DOCKER_UID` and `DOCKER_GID`.

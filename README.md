@@ -41,8 +41,12 @@ open:
 |---|---|
 | Admin panel | <http://localhost:8080/admin> — sign up, you get your own isolated demo tenant (M2) |
 | API | <http://localhost:8080/api/v1> — key is printed by `sim:seed` (M3) |
-| Horizon | <http://localhost:8080/horizon> (M1) |
+| Horizon | <http://localhost:8080/horizon> — queue throughput, failed jobs, retries |
+| Mailpit | <http://localhost:8025> — every message the application sends, caught locally |
 | Grafana | <http://localhost:3000> — ingestion rate, stream lag, outbox lag, webhook success (M8) |
+
+Everything runs on the machine in front of you. Nothing is hosted, no message
+leaves the host, and there is no account to create anywhere.
 
 Nothing is hosted publicly: the whole system, including observability, runs from
 this repository on your machine. `make help` lists every other entrypoint.
