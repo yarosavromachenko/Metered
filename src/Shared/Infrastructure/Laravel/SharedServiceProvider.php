@@ -7,12 +7,14 @@ namespace Metered\Shared\Infrastructure\Laravel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\ServiceProvider;
+use Metered\Shared\Application\Idempotency\IdempotencyStore;
 use Metered\Shared\Application\Inbox\InboxGuard;
 use Metered\Shared\Application\Inbox\IntegrationEventHandler;
 use Metered\Shared\Application\Outbox\OutboxPublisher;
 use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Clock\SystemClock;
+use Metered\Shared\Infrastructure\Idempotency\DatabaseIdempotencyStore;
 use Metered\Shared\Infrastructure\Identifier\Uuid7Generator;
 use Metered\Shared\Infrastructure\Inbox\DatabaseInboxGuard;
 use Metered\Shared\Infrastructure\Inbox\IntegrationEventDispatcher;
@@ -20,6 +22,8 @@ use Metered\Shared\Infrastructure\Outbox\DatabaseOutboxWriter;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Outbox\QueueOutboxPublisher;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
+use Metered\Shared\Presentation\Http\IdempotencyScope;
+use Metered\Shared\Presentation\Http\RequestAttributeScope;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -45,6 +49,8 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->singleton(OutboxWriter::class, DatabaseOutboxWriter::class);
         $this->app->singleton(OutboxPublisher::class, QueueOutboxPublisher::class);
         $this->app->singleton(InboxGuard::class, DatabaseInboxGuard::class);
+        $this->app->singleton(IdempotencyStore::class, DatabaseIdempotencyStore::class);
+        $this->app->singleton(IdempotencyScope::class, RequestAttributeScope::class);
 
         $this->app->singleton(
             IntegrationEventDispatcher::class,

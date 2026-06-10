@@ -67,18 +67,17 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="OTEL_SDK_DISABLED" value="true"/>
-        <!-- Integration and concurrency suites talk to real services. They go
-             straight to PostgreSQL rather than through PgBouncer: transaction
-             pooling hands a backend to whoever asks next, and a concurrency
-             test that cannot rely on holding its own session proves nothing.
-             CI sets these in the job environment, which takes precedence. -->
-        <env name="DB_CONNECTION" value="pgsql"/>
-        <env name="DB_HOST" value="postgres"/>
-        <env name="DB_PORT" value="5432"/>
-        <env name="DB_DATABASE" value="metered_testing"/>
+        <!-- force="true" matters: without it, PHPUnit leaves an existing
+             environment variable alone, and the container defines DB_CONNECTION
+             already. The suite would then run against the development database,
+             migrating and truncating it on every run. It did, until this was
+             found by a test printing the database it was connected to.
 
-        <!-- The relay's own connection is the direct one in production; under
-             test it must be the connection the test transaction is on. -->
-        <env name="OUTBOX_CONNECTION" value="pgsql"/>
+             pgsql_testing also goes straight to PostgreSQL rather than through
+             PgBouncer: transaction pooling hands a backend to whoever asks
+             next, and a concurrency test that cannot hold its own session
+             proves nothing. -->
+        <env name="DB_CONNECTION" value="pgsql_testing" force="true"/>
+        <env name="OUTBOX_CONNECTION" value="pgsql_testing" force="true"/>
     </php>
 </phpunit>

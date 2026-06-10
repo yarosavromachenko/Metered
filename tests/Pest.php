@@ -25,4 +25,16 @@ pest()->extend(TestCase::class)->in('Feature', 'Integration', 'Concurrency');
 // Integration tests get a clean schema per test, inside a transaction that is
 // rolled back afterwards. Concurrency tests deliberately do not: they need real
 // committed state visible to a second connection.
-pest()->use(RefreshDatabase::class)->in('Integration');
+uses(RefreshDatabase::class)->in('Integration');
+
+/**
+ * The connection the suite is configured to use. Tests never name a connection
+ * literally: the one thing worse than a test hitting the wrong database is a
+ * test that hides which database it hit.
+ */
+function testConnection(): string
+{
+    $connection = config('database.default');
+
+    return is_string($connection) ? $connection : 'pgsql_testing';
+}

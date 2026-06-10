@@ -19,7 +19,7 @@ function relayWith(RecordingOutboxPublisher $publisher, int $maxAttempts = 10): 
         $publisher,
         app(ClockInterface::class),
         new NullLogger(),
-        'pgsql',
+        testConnection(),
         $maxAttempts,
     );
 }

@@ -20,6 +20,7 @@ return [
 
     'default' => env('DB_CONNECTION', 'pgsql'),
 
+
     /*
     |--------------------------------------------------------------------------
     | Database Connections
@@ -57,6 +58,32 @@ return [
          * long-running daemons — usage:consume, outbox:relay and the scheduler
          * — need those, so they connect to PostgreSQL directly.
          */
+        /*
+         * The connection the test suite uses, and never the development one.
+         *
+         * It is a separate connection rather than a set of overridden
+         * environment variables because PHPUnit's <env> entries do not replace
+         * variables the container already defines — which is how the suite
+         * quietly ended up migrating the development database.
+         *
+         * The host falls back through the direct host (set inside Docker) to
+         * the ordinary one (set by CI), so the same configuration works in both
+         * without either knowing about the other.
+         */
+        'pgsql_testing' => [
+            'driver' => 'pgsql',
+            'host' => env('DB_DIRECT_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('DB_DIRECT_PORT', '5432'),
+            'database' => env('TEST_DB_DATABASE', 'metered_testing'),
+            'username' => env('DB_USERNAME', 'metered'),
+            'password' => env('DB_PASSWORD', ''),
+            'charset' => env('DB_CHARSET', 'utf8'),
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => env('DB_SSLMODE', 'prefer'),
+        ],
+
         'pgsql_direct' => [
             'driver' => 'pgsql',
             'url' => env('DB_DIRECT_URL'),
