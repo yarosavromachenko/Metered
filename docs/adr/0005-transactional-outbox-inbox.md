@@ -1,6 +1,6 @@
 # 0005. Transactional outbox and inbox
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -72,3 +72,16 @@ foundation.
 
 **Queue the event and make consumers deduplicate, with no outbox.** Solves
 double-processing but not the lost event, which is the failure that matters.
+
+
+## Accepted in M1
+
+Built, and the failure it exists for has its own test: the message is written
+inside a transaction, nothing dispatches, and the event still goes out on the
+relay's next pass. Three relays publishing forty messages produce forty
+publications and no duplicate, which is `SKIP LOCKED` doing its job under real
+concurrent processes.
+
+One change the tests forced. The inbox key is a name the handler declares, not
+its class name: a consumer key is persisted state, and renaming the class would
+have made every message it had already processed look new.

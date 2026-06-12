@@ -1,6 +1,6 @@
 # 0007. Money and decimal arithmetic
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -81,3 +81,15 @@ computation in between would still be float.
 **A hand-rolled money class.** Half a day to write, and it would slowly grow
 allocation, distribution and rounding-mode handling until it was a worse
 `brick/money`.
+
+
+## Accepted in M1
+
+`Money`, `Quantity` and `UnitPrice` exist, and rounding happens in exactly one
+place: where a price meets a quantity. The rounding table in the tests covers
+exact halves in both directions, fractions of a cent multiplied out, a currency
+with no minor unit and one with three.
+
+Quantities refuse a value carrying more decimal places than the column holds
+rather than rounding it, because silently rounding a quantity changes what a
+customer is billed and leaves no trace that it happened.

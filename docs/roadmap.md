@@ -9,8 +9,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | | Milestone | Size | Status |
 |---|---|---|---|
 | M0 | Foundation | S–M | ✅ done |
-| M1 | Shared kernel | M | 🔜 next |
-| M2 | Tenancy and the admin shell | M | ⬜ |
+| M1 | Shared kernel | M | ✅ done |
+| M2 | Tenancy and the admin shell | M | 🔜 next |
 | M3 | Usage ingestion | L | ⬜ |
 | M4 | Billing catalog and subscriptions | M | ⬜ |
 | M5 | Invoicing and ledger | L | ⬜ |
@@ -42,11 +42,12 @@ Clock (PSR-20) and adapters, `Money`/`BigDecimal` wrappers, UUIDv7, outbox write
 and relay, inbox, idempotency middleware, hash-chained audit log, problem+json
 error handling, OpenTelemetry bootstrap with propagation into queues.
 
-- [ ] Concurrency test: N parallel requests with one `Idempotency-Key` → one execution, the rest replayed or `409`
-- [ ] Crash between commit and dispatch → the relay still delivers, and the inbox makes the effect exactly once
-- [ ] `audit:verify` detects a manually tampered row
-- [ ] A trace started in an HTTP request continues inside a queued job
-- [ ] ADR-0005, ADR-0006, ADR-0007 accepted
+- [x] Concurrency test: 16 parallel processes with one `Idempotency-Key` → one execution, fifteen `409`s
+- [x] Crash between commit and dispatch → the relay still delivers, and the inbox makes the effect exactly once
+- [x] `audit:verify` detects an altered row, a removed row, and a hash rewritten to match altered contents
+- [x] A trace started in an HTTP request continues inside a queued job — same trace id, the job's span hanging off the request's
+- [x] Three relays publishing forty messages produce forty publications and no duplicate
+- [x] ADR-0005, ADR-0006, ADR-0007, ADR-0014 accepted
 
 ## M2 — Tenancy and the admin shell
 

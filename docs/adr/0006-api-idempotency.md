@@ -1,6 +1,6 @@
 # 0006. Idempotency keys for mutating endpoints
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -68,3 +68,14 @@ finalizing an invoice or triggering a payment.
 **Lock the key row with `SELECT ... FOR UPDATE`.** Rejected: holding a
 transaction open for the duration of request processing is how connection pools
 are exhausted. The atomic insert gives the same guarantee with no held lock.
+
+
+## Accepted in M1
+
+Sixteen parallel processes claiming one key produce exactly one execution and
+fifteen `409`s — real separate connections, no wrapping transaction.
+
+One behaviour worth recording beyond the table above: a request that failed,
+including one that answered `5xx`, releases its key. Replaying a failure would
+be worse than useless, because nothing was carried out and the client deserves
+a real second attempt.

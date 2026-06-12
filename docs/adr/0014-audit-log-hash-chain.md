@@ -1,6 +1,6 @@
 # 0014. Hash-chained audit log
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -61,3 +61,20 @@ trail from the data it describes, losing transactional consistency between them.
 **Signing each row with a private key.** Stronger than a chain, and it introduces
 key management, which needs its own audit trail — recursion the project does not
 need.
+
+
+## Accepted in M1
+
+The chain is built and verified, and three kinds of damage are distinguished,
+each with a test: contents altered, a row removed, and a hash rewritten to match
+altered contents.
+
+The revocation is weaker than it first appears, and the tests say so: a role
+with enough privilege — a superuser, or anyone who can `GRANT` to themselves —
+bypasses it. Permissions discourage tampering; the chain is what detects it.
+Running the application as a non-superuser role is therefore a deployment
+requirement rather than an optional hardening step.
+
+The encoding is pinned by a known-answer vector. Mutation testing showed that
+changing a JSON flag broke no test, which would have meant a future encoding
+change making every stored entry look tampered with.

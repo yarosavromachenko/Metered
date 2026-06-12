@@ -5,10 +5,12 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: M0 complete — the foundation runs.** `make up` brings up Octane,
-> PostgreSQL, PgBouncer and Redis; `make check` is green through Pint, Rector,
-> Larastan at level max, both Deptrac configurations and the test suite. The
-> domain arrives milestone by milestone ([`docs/roadmap.md`](docs/roadmap.md)).
+> **Status: M1 complete — the shared kernel works.** Money and quantities that
+> refuse to be floats, a transactional outbox with a `SKIP LOCKED` relay, an
+> inbox that makes consumers idempotent, idempotency keys proven under sixteen
+> parallel processes, a hash-chained audit log, RFC 9457 errors, and a trace
+> that survives the hop into a queued job. The billing domain itself arrives
+> milestone by milestone ([`docs/roadmap.md`](docs/roadmap.md)).
 
 Metered meters what customers consume, prices it, invoices it, books it into a
 double-entry ledger, and notifies the customer's systems over signed webhooks —
@@ -116,11 +118,12 @@ Once the modules land, these three are the ones worth ten minutes:
    `XAUTOCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown. *(M3)*
 3. `src/Shared/Infrastructure/Outbox/` — transactional outbox with
    `SELECT ... FOR UPDATE SKIP LOCKED` relay and the inbox that makes consumers
-   idempotent. *(M1)*
+   idempotent.
 
-Today, the part worth reading is [`tests/Architecture/`](tests/Architecture) with
-the two Deptrac configurations next to it: the rules are enforced before there is
-any code to break them.
+Also worth a look today: [`tests/Concurrency/`](tests/Concurrency), where the
+claims about races are settled by real parallel processes rather than by
+assertion, and [`tests/Architecture/`](tests/Architecture) with the two Deptrac
+configurations beside it.
 
 ## Quality gates
 
