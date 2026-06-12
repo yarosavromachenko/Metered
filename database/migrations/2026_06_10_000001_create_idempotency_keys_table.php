@@ -28,9 +28,9 @@ return new class extends Migration {
             $table->jsonb('response_headers')->nullable();
             $table->text('response_body')->nullable();
 
-            $table->timestampTz('created_at');
-            $table->timestampTz('completed_at')->nullable();
-            $table->timestampTz('expires_at');
+            $table->timestampTz('created_at', 6);
+            $table->timestampTz('completed_at', 6)->nullable();
+            $table->timestampTz('expires_at', 6);
 
             // The guarantee. Claiming is INSERT ... ON CONFLICT DO NOTHING
             // against this constraint, so the winner is decided by the database

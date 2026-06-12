@@ -13,7 +13,7 @@ return new class extends Migration {
             $table->uuid('id')->primary();
             $table->string('consumer', 128);
             $table->uuid('message_id');
-            $table->timestampTz('processed_at');
+            $table->timestampTz('processed_at', 6);
 
             // The guarantee itself. Not an index for speed — the unique
             // constraint is what makes a second delivery a no-op, and it is

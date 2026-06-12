@@ -17,10 +17,10 @@ return new class extends Migration {
             $table->string('type', 128);
             $table->jsonb('payload');
             $table->jsonb('headers');
-            $table->timestampTz('occurred_at');
-            $table->timestampTz('published_at')->nullable();
+            $table->timestampTz('occurred_at', 6);
+            $table->timestampTz('published_at', 6)->nullable();
             $table->unsignedSmallInteger('attempts')->default(0);
-            $table->timestampTz('last_attempted_at')->nullable();
+            $table->timestampTz('last_attempted_at', 6)->nullable();
             $table->text('last_error')->nullable();
         });
 

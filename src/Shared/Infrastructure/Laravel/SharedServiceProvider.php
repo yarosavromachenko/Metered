@@ -7,12 +7,16 @@ namespace Metered\Shared\Infrastructure\Laravel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\ServiceProvider;
+use Metered\Shared\Application\Audit\AuditLogger;
+use Metered\Shared\Application\Audit\ChainVerifier;
 use Metered\Shared\Application\Idempotency\IdempotencyStore;
 use Metered\Shared\Application\Inbox\InboxGuard;
 use Metered\Shared\Application\Inbox\IntegrationEventHandler;
 use Metered\Shared\Application\Outbox\OutboxPublisher;
 use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Shared\Infrastructure\Audit\DatabaseAuditLogger;
+use Metered\Shared\Infrastructure\Audit\DatabaseChainVerifier;
 use Metered\Shared\Infrastructure\Clock\SystemClock;
 use Metered\Shared\Infrastructure\Idempotency\DatabaseIdempotencyStore;
 use Metered\Shared\Infrastructure\Identifier\Uuid7Generator;
@@ -22,6 +26,7 @@ use Metered\Shared\Infrastructure\Outbox\DatabaseOutboxWriter;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Outbox\QueueOutboxPublisher;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
+use Metered\Shared\Presentation\Console\VerifyAuditChainCommand;
 use Metered\Shared\Presentation\Http\IdempotencyScope;
 use Metered\Shared\Presentation\Http\RequestAttributeScope;
 use Psr\Clock\ClockInterface;
@@ -51,6 +56,8 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->singleton(InboxGuard::class, DatabaseInboxGuard::class);
         $this->app->singleton(IdempotencyStore::class, DatabaseIdempotencyStore::class);
         $this->app->singleton(IdempotencyScope::class, RequestAttributeScope::class);
+        $this->app->singleton(AuditLogger::class, DatabaseAuditLogger::class);
+        $this->app->singleton(ChainVerifier::class, DatabaseChainVerifier::class);
 
         $this->app->singleton(
             IntegrationEventDispatcher::class,
@@ -76,7 +83,10 @@ final class SharedServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([RelayOutboxCommand::class]);
+            $this->commands([
+                RelayOutboxCommand::class,
+                VerifyAuditChainCommand::class,
+            ]);
         }
     }
 
