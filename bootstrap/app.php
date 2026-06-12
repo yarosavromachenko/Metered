@@ -6,6 +6,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Metered\Shared\Presentation\Http\Middleware\EnsureIdempotency;
+use Metered\Shared\Presentation\Http\Middleware\TraceRequest;
 use Metered\Shared\Presentation\Http\ProblemRenderer;
 
 return Application::configure(basePath: dirname(__DIR__))
@@ -19,6 +20,10 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'idempotent' => EnsureIdempotency::class,
         ]);
+
+        // Outermost on the API stack: a span that does not cover the
+        // middleware below it measures the wrong thing.
+        $middleware->prependToGroup('api', TraceRequest::class);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         // Every API failure is an RFC 9457 problem document, including the ones

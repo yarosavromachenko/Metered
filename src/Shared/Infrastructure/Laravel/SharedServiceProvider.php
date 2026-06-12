@@ -25,10 +25,16 @@ use Metered\Shared\Infrastructure\Inbox\IntegrationEventDispatcher;
 use Metered\Shared\Infrastructure\Outbox\DatabaseOutboxWriter;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Outbox\QueueOutboxPublisher;
+use Metered\Shared\Infrastructure\Tracing\QueueTracing;
+use Metered\Shared\Infrastructure\Tracing\TracerProviderFactory;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
 use Metered\Shared\Presentation\Console\VerifyAuditChainCommand;
 use Metered\Shared\Presentation\Http\IdempotencyScope;
 use Metered\Shared\Presentation\Http\RequestAttributeScope;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
+use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
@@ -60,6 +66,24 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->singleton(ChainVerifier::class, DatabaseChainVerifier::class);
 
         $this->app->singleton(
+            TextMapPropagatorInterface::class,
+            static fn(): TextMapPropagatorInterface => TraceContextPropagator::getInstance(),
+        );
+
+        $this->app->singleton(
+            TracerProviderInterface::class,
+            static fn(Application $app): TracerProviderInterface => new TracerProviderFactory(
+                self::configBool($app, 'metered.tracing.enabled', false),
+                self::configString($app, 'metered.tracing.service_name', 'metered'),
+                self::configString($app, 'metered.tracing.endpoint', 'http://otel-collector:4318'),
+                self::configString($app, 'app.env', 'production'),
+            )->make(),
+        );
+
+        $this->app->singleton(Tracing::class);
+        $this->app->singleton(QueueTracing::class);
+
+        $this->app->singleton(
             IntegrationEventDispatcher::class,
             static fn(Application $app): IntegrationEventDispatcher => new IntegrationEventDispatcher(
                 self::taggedHandlers($app),
@@ -82,6 +106,8 @@ final class SharedServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->app->make(QueueTracing::class)->register($this->app->make('events'));
+
         if ($this->app->runningInConsole()) {
             $this->commands([
                 RelayOutboxCommand::class,
@@ -107,6 +133,13 @@ final class SharedServiceProvider extends ServiceProvider
         $value = $app->make('config')->get($key);
 
         return is_string($value) ? $value : $default;
+    }
+
+    private static function configBool(Application $app, string $key, bool $default): bool
+    {
+        $value = $app->make('config')->get($key);
+
+        return is_bool($value) ? $value : $default;
     }
 
     private static function configInt(Application $app, string $key, int $default): int

@@ -28,4 +28,21 @@ return [
         'idle_sleep_seconds' => (float) env('OUTBOX_IDLE_SLEEP_SECONDS', 0.5),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Tracing
+    |--------------------------------------------------------------------------
+    |
+    | One trace is meant to span HTTP → Redis stream → consumer → PostgreSQL →
+    | outbox → queue → webhook. Disabled turns the provider into a no-op rather
+    | than putting a condition at every call site.
+    |
+    */
+
+    'tracing' => [
+        'enabled' => env('OTEL_SDK_DISABLED', 'true') !== 'true',
+        'service_name' => env('OTEL_SERVICE_NAME', 'metered'),
+        'endpoint' => env('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318'),
+    ],
+
 ];
