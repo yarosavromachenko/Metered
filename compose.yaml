@@ -17,29 +17,17 @@ services:
     # config, a generated migration — should belong to the developer, not to
     # root. Override with DOCKER_UID/DOCKER_GID if yours are not 1000.
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    # Only process-level variables here. Everything Laravel reads comes from
+    # .env, which the entrypoint seeds from .env.example.
+    #
+    # The application's own settings are deliberately NOT repeated here: a
+    # variable present in the container's environment cannot be overridden by
+    # the test runner, and the suite silently ran against the development
+    # database until that was found.
     environment:
       HOME: /tmp
       XDG_CONFIG_HOME: /tmp/.config
       XDG_DATA_HOME: /tmp/.local/share
-      APP_ENV: local
-      APP_DEBUG: "true"
-      OCTANE_SERVER: frankenphp
-      # The web tier goes through the pool...
-      DB_CONNECTION: pgsql
-      DB_HOST: pgbouncer
-      DB_PORT: "6432"
-      # ...and keeps a direct route for the daemons and for migrations, which
-      # need session state PgBouncer's transaction pooling does not preserve.
-      DB_DIRECT_HOST: postgres
-      DB_DIRECT_PORT: "5432"
-      DB_DATABASE: metered
-      DB_USERNAME: metered
-      DB_PASSWORD: secret
-      REDIS_HOST: redis
-      REDIS_PORT: "6379"
-      MAIL_MAILER: smtp
-      MAIL_HOST: mailpit
-      MAIL_PORT: "1025"
     depends_on:
       postgres:
         condition: service_healthy
