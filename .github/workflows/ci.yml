@@ -126,6 +126,11 @@ jobs:
       DB_DATABASE: metered_testing
       DB_USERNAME: metered
       DB_PASSWORD: secret
+      # The suite's own connection, named here because .env.example points it
+      # at a Docker service that does not exist on a runner.
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 5432
+      TEST_DB_DATABASE: metered_testing
       REDIS_HOST: 127.0.0.1
       REDIS_PORT: 6379
 
