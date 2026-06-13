@@ -27,5 +27,6 @@ that links back, so the reasoning at the time stays readable.
 | [0015](0015-admin-ui-filament.md) | Admin panel on Filament | Proposed |
 | [0016](0016-demo-mode-and-seed-profiles.md) | Demo mode and seed profiles | Proposed |
 | [0017](0017-admin-authentication.md) | Admin authentication and authorization | Proposed |
+| [0018](0018-design-principles.md) | Design principles: earn every abstraction | **Accepted** |
 
 Statuses: **Proposed** → **Accepted** → **Superseded by NNNN** / **Deprecated**.
