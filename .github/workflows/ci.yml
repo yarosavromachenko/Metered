@@ -187,6 +187,48 @@ jobs:
     # has both, there is nothing to mutate and the job would only produce a red
     # cross that means nothing. It arms itself with the first unit test.
     if: needs.tests.outputs.has_unit_tests == 'true'
+
+    # Pest runs the whole suite once before it mutates anything, to learn which
+    # test covers which line. That suite needs PostgreSQL and Redis, so this job
+    # needs them too — it got away without them only while every test was pure.
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: metered_testing
+          POSTGRES_USER: metered
+          POSTGRES_PASSWORD: secret
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U metered"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # DB_CONNECTION stays absent here for the same reason as in the tests job
+      # above: phpunit.xml decides, and a variable in the runner's environment
+      # would beat it.
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_DATABASE: metered_testing
+      DB_USERNAME: metered
+      DB_PASSWORD: secret
+      TEST_DB_HOST: 127.0.0.1
+      TEST_DB_PORT: 5432
+      TEST_DB_DATABASE: metered_testing
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: 6379
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -195,11 +237,17 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
-          extensions: pdo_pgsql, pgsql, redis, bcmath, intl, zip, pcntl
+          extensions: pdo_pgsql, pgsql, redis, bcmath, intl, zip, pcntl, posix
           coverage: pcov
           tools: composer:v2
 
       - uses: ramsey/composer-install@v4
+
+      - name: Prepare environment
+        run: |
+          cp .env.example .env
+          php artisan key:generate
+          php artisan migrate --force
 
       - name: Mutation testing on the domain layers
         run: |
