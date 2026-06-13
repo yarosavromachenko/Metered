@@ -40,6 +40,19 @@ not the 31st.
 The consumer's behaviour under redelivery, `XAUTOCLAIM` and dead-lettering only
 exists against a real stream, so CI runs service containers.
 
+**Nothing outside the suite names the database connection.** PHPUnit's
+`<env force="true">` does not win against a variable that is already in the
+process environment: Laravel reads `$_SERVER` first, and PHPUnit only rewrites
+`putenv()` and `$_ENV`. So neither `compose.yaml` nor the CI workflow defines
+`DB_CONNECTION` — `phpunit.xml` alone decides, and it chooses `pgsql_testing`.
+Defining it elsewhere has cost two debugging sessions: once the suite migrated
+the development database, once tests wrote through one connection while the
+relay resolved from the container read through another, so a test's uncommitted
+rows were invisible to the code under test. `tests/Integration/TestEnvironmentTest.php`
+asserts all three facts — the connection, the database name, and that a
+connection resolved by name is the same instance the test writes through — so
+either mistake fails immediately instead of a day later.
+
 ## The cases that must exist
 
 These are written down because they are the ones that are easy to skip and

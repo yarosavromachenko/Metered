@@ -120,7 +120,11 @@ jobs:
           --health-retries 10
 
     env:
-      DB_CONNECTION: pgsql
+      # DB_CONNECTION is deliberately absent. Defining it here would put it in
+      # the runner's environment, where PHPUnit cannot replace it — and the
+      # suite would run on the default connection while anything resolved from
+      # the container used pgsql_testing. Same database, two connections, and a
+      # test's uncommitted rows invisible to the code under test.
       DB_HOST: 127.0.0.1
       DB_PORT: 5432
       DB_DATABASE: metered_testing
