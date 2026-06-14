@@ -24,6 +24,10 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
+          # intl is a platform requirement in composer.json, so `composer
+          # install` refuses to run without it even in the jobs that never
+          # execute application code.
+          extensions: intl
           coverage: none
           tools: composer:v2
 
@@ -47,6 +51,10 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
+          # intl is a platform requirement in composer.json, so `composer
+          # install` refuses to run without it even in the jobs that never
+          # execute application code.
+          extensions: intl
           coverage: none
           tools: composer:v2
 
@@ -70,6 +78,10 @@ jobs:
       - uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
+          # intl is a platform requirement in composer.json, so `composer
+          # install` refuses to run without it even in the jobs that never
+          # execute application code.
+          extensions: intl
           coverage: none
           tools: composer:v2
 
