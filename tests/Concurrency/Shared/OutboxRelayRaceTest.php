@@ -19,7 +19,7 @@ afterEach(function () use ($aggregateType): void {
     DB::table('outbox_messages')->where('aggregate_type', $aggregateType)->delete();
 });
 
-it('never lets two relays publish the same message', function () use ($aggregateType): void {
+it('never lets two of three relays publish the same message', function () use ($aggregateType): void {
     $ids = app(IdentifierGenerator::class);
     $writer = app(OutboxWriter::class);
     $clock = app(ClockInterface::class);
@@ -52,8 +52,8 @@ it('never lets two relays publish the same message', function () use ($aggregate
             10,
         );
 
-        // Several passes each, so the two relays genuinely interleave rather
-        // than one finishing before the other starts.
+        // Several passes each, so the three relays genuinely interleave
+        // rather than one finishing before the others start.
         foreach (range(1, 5) as $ignored) {
             $relay->relayBatch(10);
         }
