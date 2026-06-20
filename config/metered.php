@@ -30,6 +30,28 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | API keys
+    |--------------------------------------------------------------------------
+    |
+    | Authentication happens on every API request, so the key lookup is cached.
+    | The TTL is also the bound on revocation: a key revoked while its entry is
+    | live stops working within this window even if the invalidation that
+    | accompanies the write never reaches this node. Thirty seconds is the
+    | number documented in docs/api.md, and lengthening it lengthens the
+    | promise.
+    |
+    */
+
+    'api_keys' => [
+        'cache_ttl_seconds' => (int) env('API_KEY_CACHE_TTL_SECONDS', 30),
+
+        // How coarsely `last_used_at` is maintained. A write per request would
+        // double the write load of ingestion for a column read by humans.
+        'usage_recording_interval_seconds' => (int) env('API_KEY_USAGE_INTERVAL_SECONDS', 300),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tracing
     |--------------------------------------------------------------------------
     |
