@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Infrastructure\Laravel;
 
+use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
@@ -15,6 +16,7 @@ use Metered\Tenancy\Infrastructure\Persistence\CachingApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
+use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -48,6 +50,14 @@ final class TenancyServiceProvider extends ServiceProvider
                 $app->make(ApiKeyRepository::class),
                 $app->make(ClockInterface::class),
                 self::configInt($app, 'metered.api_keys.usage_recording_interval_seconds', 300),
+            ),
+        );
+
+        $this->app->singleton(
+            ThrottleApiKey::class,
+            static fn(Application $app): ThrottleApiKey => new ThrottleApiKey(
+                $app->make(RateLimiter::class),
+                self::configInt($app, 'metered.api_keys.rate_limit_per_minute', 600),
             ),
         );
     }

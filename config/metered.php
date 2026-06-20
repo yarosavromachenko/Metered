@@ -48,6 +48,10 @@ return [
         // How coarsely `last_used_at` is maintained. A write per request would
         // double the write load of ingestion for a column read by humans.
         'usage_recording_interval_seconds' => (int) env('API_KEY_USAGE_INTERVAL_SECONDS', 300),
+
+        // Requests per minute per key. Ingestion sends batches of up to a
+        // hundred events, so this is a far larger budget than it looks.
+        'rate_limit_per_minute' => (int) env('API_KEY_RATE_LIMIT_PER_MINUTE', 600),
     ],
 
     /*

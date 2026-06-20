@@ -8,6 +8,8 @@ use Illuminate\Foundation\Configuration\Middleware;
 use Metered\Shared\Presentation\Http\Middleware\EnsureIdempotency;
 use Metered\Shared\Presentation\Http\Middleware\TraceRequest;
 use Metered\Shared\Presentation\Http\ProblemRenderer;
+use Metered\Tenancy\Presentation\Http\Middleware\AuthenticateApiKey;
+use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -19,6 +21,9 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->alias([
             'idempotent' => EnsureIdempotency::class,
+            // Routes name the scope they need: `api-key:usage:write`.
+            'api-key' => AuthenticateApiKey::class,
+            'throttle-api-key' => ThrottleApiKey::class,
         ]);
 
         // Outermost on the API stack: a span that does not cover the
