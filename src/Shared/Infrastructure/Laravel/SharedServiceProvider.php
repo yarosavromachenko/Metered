@@ -14,6 +14,7 @@ use Metered\Shared\Application\Inbox\InboxGuard;
 use Metered\Shared\Application\Inbox\IntegrationEventHandler;
 use Metered\Shared\Application\Outbox\OutboxPublisher;
 use Metered\Shared\Application\Outbox\OutboxWriter;
+use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Audit\DatabaseAuditLogger;
 use Metered\Shared\Infrastructure\Audit\DatabaseChainVerifier;
@@ -63,6 +64,7 @@ final class SharedServiceProvider extends ServiceProvider
         $this->app->singleton(IdempotencyStore::class, DatabaseIdempotencyStore::class);
         $this->app->singleton(IdempotencyScope::class, RequestAttributeScope::class);
         $this->app->singleton(AuditLogger::class, DatabaseAuditLogger::class);
+        $this->app->singleton(Transactions::class, DatabaseTransactions::class);
         $this->app->singleton(ChainVerifier::class, DatabaseChainVerifier::class);
 
         $this->app->singleton(
