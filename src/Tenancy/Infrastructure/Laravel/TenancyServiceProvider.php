@@ -16,6 +16,7 @@ use Metered\Tenancy\Infrastructure\Persistence\CachingApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
+use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
 use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
 use Psr\Clock\ClockInterface;
 
@@ -60,6 +61,13 @@ final class TenancyServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.api_keys.rate_limit_per_minute', 600),
             ),
         );
+    }
+
+    public function boot(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([CreateOrganizationCommand::class]);
+        }
     }
 
     private static function configInt(Application $app, string $key, int $default): int
