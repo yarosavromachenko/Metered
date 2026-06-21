@@ -7,30 +7,30 @@ use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
         Schema::create('users', function (Blueprint $table): void {
-            $table->id();
-            $table->string('name');
-            $table->string('email')->unique();
-            $table->timestamp('email_verified_at')->nullable();
+            // UUIDv7 like every other identifier here. A bigint would have
+            // been the one auto-incrementing id in the system, and the one
+            // that leaks how many people have signed up.
+            $table->uuid('id')->primary();
+
+            $table->string('name', 120);
+            $table->string('email', 254)->unique();
             $table->string('password');
+            $table->timestampTz('last_signed_in_at', 6)->nullable();
             $table->rememberToken();
-            $table->timestamps();
+            $table->timestampsTz(6);
         });
 
-        Schema::create('password_reset_tokens', function (Blueprint $table): void {
-            $table->string('email')->primary();
-            $table->string('token');
-            $table->timestamp('created_at')->nullable();
-        });
+        // No password_reset_tokens table: there is no mail infrastructure in
+        // this project, so there is no reset flow to back it (ADR-0017). A
+        // forgotten demo password means a new demo account, and the sign-up
+        // screen says so.
 
         Schema::create('sessions', function (Blueprint $table): void {
             $table->string('id')->primary();
-            $table->foreignId('user_id')->nullable()->index();
+            $table->foreignUuid('user_id')->nullable()->index();
             $table->string('ip_address', 45)->nullable();
             $table->text('user_agent')->nullable();
             $table->longText('payload');
@@ -38,13 +38,9 @@ return new class extends Migration {
         });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('users');
-        Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
     }
 };
