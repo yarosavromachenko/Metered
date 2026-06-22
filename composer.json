@@ -16,6 +16,7 @@
         "ext-intl": "*",
         "brick/math": "^0.14",
         "brick/money": "^0.11",
+        "filament/filament": "^4.0",
         "guzzlehttp/guzzle": "^7.11",
         "laravel/framework": "^13.15",
         "laravel/horizon": "^5.47",

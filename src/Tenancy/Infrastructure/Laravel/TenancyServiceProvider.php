@@ -9,11 +9,15 @@ use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\ServiceProvider;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
+use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\ApiKeyRepository;
+use Metered\Tenancy\Domain\MembershipRepository;
 use Metered\Tenancy\Domain\OrganizationRepository;
 use Metered\Tenancy\Domain\ProjectRepository;
+use Metered\Tenancy\Infrastructure\Eloquent\EloquentUserAccounts;
 use Metered\Tenancy\Infrastructure\Persistence\CachingApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseApiKeyRepository;
+use Metered\Tenancy\Infrastructure\Persistence\DatabaseMembershipRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
 use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
@@ -33,6 +37,8 @@ final class TenancyServiceProvider extends ServiceProvider
     {
         $this->app->singleton(OrganizationRepository::class, DatabaseOrganizationRepository::class);
         $this->app->singleton(ProjectRepository::class, DatabaseProjectRepository::class);
+        $this->app->singleton(MembershipRepository::class, DatabaseMembershipRepository::class);
+        $this->app->singleton(UserAccounts::class, EloquentUserAccounts::class);
         // The port everyone asks for is the cached one; the database
         // repository is what it decorates. Nothing else in the system needs
         // to know which of the two it is talking to.
