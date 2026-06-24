@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Tenancy\Application\Command;
 
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Domain\Scope;
 
 final readonly class IssueApiKey
@@ -16,6 +17,6 @@ final readonly class IssueApiKey
         public TenantContext $tenant,
         public string $name,
         public array $scopes,
-        public string $actor,
+        public Actor $actor,
     ) {}
 }

@@ -5,17 +5,24 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Tenancy\Application\Authorization\Actor;
+use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\ApiKeySecret;
 use Metered\Tenancy\Domain\Environment;
+use Metered\Tenancy\Domain\Membership;
+use Metered\Tenancy\Domain\MembershipRepository;
 use Metered\Tenancy\Domain\Organization;
 use Metered\Tenancy\Domain\OrganizationRepository;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
+use Metered\Tenancy\Domain\Role;
 use Metered\Tenancy\Domain\Scope;
 use Metered\Tenancy\Domain\Slug;
 use Psr\Clock\ClockInterface;
+use RuntimeException;
 
 /**
  * Persisted tenants for tests that need something to be scoped to.
@@ -67,6 +74,39 @@ final class TenantFactory
     public static function tenant(string $slug = 'acme'): Project
     {
         return self::project(self::organization($slug));
+    }
+
+    /**
+     * A person with a role in an organization, as the actor commands take.
+     */
+    public static function member(Uuid $organizationId, Role $role = Role::Owner, ?string $email = null): Actor
+    {
+        $email ??= $role->value . '@example.com';
+
+        $userId = app(UserAccounts::class)->register(
+            ucfirst($role->value),
+            $email,
+            'correct horse battery staple',
+            app(ClockInterface::class)->now(),
+        );
+
+        app(MembershipRepository::class)->save(new Membership(
+            app(IdentifierGenerator::class)->generate(),
+            $organizationId,
+            $userId,
+            $role,
+            app(ClockInterface::class)->now(),
+        ));
+
+        return Actor::user($userId, $email);
+    }
+
+    /**
+     * The user id behind an actor, for tests that need to look it up.
+     */
+    public static function userIdOf(Actor $actor): Uuid
+    {
+        return $actor->userId ?? throw new RuntimeException('That actor is the system, not a person.');
     }
 
     /**

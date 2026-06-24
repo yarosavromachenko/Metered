@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Presentation\Console;
 
 use Illuminate\Console\Command;
 use Metered\Shared\Domain\Exception\DomainException;
+use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Application\Command\ProvisionTenant;
 use Metered\Tenancy\Application\Command\ProvisionTenantHandler;
 use Metered\Tenancy\Domain\Environment;
@@ -47,7 +48,7 @@ final class CreateOrganizationCommand extends Command
                 projectName: (string) $this->option('project'),
                 environment: $environment,
                 currency: (string) $this->option('currency'),
-                actor: 'console:org:create',
+                actor: Actor::system('console:org:create'),
             ));
         } catch (DomainException $failure) {
             // A rule the domain refused — an empty name, an unknown currency.

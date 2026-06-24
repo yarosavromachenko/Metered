@@ -7,20 +7,18 @@ namespace Metered\Tenancy\Application\Command;
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Audit\AuditEntry;
-use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Application\Identity\UserAccounts;
-use Metered\Tenancy\Domain\Membership;
-use Metered\Tenancy\Domain\MembershipRepository;
 use Metered\Tenancy\Domain\Role;
 use Psr\Clock\ClockInterface;
 
 /**
  * Turns a sign-up form into a person who owns a tenant.
  *
- * The same provisioning path an operator takes with `org:create`, plus the
- * account and the membership that make it somebody's. Using one path for both
- * is deliberate: the demo then exercises what a real first user does, rather
- * than a shortcut written for the demo.
+ * The same provisioning path an operator takes with `org:create`, with the
+ * account created first and handed in as the owner. Using one path for both is
+ * deliberate: the demo then exercises what a real first user does, rather than
+ * a shortcut written for the demo.
  *
  * Whether sign-up is open at all is not decided here — that is demo mode, and
  * the page that offers the form is what consults it. This handler's job is
@@ -31,9 +29,7 @@ final readonly class RegisterDemoTenantHandler
     public function __construct(
         private UserAccounts $users,
         private ProvisionTenantHandler $provisionTenant,
-        private MembershipRepository $memberships,
         private Transactions $transactions,
-        private IdentifierGenerator $ids,
         private ClockInterface $clock,
         private AuditLogger $audit,
     ) {}
@@ -48,27 +44,17 @@ final readonly class RegisterDemoTenantHandler
             }
 
             $now = $this->clock->now();
-            $actor = 'user:' . strtolower(trim($command->email));
-
             $userId = $this->users->register($command->name, $command->email, $command->password, $now);
+            $actor = Actor::user($userId, $command->email);
 
             $tenant = $this->provisionTenant->handle(new ProvisionTenant(
                 organizationName: $command->organizationName,
                 actor: $actor,
-            ));
-
-            // Owner of the organization they just created — the same role the
-            // first person in any organization has.
-            $this->memberships->save(new Membership(
-                $this->ids->generate(),
-                $tenant->organization->id,
-                $userId,
-                Role::Owner,
-                $now,
+                ownerUserId: $userId,
             ));
 
             $this->audit->record(new AuditEntry(
-                actor: $actor,
+                actor: $actor->label,
                 action: 'user.registered',
                 subjectType: 'user',
                 subjectId: $userId->value,

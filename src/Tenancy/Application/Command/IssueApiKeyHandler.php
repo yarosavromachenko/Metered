@@ -7,15 +7,22 @@ namespace Metered\Tenancy\Application\Command;
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Domain\Audit\AuditEntry;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Tenancy\Application\Authorization\PermissionGuard;
 use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\ApiKeySecret;
+use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
 use Psr\Clock\ClockInterface;
 
 /**
  * Issues a key for a project and hands the secret back exactly once.
+ *
+ * A key is a credential for everything the project holds, so issuing one is
+ * owner authority — the same authority as adding a member. The check happens
+ * here rather than in the screen that offers the button, because a button is
+ * not a control.
  *
  * The audit entry records the prefix, never the secret: an audit trail that
  * leaks the credential it was written to protect has made the incident worse
@@ -26,6 +33,7 @@ final readonly class IssueApiKeyHandler
     public function __construct(
         private ProjectRepository $projects,
         private ApiKeyRepository $keys,
+        private PermissionGuard $guard,
         private IdentifierGenerator $ids,
         private ClockInterface $clock,
         private AuditLogger $audit,
@@ -38,6 +46,8 @@ final readonly class IssueApiKeyHandler
         if (! $project instanceof Project) {
             throw TenantNotFound::project($command->tenant);
         }
+
+        $this->guard->ensure($command->actor, $project->organizationId, Permission::ManageTenant);
 
         // The environment comes from the project, not from the caller. A key
         // whose environment disagrees with its project is refused by a foreign
@@ -57,7 +67,7 @@ final readonly class IssueApiKeyHandler
         $this->keys->save($key);
 
         $this->audit->record(new AuditEntry(
-            actor: $command->actor,
+            actor: $command->actor->label,
             action: 'api_key.issued',
             subjectType: 'api_key',
             subjectId: $key->id->value,

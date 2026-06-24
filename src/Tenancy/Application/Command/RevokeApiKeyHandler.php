@@ -6,8 +6,10 @@ namespace Metered\Tenancy\Application\Command;
 
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Domain\Audit\AuditEntry;
+use Metered\Tenancy\Application\Authorization\PermissionGuard;
 use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
+use Metered\Tenancy\Domain\Permission;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -19,6 +21,7 @@ final readonly class RevokeApiKeyHandler
 {
     public function __construct(
         private ApiKeyRepository $keys,
+        private PermissionGuard $guard,
         private ClockInterface $clock,
         private AuditLogger $audit,
     ) {}
@@ -31,13 +34,15 @@ final readonly class RevokeApiKeyHandler
             throw TenantNotFound::apiKey($command->keyId);
         }
 
+        $this->guard->ensure($command->actor, $key->tenant->organizationId, Permission::ManageTenant);
+
         $revokedAt = $this->clock->now();
         $revoked = $key->revoke($revokedAt);
 
         $this->keys->save($revoked);
 
         $this->audit->record(new AuditEntry(
-            actor: $command->actor,
+            actor: $command->actor->label,
             action: 'api_key.revoked',
             subjectType: 'api_key',
             subjectId: $key->id->value,
