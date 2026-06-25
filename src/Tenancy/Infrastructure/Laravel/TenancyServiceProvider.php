@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Infrastructure\Laravel;
 
+use Filament\Support\Facades\FilamentView;
+use Filament\View\PanelsRenderHook;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Contracts\Cache\Factory as CacheFactory;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
+use Livewire\Livewire;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\ApiKeyRepository;
@@ -21,6 +25,7 @@ use Metered\Tenancy\Infrastructure\Persistence\DatabaseMembershipRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
 use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
+use Metered\Tenancy\Presentation\Filament\Components\ProjectSwitcher;
 use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
 use Psr\Clock\ClockInterface;
 
@@ -74,6 +79,18 @@ final class TenancyServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([CreateOrganizationCommand::class]);
         }
+
+        // The module carries its own views and its own piece of the panel
+        // chrome. The panel shell in src/Admin never learns that Tenancy has a
+        // switcher; it renders whatever the modules have registered.
+        $this->loadViewsFrom(base_path('src/Tenancy/Presentation/Filament/views'), 'tenancy');
+
+        Livewire::component('tenancy.project-switcher', ProjectSwitcher::class);
+
+        FilamentView::registerRenderHook(
+            PanelsRenderHook::TOPBAR_START,
+            static fn(): string => Blade::render('@livewire(\'tenancy.project-switcher\')'),
+        );
     }
 
     private static function configInt(Application $app, string $key, int $default): int
