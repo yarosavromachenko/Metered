@@ -56,7 +56,17 @@ deptrac:
     - name: Filament
       collectors:
         - type: classNameRegex
-          value: '#^(Filament|Livewire)\\.*#'
+          value: '#^(?!Filament\\Models\\Contracts\\)(?!Filament\\Panel$)(Filament|Livewire)\\.*#'
+
+    # The one exception to "Infrastructure knows nothing about the UI": the
+    # authenticatable model must declare whether the person may enter the
+    # panel, and Filament asks by interface. The Panel class comes with it,
+    # because implementing the interface means naming its argument. Everything
+    # else under Filament\ stays out of Infrastructure.
+    - name: FilamentUserContracts
+      collectors:
+        - type: classNameRegex
+          value: '#^Filament\\(Models\\Contracts\\.*|Panel)$#'
 
     # The only third-party code Domain is allowed to touch.
     - name: DomainSafeVendor
@@ -77,6 +87,7 @@ deptrac:
       - Application
       - DomainSafeVendor
       - Laravel
+      - FilamentUserContracts
 
     Presentation:
       - Application
@@ -85,6 +96,7 @@ deptrac:
       - DomainSafeVendor
       - Laravel
       - Filament
+      - FilamentUserContracts
 
     CompositionRoot:
       - Domain
@@ -106,4 +118,5 @@ deptrac:
 
     Laravel: ~
     Filament: ~
+    FilamentUserContracts: ~
     DomainSafeVendor: ~

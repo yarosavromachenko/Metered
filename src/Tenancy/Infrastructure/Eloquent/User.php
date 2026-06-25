@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Infrastructure\Eloquent;
 
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,7 +24,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string $email
  * @property-read \Illuminate\Database\Eloquent\Collection<int, OrganizationMember> $memberships
  */
-final class User extends Authenticatable
+final class User extends Authenticatable implements FilamentUser
 {
     use HasUuids;
     use Notifiable;
@@ -32,6 +34,21 @@ final class User extends Authenticatable
     protected $fillable = ['name', 'email', 'password'];
 
     protected $hidden = ['password', 'remember_token'];
+
+    /**
+     * Whether this person may enter the panel at all.
+     *
+     * Belonging to an organization is the whole condition: everything the
+     * panel shows belongs to one, and someone with no membership would see an
+     * empty shell and a switcher with nothing in it. What they may do once
+     * inside is their role's business, checked in the handlers.
+     */
+    public function canAccessPanel(Panel $panel): bool
+    {
+        // toBase(): the relation's own count() resolves through Eloquent's
+        // magic forwarding, which static analysis cannot follow.
+        return $this->memberships()->toBase()->exists();
+    }
 
     /**
      * @return HasMany<OrganizationMember, $this>
