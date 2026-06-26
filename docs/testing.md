@@ -11,6 +11,7 @@ meaningful.
 | `Feature` | HTTP contracts, authorization, validation, problem+json shape, admin screens | Laravel, SQLite/Postgres |
 | `Integration` | Repositories, outbox relay, stream consumer, partition management | Real PostgreSQL and Redis |
 | `Concurrency` | What happens when two processes race: idempotency keys, period close, invoice numbering, credit application | Real parallel connections |
+| `Demo` | What demo mode changes: self-service sign-up exists, and what it may do | Boots with `APP_DEMO=true` |
 | `Architecture` | Layering and module boundaries, banned helpers, no `float` money, no writes from presentation | Nothing |
 
 ```bash

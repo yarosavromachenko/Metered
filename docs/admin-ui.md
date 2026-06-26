@@ -62,9 +62,21 @@ the best argument the repository makes about the correctness of its pricing.
 
 ## Tenancy
 
-Filament's tenancy binds the panel to an organization; a project switcher narrows
-it further. Every resource query is scoped by both, and the scope comes from the
-authenticated session rather than from anything in the request.
+The panel shows one project at a time, and that project belongs to one
+organization. Both halves of the scope live in the session, and both are
+re-derived from the signed-in person's memberships on every read — a session
+naming an organization they have been removed from resolves to nothing rather
+than to the scope it was holding.
+
+Filament's own multi-tenancy is not used. It models a single tenant, so the two
+halves would end up split between a URL segment and the session, and believing a
+query is scoped would mean checking two places. The switcher in the topbar moves
+the scope and offers only what the person can reach; a project id pushed into it
+by hand changes nothing.
+
+Every resource query filters by both columns, and the empty case is written out:
+no scope yields a query that matches nothing, because a filter quietly omitted
+shows everyone's rows.
 
 Each admin screen ships with a test that signs in as tenant A and asserts that
 tenant B's rows are neither listed nor reachable by direct id. That test is part
@@ -77,8 +89,22 @@ own organization, project, API key and a seeded dataset, isolated from everyone
 else's. Limits and lifecycle are described in
 [ADR-0016](adr/0016-demo-mode-and-seed-profiles.md).
 
+## Authorization
+
+Roles are checked in the handler, not in the screen. Hiding a button is a
+courtesy to the person looking at it; an `admin` who calls an owner-only handler
+directly — by URL, by a replayed Livewire message — is refused by the same check
+the API would apply. Buttons are hidden as well, because a screen offering an
+action that fails is a poor screen, but the hiding is not the control.
+
 ## Testing
 
-Livewire feature tests assert three things per screen: the right handler was
-called with the right command, the tenant scope held, and an unauthorized role
-was refused. Filament's own rendering is not re-tested here.
+Each screen is exercised over HTTP, as a signed-in person: the rows that must
+appear, the rows that must not, and the actions each role does and does not get.
+"Tenant A cannot see tenant B's data" is a claim about what a screen renders, so
+the test makes a request through the real routes rather than driving the
+component directly.
+
+The id path is checked too. A table action resolves its record through the same
+scoped query, so an action called with another tenant's record id cannot resolve
+it at all — there is no id that reaches out of the scope.

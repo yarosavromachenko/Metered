@@ -17,9 +17,12 @@ code.
 | 7 | Timezones in the panel | **UTC only**, labelled as such. Storage and all domain arithmetic are UTC regardless | [ADR-0009](adr/0009-clock-injection.md) |
 | 8 | Hosted demo | **No.** Docker Compose on the reviewer's machine | [ADR-0016](adr/0016-demo-mode-and-seed-profiles.md) |
 | 9 | PgBouncer and session features | Web tier pooled; daemons connect to PostgreSQL directly | [ADR-0003](adr/0003-redis-streams-ingestion.md) |
-| 10 | Row-level security | Stretch in M2. If it slips it goes to "not implemented" with the reason | [ADR-0013](adr/0013-multi-tenancy.md) |
+| 10 | Row-level security | **Slipped, as allowed.** Isolation is row scoping in the repositories, the panel scope and the schema's composite foreign keys; PostgreSQL RLS as defence in depth is listed under "not implemented" in the README | [ADR-0013](adr/0013-multi-tenancy.md) |
 | 11 | Proration on immediate plan change | Stretch inside M5, not a release blocker | [roadmap](roadmap.md) |
 | 12 | Admin panel framework | Filament, with the read/write boundary spelled out | [ADR-0015](adr/0015-admin-ui-filament.md) |
+| 13 | Panel tenant scope | **Session, both halves.** Filament's built-in tenancy models one tenant; this system scopes by organization *and* project, so using it would split the scope between a URL segment and the session | [ADR-0013](adr/0013-multi-tenancy.md) |
+| 14 | Managing members | **Read-only in M2.** Roles exist and are enforced everywhere; the screen that changes them, and invitations, are not built. Demo sign-up makes its visitor the owner, and `org:create` needs no members at all | [ADR-0017](adr/0017-admin-authentication.md) |
+| 15 | Sign-up form coverage | The **handler** is tested directly, and the page's presence is tested in both demo and non-demo boots. The three lines that map form fields to the command are not driven through Livewire | [`docs/testing.md`](testing.md) |
 
 ## Consequences worth remembering
 
@@ -31,6 +34,12 @@ widgets group and the tests assert it.
 only. A policy that accidentally grants everything to everyone therefore fails a
 test rather than passing unnoticed — which is the reason the split is worth
 having in a project this size.
+
+**Revocation is bounded, not instant.** Authentication reads a cached key, the
+write that revokes drops the entry, and the cache TTL is what holds if that
+invalidation never arrives. Thirty seconds is the published figure, and it is
+the same number in `config/metered.php`, in `docs/api.md` and in the test that
+moves the clock past it.
 
 **The deduplication TTL is coupled to the acceptance window.** Changing one
 without the other opens a hole in the deduplication guarantee. Both are

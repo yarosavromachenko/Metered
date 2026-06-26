@@ -1,6 +1,6 @@
 # 0015. Admin panel on Filament
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-31
 
 ## Context
@@ -74,3 +74,21 @@ about, and doubles the surface to maintain.
 
 **Filament with resources in one top-level module.** Simpler wiring, and it
 breaks module cohesion: deleting a module would leave its screens behind.
+
+## Accepted in M2
+
+The panel exists at `/admin` with three screens, and the boundary held on the
+first real attempt: creating a project, issuing a key and revoking one all go
+through the handlers the API will call, and the architecture test that forbids
+writes from a presentation class passes without an exemption.
+
+Two details are worth recording beyond the decision above.
+
+Resources are discovered by path rather than imported, so the shell in
+`src/Admin` has no compile-time dependency on any module — Deptrac's module
+boundaries allow it nothing but each module's published contract, and a shell
+that imported a resource would break that rule immediately.
+
+The read exception cost nothing so far. The three tables read their own
+module's models; the only place that needed care was the empty scope, which
+yields a query matching nothing rather than a query without a filter.

@@ -1,6 +1,6 @@
 # 0017. Admin authentication and authorization
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-31
 
 ## Context
@@ -90,3 +90,26 @@ shared key would be a shared account.
 
 **Social sign-in.** Removes password handling and adds a provider dependency the
 demo cannot rely on when it is running offline on a laptop.
+
+## Accepted in M2
+
+Users, memberships and the four roles are in place, and the split that this
+decision argued for is now a test: the write permissions of `admin` and
+`billing_operator` are disjoint, and every role walks the key-issuing handler to
+show that only an owner gets through.
+
+Authorization sits at the handler, as promised. The panel hides what a role may
+not do, and the handler refuses it again — the test that matters calls the
+handler directly as an `admin` and is refused, with the key still working
+afterwards.
+
+One thing changed shape in the building. Provisioning an organization cannot
+check a membership, because it is the operation that creates the organization a
+membership would refer to; its authority comes from outside, from an operator at
+a console or from a sign-up form that demo mode opened. The owner membership is
+written before the first key is issued, so the key is issued by somebody already
+entitled to have one, and sign-up is not a path that skips the check.
+
+Managing members is not built: roles are assigned by provisioning and by nothing
+else yet. That is recorded in `docs/assumptions.md` rather than left to be
+discovered.

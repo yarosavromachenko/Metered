@@ -76,3 +76,21 @@ Accepted as the model to build against; the tables that carry
 M0 fixes is the shape: repositories live behind module contracts, so the tenant
 argument has a single place to be required rather than being reconstructed from
 ambient state at each call site.
+
+## Revisited in M2
+
+Row scoping is now real: `organizations`, `projects` and `api_keys` carry the
+columns, repositories take a `TenantContext` rather than two loose ids, and the
+schema enforces the part a handler cannot — `api_keys` references
+`(project_id, organization_id, environment)` as a composite foreign key, so a
+test key cannot belong to a live project and no row can claim an organization
+its project does not belong to.
+
+The panel's scope is the session, as this decision asked. Filament's own
+multi-tenancy was considered and not used: it models one tenant, and this system
+scopes by organization *and* project, so the two halves would have been split
+between a URL segment and the session.
+
+Row-level security did not land. It was a stretch goal here, isolation does not
+depend on it, and it is listed under what is deliberately not here in the README
+rather than quietly dropped.

@@ -5,12 +5,15 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: M1 complete — the shared kernel works.** Money and quantities that
-> refuse to be floats, a transactional outbox with a `SKIP LOCKED` relay, an
-> inbox that makes consumers idempotent, idempotency keys proven under sixteen
-> parallel processes, a hash-chained audit log, RFC 9457 errors, and a trace
-> that survives the hop into a queued job. The billing domain itself arrives
-> milestone by milestone ([`docs/roadmap.md`](docs/roadmap.md)).
+> **Status: M2 complete — tenants, keys and the panel.** On top of the shared
+> kernel from M1 (money that refuses to be a float, a transactional outbox with
+> a `SKIP LOCKED` relay, idempotency keys proven under sixteen parallel
+> processes, a hash-chained audit log, RFC 9457 errors, traces that survive the
+> hop into a queue): organizations, projects and API keys whose secrets are
+> never stored, authentication with a bounded revocation window, and a Filament
+> panel at `/admin` where one tenant cannot see another's rows. The billing
+> domain itself arrives milestone by milestone
+> ([`docs/roadmap.md`](docs/roadmap.md)).
 
 Metered meters what customers consume, prices it, invoices it, books it into a
 double-entry ledger, and notifies the customer's systems over signed webhooks —
@@ -155,6 +158,13 @@ Honesty section; it will grow as the code lands.
 - No real payment provider: `FakePaymentGateway` behind a port.
 - No tax calculation, no currency conversion, no dunning, no SSO.
 - The demo is local only. There is no hosted instance to abuse or to pay for.
+- No PostgreSQL row-level security. Tenant isolation is row scoping in the
+  repositories, the panel's session scope, and composite foreign keys in the
+  schema — RLS was a stretch goal for defence in depth and did not land — ADR-0013.
+- Admin members are read-only: roles are enforced everywhere, but there is no
+  screen to invite somebody or change their role yet.
+- No password reset. There is no mail infrastructure behind one, and the demo
+  sign-up says so on the form.
 
 ## Documentation
 

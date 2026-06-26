@@ -21,7 +21,11 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 |---|---|
 | **Organization** | A tenant of the platform: the company that bills its own customers. |
 | **Project** | An isolated environment inside an organization, typically `live` and `test`. Keys, meters, plans and customers belong to a project, never to an organization directly. A project declares its **currency** at creation, and everything priced beneath it uses that currency. |
-| **API key** | A secret granting access to one project's API, carrying scopes (`usage:write`, `admin`). Format `mk_<env>_<prefix>_<secret>`; only the prefix and a SHA-256 hash of the secret are stored. |
+| **API key** | A secret granting access to one project's API, carrying scopes (`usage:write`, `admin`). Format `mk_<env>_<prefix>_<secret>`, e.g. `mk_test_7f3a1b2c_…`; only the eight character prefix and a SHA-256 hash of the whole token are stored. |
+| **User** | A person who signs into the admin panel. Separate from an API key: a key authenticates a machine to a project, a user authenticates a person to an organization, and neither is derived from the other. |
+| **Membership** | What connects a user to an organization, carrying their role. Authorization asks the membership, never the user. |
+| **Role** | One of `owner`, `admin`, `billing_operator`, `viewer`. `admin` (the catalog) and `billing_operator` (the actions that move money) are deliberately not nested. |
+| **Panel scope** | The organization and project the panel is currently showing, held in the session and re-derived from the signed-in person's memberships on every read. |
 | **Customer** | The end customer of the organization — the party being billed. Identified inside a project by `external_id`, the id the tenant already uses in their own system. |
 | **Meter** | The definition of something measurable: a `code` and an aggregation type (`sum`, `count`, `max`). |
 | **Usage event** | One fact of consumption: `event_id`, meter, customer, `quantity`, `occurred_at`, free-form `properties`. Immutable. |

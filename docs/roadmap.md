@@ -10,8 +10,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 |---|---|---|---|
 | M0 | Foundation | S–M | ✅ done |
 | M1 | Shared kernel | M | ✅ done |
-| M2 | Tenancy and the admin shell | M | 🔜 next |
-| M3 | Usage ingestion | L | ⬜ |
+| M2 | Tenancy and the admin shell | M | ✅ done |
+| M3 | Usage ingestion | L | 🔜 next |
 | M4 | Billing catalog and subscriptions | M | ⬜ |
 | M5 | Invoicing and ledger | L | ⬜ |
 | M6 | Webhooks | M | ⬜ |
@@ -56,11 +56,15 @@ middleware that is Octane-safe, rate limiting, `org:create`. Admin users, their
 membership in an organization, roles, the Filament panel, login, demo-tenant
 sign-up, project switcher.
 
-- [ ] An API key secret is never stored and never logged (test)
-- [ ] Octane state-leak test: two sequential requests from different tenants share nothing
-- [ ] Key revocation takes effect within 30 seconds (test with a controlled clock)
-- [ ] Tenant A cannot see or mutate tenant B's data through any admin screen (test)
-- [ ] ADR-0013, ADR-0017 accepted
+- [x] An API key secret is never stored and never logged (test)
+- [x] Octane state-leak test: two sequential requests from different tenants share nothing
+- [x] Key revocation takes effect within 30 seconds (test with a controlled clock)
+- [x] Tenant A cannot see or mutate tenant B's data through any admin screen (test)
+- [x] ADR-0013, ADR-0017 accepted
+
+Row-level security was the stretch goal here and did not land; isolation does
+not depend on it, and it is listed under what is deliberately not here in the
+README.
 
 ## M3 — Usage ingestion
 
