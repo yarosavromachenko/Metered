@@ -40,7 +40,7 @@ final class AdminPanelProvider extends PanelProvider
 {
     public function panel(Panel $panel): Panel
     {
-        return $panel
+        $panel = $panel
             ->default()
             ->id('admin')
             ->path('admin')
@@ -71,5 +71,14 @@ final class AdminPanelProvider extends PanelProvider
             ->authMiddleware([
                 Authenticate::class,
             ]);
+
+        // Sign-up exists only when demo mode names a page for it, so an
+        // installation that is not a demo has no registration route at all
+        // rather than a hidden one (ADR-0016).
+        $registration = config('metered.admin.registration_page');
+
+        return is_string($registration) && class_exists($registration)
+            ? $panel->registration($registration)
+            : $panel;
     }
 }

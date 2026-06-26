@@ -2,7 +2,32 @@
 
 declare(strict_types=1);
 
+use Metered\Tenancy\Presentation\Filament\Auth\RegisterTenant;
+
 return [
+
+    /*
+    |--------------------------------------------------------------------------
+    | Demo mode
+    |--------------------------------------------------------------------------
+    |
+    | Demo mode opens self-service sign-up in the panel: a visitor creates
+    | their own organization, project and API key (ADR-0016). It is off by
+    | default, and the panel simply has no registration route when it is —
+    | the page is named here rather than wired into the panel, so turning the
+    | demo off removes the screen rather than hiding it.
+    |
+    */
+
+    'demo' => [
+        'enabled' => filter_var(env('APP_DEMO', false), FILTER_VALIDATE_BOOL),
+    ],
+
+    'admin' => [
+        'registration_page' => filter_var(env('APP_DEMO', false), FILTER_VALIDATE_BOOL)
+            ? RegisterTenant::class
+            : null,
+    ],
 
     /*
     |--------------------------------------------------------------------------

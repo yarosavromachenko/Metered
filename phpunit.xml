@@ -31,6 +31,11 @@
             <directory>tests/Concurrency</directory>
         </testsuite>
 
+        <!-- Boots with APP_DEMO=true: self-service sign-up and its limits. -->
+        <testsuite name="Demo">
+            <directory>tests/Demo</directory>
+        </testsuite>
+
         <!-- Pest Arch: layer and module boundaries, banned helpers, no float money. -->
         <testsuite name="Architecture">
             <directory>tests/Architecture</directory>

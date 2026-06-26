@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\DemoModeTestCase;
 use Tests\TestCase;
 
 /*
@@ -22,10 +23,16 @@ use Tests\TestCase;
 
 pest()->extend(TestCase::class)->in('Feature', 'Integration', 'Concurrency');
 
+// Demo mode is read while configuration is built, so a test that needs it on
+// has to say so before the application exists. That is a different base test
+// case, and Pest binds those per directory — hence a suite of its own rather
+// than a folder inside Integration.
+pest()->extend(DemoModeTestCase::class)->in('Demo');
+
 // Integration tests get a clean schema per test, inside a transaction that is
 // rolled back afterwards. Concurrency tests deliberately do not: they need real
 // committed state visible to a second connection.
-uses(RefreshDatabase::class)->in('Integration');
+uses(RefreshDatabase::class)->in('Integration', 'Demo');
 
 /**
  * The connection the suite is configured to use. Tests never name a connection
