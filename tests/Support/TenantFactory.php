@@ -47,14 +47,14 @@ final class TenantFactory
     }
 
     public static function project(
-        Organization $organization,
+        Organization|Uuid $organization,
         string $slug = 'production',
         Environment $environment = Environment::Test,
         string $currency = 'EUR',
     ): Project {
         $project = Project::open(
             app(IdentifierGenerator::class)->generate(),
-            $organization->id,
+            $organization instanceof Organization ? $organization->id : $organization,
             ucfirst($slug),
             Slug::fromString($slug),
             $environment,
