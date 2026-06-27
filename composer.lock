@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "9f9bce699329c0a33d604bd8d44211e0",
+    "content-hash": "3fc4385a85d2d0581895b8c33d8e9179",
     "packages": [
         {
             "name": "blade-ui-kit/blade-heroicons",
@@ -158,23 +158,22 @@
         },
         {
             "name": "brick/math",
-            "version": "0.14.8",
+            "version": "0.17.2",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "63422359a44b7f06cae63c3b429b59e8efcc0629"
+                "reference": "8189e751995f9e15729c1aa2f89fa8f166ffe818"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/63422359a44b7f06cae63c3b429b59e8efcc0629",
-                "reference": "63422359a44b7f06cae63c3b429b59e8efcc0629",
+                "url": "https://api.github.com/repos/brick/math/zipball/8189e751995f9e15729c1aa2f89fa8f166ffe818",
+                "reference": "8189e751995f9e15729c1aa2f89fa8f166ffe818",
                 "shasum": ""
             },
             "require": {
                 "php": "^8.2"
             },
             "require-dev": {
-                "php-coveralls/php-coveralls": "^2.2",
                 "phpstan/phpstan": "2.1.22",
                 "phpunit/phpunit": "^11.5"
             },
@@ -206,7 +205,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.14.8"
+                "source": "https://github.com/brick/math/tree/0.17.2"
             },
             "funding": [
                 {
@@ -214,33 +213,33 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-02-10T14:33:43+00:00"
+            "time": "2026-05-25T20:34:43+00:00"
         },
         {
             "name": "brick/money",
-            "version": "0.11.2",
+            "version": "0.13.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/money.git",
-                "reference": "57fb799337d9c532da7f7c7def52b926bfcf0917"
+                "reference": "5d657bae74a71f23d1c1889d999cf7a20b6b8ecb"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/money/zipball/57fb799337d9c532da7f7c7def52b926bfcf0917",
-                "reference": "57fb799337d9c532da7f7c7def52b926bfcf0917",
+                "url": "https://api.github.com/repos/brick/money/zipball/5d657bae74a71f23d1c1889d999cf7a20b6b8ecb",
+                "reference": "5d657bae74a71f23d1c1889d999cf7a20b6b8ecb",
                 "shasum": ""
             },
             "require": {
-                "brick/math": "~0.14.4",
+                "brick/math": "~0.15.0 || ~0.16.0 || ~0.17.0",
                 "php": "^8.2",
-                "symfony/deprecation-contracts": "^2.2|^3.0"
+                "psr/simple-cache": "^2.0 || ^3.0"
             },
             "require-dev": {
                 "brick/varexporter": "0.7.0",
                 "ext-dom": "*",
                 "ext-pdo": "*",
-                "phpunit/phpunit": "^11.0",
-                "vimeo/psalm": "6.14.3"
+                "phpstan/phpstan": "2.1.40",
+                "phpunit/phpunit": "^11.0"
             },
             "suggest": {
                 "ext-intl": "Required to format Money objects"
@@ -263,7 +262,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/money/issues",
-                "source": "https://github.com/brick/money/tree/0.11.2"
+                "source": "https://github.com/brick/money/tree/0.13.0"
             },
             "funding": [
                 {
@@ -271,7 +270,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-03-02T20:25:37+00:00"
+            "time": "2026-03-28T22:33:40+00:00"
         },
         {
             "name": "carbonphp/carbon-doctrine-types",
