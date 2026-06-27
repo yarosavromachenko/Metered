@@ -70,8 +70,8 @@ final class ApiKeyResource extends Resource
                 TextColumn::make('revoked_at')
                     ->label('Status')
                     ->badge()
-                    ->formatStateUsing(static fn(?DateTimeInterface $state): string => $state === null ? 'Active' : 'Revoked')
-                    ->color(static fn(?DateTimeInterface $state): string => $state === null ? 'success' : 'danger')
+                    ->formatStateUsing(static fn(?DateTimeInterface $state): string => $state instanceof DateTimeInterface ? 'Revoked' : 'Active')
+                    ->color(static fn(?DateTimeInterface $state): string => $state instanceof DateTimeInterface ? 'danger' : 'success')
                     ->default(null),
                 TextColumn::make('last_used_at')
                     ->label('Last used')

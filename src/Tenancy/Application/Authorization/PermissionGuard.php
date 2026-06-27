@@ -35,7 +35,7 @@ final readonly class PermissionGuard
 
     public function allows(Actor $actor, Uuid $organizationId, Permission $permission): bool
     {
-        if ($actor->userId === null) {
+        if (!$actor->userId instanceof Uuid) {
             // The console and the scheduler answer to whoever can run them,
             // which is the operator of the installation.
             return true;

@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Infrastructure\Eloquent;
 
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
@@ -22,7 +23,7 @@ use Illuminate\Notifications\Notifiable;
  * @property string $id
  * @property string $name
  * @property string $email
- * @property-read \Illuminate\Database\Eloquent\Collection<int, OrganizationMember> $memberships
+ * @property-read Collection<int, OrganizationMember> $memberships
  */
 final class User extends Authenticatable implements FilamentUser
 {

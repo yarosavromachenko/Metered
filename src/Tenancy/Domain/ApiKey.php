@@ -117,14 +117,14 @@ final readonly class ApiKey
 
     public function isRevokedAt(DateTimeImmutable $at): bool
     {
-        return $this->revokedAt !== null && $this->revokedAt <= $at;
+        return $this->revokedAt instanceof DateTimeImmutable && $this->revokedAt <= $at;
     }
 
     public function revoke(DateTimeImmutable $at): self
     {
         // Revoking twice is not an error, and the second call must not move
         // the moment the key stopped being valid.
-        return $this->revokedAt !== null ? $this : $this->with(revokedAt: $at);
+        return $this->revokedAt instanceof DateTimeImmutable ? $this : $this->with(revokedAt: $at);
     }
 
     public function usedAt(DateTimeImmutable $at): self

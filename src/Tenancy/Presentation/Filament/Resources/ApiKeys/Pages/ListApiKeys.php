@@ -62,7 +62,7 @@ final class ListApiKeys extends ListRecords
                         return;
                     }
 
-                    $scopes = self::scopesIn($data['scopes'] ?? null);
+                    $scopes = $this->scopesIn($data['scopes'] ?? null);
 
                     try {
                         $issued = app(IssueApiKeyHandler::class)->handle(new IssueApiKey(
@@ -93,7 +93,7 @@ final class ListApiKeys extends ListRecords
      *
      * @return list<Scope>
      */
-    private static function scopesIn(mixed $value): array
+    private function scopesIn(mixed $value): array
     {
         $scopes = [];
 

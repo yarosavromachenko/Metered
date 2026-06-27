@@ -149,7 +149,7 @@ function lastUsedAt(string $prefix): string
 {
     $value = DB::table('api_keys')->where('prefix', $prefix)->value('last_used_at');
 
-    return (new DateTimeImmutable(is_string($value) ? $value : '@0'))
+    return new DateTimeImmutable(is_string($value) ? $value : '@0')
         ->setTimezone(new DateTimeZone('UTC'))
         ->format('Y-m-d H:i:s');
 }

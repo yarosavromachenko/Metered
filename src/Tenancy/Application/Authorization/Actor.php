@@ -41,6 +41,6 @@ final readonly class Actor
 
     public function isSystem(): bool
     {
-        return $this->userId === null;
+        return !$this->userId instanceof Uuid;
     }
 }

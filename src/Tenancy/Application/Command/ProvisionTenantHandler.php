@@ -126,7 +126,7 @@ final readonly class ProvisionTenantHandler
     {
         $slug = Slug::fromName($name);
 
-        if ($this->organizations->findBySlug($slug) === null) {
+        if (!$this->organizations->findBySlug($slug) instanceof Organization) {
             return $slug;
         }
 

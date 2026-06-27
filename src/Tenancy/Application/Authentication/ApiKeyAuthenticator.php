@@ -41,7 +41,7 @@ final readonly class ApiKeyAuthenticator
 
         $key = $this->keys->findByPrefix($secret->prefix());
 
-        if ($key === null || ! $key->matches($secret)) {
+        if (!$key instanceof ApiKey || ! $key->matches($secret)) {
             throw AuthenticationFailed::unknownKey();
         }
 
@@ -68,7 +68,7 @@ final readonly class ApiKeyAuthenticator
     {
         $last = $key->lastUsedAt;
 
-        if ($last !== null && $now->getTimestamp() - $last->getTimestamp() < $this->usageRecordingIntervalSeconds) {
+        if ($last instanceof DateTimeImmutable && $now->getTimestamp() - $last->getTimestamp() < $this->usageRecordingIntervalSeconds) {
             return;
         }
 

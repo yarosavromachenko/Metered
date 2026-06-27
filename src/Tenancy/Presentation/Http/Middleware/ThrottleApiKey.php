@@ -7,6 +7,7 @@ namespace Metered\Tenancy\Presentation\Http\Middleware;
 use Closure;
 use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\Request;
+use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Presentation\Http\Problem;
 use Metered\Tenancy\Presentation\Http\TenantRequest;
 use Symfony\Component\HttpFoundation\Response;
@@ -77,9 +78,9 @@ final readonly class ThrottleApiKey
     {
         $key = TenantRequest::apiKeyId($request);
 
-        return $key === null
-            ? 'api-ip:' . (string) $request->ip()
-            : 'api-key:' . $key->value;
+        return $key instanceof Uuid
+            ? 'api-key:' . $key->value
+            : 'api-ip:' . $request->ip();
     }
 
     private function withRateLimitHeaders(Response $response, int $limit, int $remaining, int $reset): Response

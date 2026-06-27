@@ -17,7 +17,7 @@ abstract class DemoModeTestCase extends TestCase
 {
     protected function setUp(): void
     {
-        self::setDemoMode('true');
+        $this->setDemoMode('true');
 
         parent::setUp();
     }
@@ -26,10 +26,10 @@ abstract class DemoModeTestCase extends TestCase
     {
         parent::tearDown();
 
-        self::setDemoMode('false');
+        $this->setDemoMode('false');
     }
 
-    private static function setDemoMode(string $value): void
+    private function setDemoMode(string $value): void
     {
         putenv('APP_DEMO=' . $value);
         $_ENV['APP_DEMO'] = $value;

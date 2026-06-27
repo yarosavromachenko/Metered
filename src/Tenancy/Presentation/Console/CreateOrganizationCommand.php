@@ -45,10 +45,10 @@ final class CreateOrganizationCommand extends Command
         try {
             $tenant = $handler->handle(new ProvisionTenant(
                 organizationName: (string) $this->argument('name'),
+                actor: Actor::system('console:org:create'),
                 projectName: (string) $this->option('project'),
                 environment: $environment,
                 currency: (string) $this->option('currency'),
-                actor: Actor::system('console:org:create'),
             ));
         } catch (DomainException $failure) {
             // A rule the domain refused — an empty name, an unknown currency.

@@ -7,7 +7,6 @@ namespace Metered\Tenancy\Presentation\Filament\Auth;
 use Filament\Auth\Pages\Register;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
-use Illuminate\Database\Eloquent\Model;
 use Metered\Tenancy\Application\Command\RegisterDemoTenant;
 use Metered\Tenancy\Application\Command\RegisterDemoTenantHandler;
 use Metered\Tenancy\Infrastructure\Eloquent\User;
@@ -54,13 +53,13 @@ final class RegisterTenant extends Register
     /**
      * @param  array<string, mixed>  $data
      */
-    protected function handleRegistration(#[SensitiveParameter] array $data): Model
+    protected function handleRegistration(#[SensitiveParameter] array $data): User
     {
         $registered = app(RegisterDemoTenantHandler::class)->handle(new RegisterDemoTenant(
-            name: self::text($data['name'] ?? null),
-            email: self::text($data['email'] ?? null),
-            password: self::text($data['password'] ?? null),
-            organizationName: self::text($data['organization'] ?? null),
+            name: $this->text($data['name'] ?? null),
+            email: $this->text($data['email'] ?? null),
+            password: $this->text($data['password'] ?? null),
+            organizationName: $this->text($data['organization'] ?? null),
         ));
 
         $user = User::query()->find($registered->userId->value);
@@ -73,7 +72,7 @@ final class RegisterTenant extends Register
             : throw new RuntimeException('The account was created but could not be read back.');
     }
 
-    private static function text(mixed $value): string
+    private function text(mixed $value): string
     {
         return is_string($value) ? trim($value) : '';
     }

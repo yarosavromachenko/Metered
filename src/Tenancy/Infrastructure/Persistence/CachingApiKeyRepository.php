@@ -60,7 +60,7 @@ final readonly class CachingApiKeyRepository implements ApiKeyRepository
 
         $key = $this->keys->findByPrefix($prefix);
 
-        if ($key === null) {
+        if (!$key instanceof ApiKey) {
             // Misses are not cached. A miss is what a random or expired token
             // produces, and caching those would let anyone fill the store with
             // entries of their choosing.

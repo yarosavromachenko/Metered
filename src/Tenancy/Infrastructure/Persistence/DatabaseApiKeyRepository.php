@@ -129,7 +129,7 @@ final readonly class DatabaseApiKeyRepository implements ApiKeyRepository
     private function decodeScopes(mixed $value): array
     {
         return array_map(
-            static fn(string $scope): Scope => Scope::from($scope),
+            Scope::from(...),
             TenancyRow::stringList($value, 'scopes'),
         );
     }

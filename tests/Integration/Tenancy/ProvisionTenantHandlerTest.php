@@ -19,9 +19,9 @@ function provision(string $name = 'Acme, Inc.', string $currency = 'EUR'): Provi
 {
     return app(ProvisionTenantHandler::class)->handle(new ProvisionTenant(
         organizationName: $name,
+        actor: Actor::system('test'),
         environment: Environment::Live,
         currency: $currency,
-        actor: Actor::system('test'),
     ));
 }
 

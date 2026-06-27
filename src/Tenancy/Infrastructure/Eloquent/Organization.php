@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Infrastructure\Eloquent;
 
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -15,7 +16,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
  * @property string $id
  * @property string $name
  * @property string $slug
- * @property-read \Illuminate\Database\Eloquent\Collection<int, Project> $projects
+ * @property-read Collection<int, Project> $projects
  */
 final class Organization extends Model
 {

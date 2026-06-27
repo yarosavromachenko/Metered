@@ -44,7 +44,7 @@ final readonly class EloquentUserAccounts implements UserAccounts
         $this->db->connection()->table('users')->insert([
             'id' => $id->value,
             'name' => $name,
-            'email' => self::normalise($email),
+            'email' => $this->normalise($email),
             'password' => $this->hasher->make($password),
             'created_at' => $at,
             'updated_at' => $at,
@@ -56,7 +56,7 @@ final readonly class EloquentUserAccounts implements UserAccounts
     public function existsWithEmail(string $email): bool
     {
         return $this->db->connection()->table('users')
-            ->where('email', self::normalise($email))
+            ->where('email', $this->normalise($email))
             ->exists();
     }
 
@@ -67,7 +67,7 @@ final readonly class EloquentUserAccounts implements UserAccounts
             ->update(['last_signed_in_at' => $at]);
     }
 
-    private static function normalise(string $email): string
+    private function normalise(string $email): string
     {
         return strtolower(trim($email));
     }

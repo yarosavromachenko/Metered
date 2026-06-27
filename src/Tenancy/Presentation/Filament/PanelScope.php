@@ -27,14 +27,14 @@ use Metered\Tenancy\Domain\ProjectRepository;
  * singleton holding a request or a session belongs to whoever created it, and
  * the next request would inherit their scope while every query kept succeeding.
  */
-final class PanelScope
+final readonly class PanelScope
 {
     public const string SESSION_KEY = 'metered.panel_scope';
 
     public function __construct(
-        private readonly Request $request,
-        private readonly MembershipRepository $memberships,
-        private readonly ProjectRepository $projects,
+        private Request $request,
+        private MembershipRepository $memberships,
+        private ProjectRepository $projects,
     ) {}
 
     /**
@@ -55,13 +55,13 @@ final class PanelScope
     {
         $project = $this->current();
 
-        if ($project === null) {
+        if (!$project instanceof Project) {
             return null;
         }
 
         $userId = $this->userId();
 
-        return $userId === null ? null : $this->memberships->find($project->organizationId, $userId);
+        return $userId instanceof Uuid ? $this->memberships->find($project->organizationId, $userId) : null;
     }
 
     public function may(Permission $permission): bool
@@ -97,7 +97,7 @@ final class PanelScope
     {
         $userId = $this->userId();
 
-        if ($userId === null) {
+        if (!$userId instanceof Uuid) {
             return [];
         }
 

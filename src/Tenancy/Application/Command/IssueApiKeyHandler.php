@@ -14,6 +14,7 @@ use Metered\Tenancy\Domain\ApiKeySecret;
 use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
+use Metered\Tenancy\Domain\Scope;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -74,7 +75,7 @@ final readonly class IssueApiKeyHandler
             payload: [
                 'project_id' => $key->tenant->projectId->value,
                 'prefix' => $key->prefix,
-                'scopes' => array_map(static fn($scope): string => $scope->value, $key->scopes),
+                'scopes' => array_map(static fn(Scope $scope): string => $scope->value, $key->scopes),
             ],
             occurredAt: $key->createdAt,
         ));

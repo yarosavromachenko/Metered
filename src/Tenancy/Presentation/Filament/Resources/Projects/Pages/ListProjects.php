@@ -60,9 +60,9 @@ final class ListProjects extends ListRecords
                     try {
                         $project = app(CreateProjectHandler::class)->handle(new CreateProject(
                             organizationId: $tenant->organizationId,
-                            name: self::text($data['name'] ?? null),
-                            environment: Environment::from(self::text($data['environment'] ?? null, 'test')),
-                            currency: self::text($data['currency'] ?? null, 'EUR'),
+                            name: $this->text($data['name'] ?? null),
+                            environment: Environment::from($this->text($data['environment'] ?? null, 'test')),
+                            currency: $this->text($data['currency'] ?? null, 'EUR'),
                             actor: PanelActor::current(),
                         ));
                     } catch (ProjectSlugTaken $taken) {
@@ -82,7 +82,7 @@ final class ListProjects extends ListRecords
     /**
      * Form state arrives untyped; this is where it stops being untyped.
      */
-    private static function text(mixed $value, string $default = ''): string
+    private function text(mixed $value, string $default = ''): string
     {
         return is_string($value) && trim($value) !== '' ? trim($value) : $default;
     }

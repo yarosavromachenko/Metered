@@ -38,7 +38,7 @@ final readonly class CreateProjectHandler
 
         $slug = Slug::fromName($command->name);
 
-        if ($this->projects->findBySlug($command->organizationId, $slug) !== null) {
+        if ($this->projects->findBySlug($command->organizationId, $slug) instanceof Project) {
             throw ProjectSlugTaken::withSlug($slug);
         }
 
