@@ -6,6 +6,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Role;
 use Metered\Tenancy\Infrastructure\Eloquent\User;
+use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Filament\Resources\ApiKeys\ApiKeyResource;
 
@@ -169,3 +170,17 @@ function withPanelSession(): void
 {
     app('request')->setLaravelSession(app('session.store'));
 }
+
+it('takes the actor from the session, never from the request', function (): void {
+    $tenants = twoTenants();
+
+    actingAs($tenants['acme']['user']);
+
+    expect(PanelActor::current()->label)->toBe('user:owner@acme.example')
+        ->and(PanelActor::current()->userId?->value)->toBe($tenants['acme']['user']->id);
+});
+
+it('refuses to name an actor when nobody is signed in', function (): void {
+    expect(static fn(): mixed => PanelActor::current())
+        ->toThrow(RuntimeException::class, 'needs a signed-in user');
+});
