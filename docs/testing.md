@@ -128,6 +128,18 @@ that fails on an empty tree teaches nobody anything.
 Mutation testing runs only on domain code on purpose. Against infrastructure it
 measures how thoroughly the mocks are asserted, which is not a useful number.
 
+`Tenancy/Domain` is deliberately not in that list, and it is worth saying why
+rather than letting the omission look like an oversight. Measured, it scores
+about 84: three of its surviving mutants are equivalent — a `(string)` cast on
+a `preg_replace` that never returns null, and two on a fallback that only runs
+if the ICU extension is missing, which is a hard requirement of the package —
+and ten more are constant declarations the tool cannot execute. Reaching the
+floor would mean writing tests against unreachable branches, which is a floor
+measuring the tool rather than the tests. The module's rules are covered
+directly instead: both bounds of a slug, both bounds of a name, every role's
+full permission set, deduplicated scopes staying a list, revocation at and
+around its instant.
+
 A threshold is never lowered to make a build pass. If one genuinely has to move,
 it moves in its own commit with an ADR explaining what changed about the risk.
 

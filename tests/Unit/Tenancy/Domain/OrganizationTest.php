@@ -29,7 +29,11 @@ it('refuses a name that says nothing', function (string $name): void {
         ->toThrow(InvalidTenantName::class, 'cannot be empty');
 })->with(['', '   ', "\t\n"]);
 
-it('refuses a name longer than the column that stores it', function (): void {
+it('accepts a name of exactly the length the column holds', function (): void {
+    expect(organization(str_repeat('a', 120))->name)->toHaveLength(120);
+});
+
+it('refuses a name one character longer than the column that stores it', function (): void {
     expect(static fn(): Organization => organization(str_repeat('a', 121)))
         ->toThrow(InvalidTenantName::class, 'at most 120');
 });

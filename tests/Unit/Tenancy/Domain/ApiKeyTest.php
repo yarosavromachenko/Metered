@@ -48,9 +48,13 @@ it('carries the scopes it was granted and no others', function (): void {
 });
 
 it('stores a scope once however often it was asked for', function (): void {
-    $key = issue(scopes: [Scope::UsageWrite, Scope::Admin, Scope::UsageWrite]);
+    // The duplicate comes first on purpose: deduplicating leaves a hole at
+    // index 1, and an array with a hole encodes as a JSON object rather than
+    // an array — which the scopes column's CHECK constraint then refuses.
+    $key = issue(scopes: [Scope::UsageWrite, Scope::UsageWrite, Scope::Admin]);
 
-    expect($key->scopes)->toHaveCount(2);
+    expect($key->scopes)->toBe([Scope::UsageWrite, Scope::Admin])
+        ->and(array_is_list($key->scopes))->toBeTrue();
 });
 
 it('refuses to exist without a scope, because it could do nothing', function (): void {

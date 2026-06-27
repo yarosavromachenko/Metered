@@ -37,9 +37,24 @@ it('lets nobody but the owner change who has access', function (Role $role): voi
     expect($role->may(Permission::ManageTenant))->toBe($role === Role::Owner);
 })->with(Role::cases());
 
-it('gives a viewer nothing to change', function (): void {
-    expect(Role::Viewer->permissions())->toBe([Permission::ViewOrganization]);
+it('grants each role exactly the permissions ADR-0017 lists', function (): void {
+    expect(Role::Viewer->permissions())->toBe([Permission::ViewOrganization])
+        ->and(Role::Admin->permissions())->toBe([
+            Permission::ViewOrganization,
+            Permission::ManageCatalog,
+            Permission::OperateWebhooks,
+        ])
+        ->and(Role::BillingOperator->permissions())->toBe([
+            Permission::ViewOrganization,
+            Permission::MoveMoney,
+        ])
+        ->and(Role::Owner->permissions())->toBe(Permission::cases());
 });
+
+it('labels every role for the screen that shows it', function (Role $role): void {
+    expect($role->label())->not->toBe('')
+        ->and($role->label())->not->toContain('_');
+})->with(Role::cases());
 
 it('answers on behalf of the membership that carries it', function (): void {
     $organization = Uuid::fromString('01924b7c-0000-7000-8000-0000000000d1');

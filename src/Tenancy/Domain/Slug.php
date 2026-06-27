@@ -63,11 +63,10 @@ final readonly class Slug implements Stringable
 
         // Every run of anything else becomes one separator, which is what
         // turns "North Wind  Billing" and "Acme, Inc." into single hyphens.
-        $slug = trim((string) preg_replace('/[^a-z0-9]+/', '-', $latin), '-');
-
-        // Truncation can leave a trailing hyphen, so trim again rather than
-        // handing fromString() a value it would reject.
-        $slug = trim(substr($slug, 0, self::MAX_LENGTH), '-');
+        // Truncate first and trim once: cutting at the limit can leave a
+        // hyphen at either end, and one trim afterwards deals with both.
+        $separated = (string) preg_replace('/[^a-z0-9]+/', '-', $latin);
+        $slug = trim(substr($separated, 0, self::MAX_LENGTH), '-');
 
         if (strlen($slug) < self::MIN_LENGTH) {
             throw InvalidSlug::nothingToSlug($name);

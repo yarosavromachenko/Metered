@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Domain;
 
+use LogicException;
 use Metered\Tenancy\Domain\Exception\MalformedApiKey;
 use SensitiveParameter;
 use SensitiveParameterValue;
@@ -91,6 +92,11 @@ final readonly class ApiKeySecret
     {
         $token = $this->token->getValue();
 
-        return is_string($token) ? $token : '';
+        // The wrapper hands back mixed; it was constructed from the string
+        // this class validated, so anything else is a broken invariant rather
+        // than an empty token to hand out.
+        return is_string($token)
+            ? $token
+            : throw new LogicException('An API key secret lost its token.');
     }
 }
