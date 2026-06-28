@@ -7,6 +7,7 @@ namespace Metered\Tenancy\Domain;
 use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Domain\Text\Name;
 use Metered\Tenancy\Domain\Exception\InvalidApiKey;
 
 /**

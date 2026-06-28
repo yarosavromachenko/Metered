@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Domain;
 
 use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Shared\Domain\Text\Name;
 
 /**
  * A tenant of the platform: the company that bills its own customers.

@@ -2,8 +2,8 @@
 
 declare(strict_types=1);
 
+use Metered\Shared\Domain\Exception\InvalidName;
 use Metered\Shared\Domain\Identifier\Uuid;
-use Metered\Tenancy\Domain\Exception\InvalidTenantName;
 use Metered\Tenancy\Domain\Organization;
 use Metered\Tenancy\Domain\Slug;
 
@@ -26,7 +26,7 @@ it('trims the name it is given', function (): void {
 
 it('refuses a name that says nothing', function (string $name): void {
     expect(static fn(): Organization => organization($name))
-        ->toThrow(InvalidTenantName::class, 'cannot be empty');
+        ->toThrow(InvalidName::class, 'cannot be empty');
 })->with(['', '   ', "\t\n"]);
 
 it('accepts a name of exactly the length the column holds', function (): void {
@@ -35,7 +35,7 @@ it('accepts a name of exactly the length the column holds', function (): void {
 
 it('refuses a name one character longer than the column that stores it', function (): void {
     expect(static fn(): Organization => organization(str_repeat('a', 121)))
-        ->toThrow(InvalidTenantName::class, 'at most 120');
+        ->toThrow(InvalidName::class, 'at most 120');
 });
 
 function organization(string $name): Organization

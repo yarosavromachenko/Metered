@@ -2,11 +2,9 @@
 
 declare(strict_types=1);
 
-namespace Metered\Tenancy\Domain\Exception;
+namespace Metered\Shared\Domain\Exception;
 
-use Metered\Shared\Domain\Exception\DomainException;
-
-final class InvalidTenantName extends DomainException
+final class InvalidName extends DomainException
 {
     public static function empty(string $subject): self
     {

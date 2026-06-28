@@ -8,6 +8,7 @@ use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Domain\Text\Name;
 
 /**
  * An isolated environment inside an organization, typically `live` and `test`.
