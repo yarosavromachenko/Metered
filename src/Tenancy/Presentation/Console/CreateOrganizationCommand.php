@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Metered\Tenancy\Presentation\Console;
 
 use Illuminate\Console\Command;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Exception\DomainException;
-use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Application\Command\ProvisionTenant;
 use Metered\Tenancy\Application\Command\ProvisionTenantHandler;
 use Metered\Tenancy\Domain\Environment;

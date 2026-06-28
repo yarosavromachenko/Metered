@@ -5,13 +5,13 @@ declare(strict_types=1);
 namespace Metered\Tenancy\Application\Command;
 
 use Metered\Shared\Application\Audit\AuditLogger;
+use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Audit\AuditEntry;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Tenancy\Application\Authorization\PermissionGuard;
 use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\ApiKeySecret;
-use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
 use Metered\Tenancy\Domain\Scope;

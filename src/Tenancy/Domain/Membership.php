@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Tenancy\Domain;
 
 use DateTimeImmutable;
+use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**

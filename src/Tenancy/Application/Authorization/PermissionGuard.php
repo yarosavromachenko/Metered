@@ -4,9 +4,12 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Application\Authorization;
 
+use Metered\Shared\Domain\Access\Actor;
+use Metered\Shared\Domain\Access\Permission;
+use Metered\Shared\Domain\Access\PermissionDenied;
 use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Domain\MembershipRepository;
-use Metered\Tenancy\Domain\Permission;
 
 /**
  * Authorization at the handler boundary, which is the only boundary that
@@ -21,8 +24,11 @@ use Metered\Tenancy\Domain\Permission;
  * membership in the organization they are asking about is refused for the same
  * reason as a person with the wrong role: the guard asks what the membership
  * permits, and no membership permits nothing.
+ *
+ * This is the only implementation of {@see Authorizer}, the contract the other
+ * modules hold: they name an actor and a permission, and Tenancy answers.
  */
-final readonly class PermissionGuard
+final readonly class PermissionGuard implements Authorizer
 {
     public function __construct(private MembershipRepository $memberships) {}
 

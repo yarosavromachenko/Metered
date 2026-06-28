@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Application\Command;
 
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
-use Metered\Tenancy\Application\Authorization\Actor;
 
 final readonly class RevokeApiKey
 {

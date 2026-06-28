@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Exception\InvalidMoney;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
-use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Application\Command\ProvisionedTenant;
 use Metered\Tenancy\Application\Command\ProvisionTenant;
 use Metered\Tenancy\Application\Command\ProvisionTenantHandler;

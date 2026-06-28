@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Application\Command;
 
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\Uuid;
-use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Domain\Environment;
 
 final readonly class CreateProject

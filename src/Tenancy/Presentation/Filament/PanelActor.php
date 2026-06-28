@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Metered\Tenancy\Presentation\Filament;
 
 use Illuminate\Support\Facades\Auth;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\Uuid;
-use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Infrastructure\Eloquent\User;
 use RuntimeException;
 

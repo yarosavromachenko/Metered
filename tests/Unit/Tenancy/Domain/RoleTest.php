@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Domain\Membership;
-use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Domain\Role;
 
 it('lets every role read the organization it belongs to', function (Role $role): void {

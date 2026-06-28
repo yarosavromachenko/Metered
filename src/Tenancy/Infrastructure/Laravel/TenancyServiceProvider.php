@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
+use Metered\Tenancy\Application\Authorization\PermissionGuard;
+use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\MembershipRepository;
@@ -44,6 +46,9 @@ final class TenancyServiceProvider extends ServiceProvider
         $this->app->singleton(ProjectRepository::class, DatabaseProjectRepository::class);
         $this->app->singleton(MembershipRepository::class, DatabaseMembershipRepository::class);
         $this->app->singleton(UserAccounts::class, EloquentUserAccounts::class);
+        // The answer other modules ask for. They hold the contract; the guard
+        // that reads memberships is Tenancy's business and stays here.
+        $this->app->singleton(Authorizer::class, PermissionGuard::class);
         // The port everyone asks for is the cached one; the database
         // repository is what it decorates. Nothing else in the system needs
         // to know which of the two it is talking to.

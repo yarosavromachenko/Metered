@@ -6,11 +6,11 @@ namespace Metered\Tenancy\Presentation\Filament;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Tenancy\Domain\Membership;
 use Metered\Tenancy\Domain\MembershipRepository;
-use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
 

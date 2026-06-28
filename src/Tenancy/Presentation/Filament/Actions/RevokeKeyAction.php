@@ -6,12 +6,12 @@ namespace Metered\Tenancy\Presentation\Filament\Actions;
 
 use Filament\Actions\Action;
 use Filament\Notifications\Notification;
+use Metered\Shared\Domain\Access\Permission;
+use Metered\Shared\Domain\Access\PermissionDenied;
 use Metered\Shared\Domain\Identifier\Uuid;
-use Metered\Tenancy\Application\Authorization\PermissionDenied;
 use Metered\Tenancy\Application\Command\RevokeApiKey;
 use Metered\Tenancy\Application\Command\RevokeApiKeyHandler;
 use Metered\Tenancy\Application\Command\TenantNotFound;
-use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Infrastructure\Eloquent\ApiKey;
 use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;

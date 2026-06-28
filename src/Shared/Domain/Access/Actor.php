@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Metered\Tenancy\Application\Authorization;
+namespace Metered\Shared\Domain\Access;
 
 use Metered\Shared\Domain\Identifier\Uuid;
 
@@ -17,6 +17,10 @@ use Metered\Shared\Domain\Identifier\Uuid;
  *
  * Both carry a label, because both end up in the audit log, and "who did
  * this?" is the first question asked of it.
+ *
+ * It lives in the shared kernel rather than in Tenancy because every module's
+ * handlers take one: a meter is defined by somebody, an invoice is voided by
+ * somebody, and neither Billing nor Invoicing may reach into Tenancy to say so.
  */
 final readonly class Actor
 {

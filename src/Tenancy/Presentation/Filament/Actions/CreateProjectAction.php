@@ -8,13 +8,13 @@ use Filament\Actions\Action;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Notifications\Notification;
+use Metered\Shared\Domain\Access\Permission;
+use Metered\Shared\Domain\Access\PermissionDenied;
 use Metered\Shared\Domain\Exception\DomainException;
-use Metered\Tenancy\Application\Authorization\PermissionDenied;
 use Metered\Tenancy\Application\Command\CreateProject;
 use Metered\Tenancy\Application\Command\CreateProjectHandler;
 use Metered\Tenancy\Application\Command\ProjectSlugTaken;
 use Metered\Tenancy\Domain\Environment;
-use Metered\Tenancy\Domain\Permission;
 use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 

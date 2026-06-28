@@ -3,12 +3,12 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Metered\Shared\Domain\Access\Actor;
+use Metered\Shared\Domain\Access\PermissionDenied;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authentication\AuthenticationFailed;
-use Metered\Tenancy\Application\Authorization\Actor;
-use Metered\Tenancy\Application\Authorization\PermissionDenied;
 use Metered\Tenancy\Application\Command\IssueApiKey;
 use Metered\Tenancy\Application\Command\IssueApiKeyHandler;
 use Metered\Tenancy\Application\Command\RevokeApiKey;

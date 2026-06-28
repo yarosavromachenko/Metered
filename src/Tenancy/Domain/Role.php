@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Domain;
 
+use Metered\Shared\Domain\Access\Permission;
+
 /**
  * What a person may do inside one organization (ADR-0017).
  *

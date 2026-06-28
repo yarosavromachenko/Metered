@@ -6,8 +6,8 @@ namespace Metered\Tenancy\Application\Command;
 
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Transaction\Transactions;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Audit\AuditEntry;
-use Metered\Tenancy\Application\Authorization\Actor;
 use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\Role;
 use Psr\Clock\ClockInterface;
