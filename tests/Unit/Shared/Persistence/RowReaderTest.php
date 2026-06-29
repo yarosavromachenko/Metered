@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 
 it('accepts a string', function (): void {
     expect(RowReader::string('invoice.finalized', 'type'))->toBe('invoice.finalized');
@@ -73,4 +73,42 @@ it('decodes a map of strings', function (): void {
 it('refuses a header map whose values are not strings, naming the key', function (): void {
     expect(static fn(): array => RowReader::jsonStringMap('{"retries":3}', 'headers'))
         ->toThrow(RuntimeException::class, 'Column "headers.retries" was expected to hold a string');
+});
+
+it('reads a timestamp as the instant it names, whatever offset it arrived with', function (): void {
+    // PostgreSQL hands a timestamptz back in the session's time zone. Two rows
+    // written a moment apart can therefore come back written differently, and
+    // the domain compares instants, not spellings.
+    $utc = RowReader::instant('2026-09-22 09:00:00+00', 'occurred_at');
+    $elsewhere = RowReader::instant('2026-09-22 12:00:00+03', 'occurred_at');
+
+    expect($utc->format(DATE_ATOM))->toBe('2026-09-22T09:00:00+00:00')
+        ->and($elsewhere->getTimestamp())->toBe($utc->getTimestamp())
+        ->and($elsewhere->getTimezone()->getName())->toBe('UTC');
+});
+
+it('keeps the microseconds a hash or a window depends on', function (): void {
+    expect(RowReader::instant('2026-09-22 09:00:00.123456+00', 'occurred_at')->format('u'))
+        ->toBe('123456');
+});
+
+it('passes a null timestamp through as one', function (): void {
+    expect(RowReader::instantOrNull(null, 'revoked_at'))->toBeNull()
+        ->and(RowReader::instantOrNull('2026-09-22 09:00:00+00', 'revoked_at')?->format(DATE_ATOM))
+        ->toBe('2026-09-22T09:00:00+00:00');
+});
+
+it('refuses a timestamp column holding something that is not one', function (): void {
+    expect(static fn(): DateTimeImmutable => RowReader::instant(1758531600, 'occurred_at'))
+        ->toThrow(RuntimeException::class, 'Column "occurred_at" was expected to hold a string');
+});
+
+it('decodes a JSON array as a list', function (): void {
+    expect(RowReader::stringList('["usage:write","admin"]', 'scopes'))->toBe(['usage:write', 'admin'])
+        ->and(array_is_list(RowReader::stringList('[]', 'scopes')))->toBeTrue();
+});
+
+it('refuses a list whose items are not strings, naming the position', function (): void {
+    expect(static fn(): array => RowReader::stringList('["usage:write",7]', 'scopes'))
+        ->toThrow(RuntimeException::class, 'Column "scopes.1" was expected to hold a string');
 });

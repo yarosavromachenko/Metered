@@ -9,7 +9,7 @@ use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Application\Audit\ChainVerifier;
 use Metered\Shared\Application\Audit\VerificationResult;
 use Metered\Shared\Domain\Audit\ChainHash;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 
 /**
  * Recomputes every link and stops at the first that does not match.

@@ -6,7 +6,7 @@ namespace Metered\Tenancy\Infrastructure\Persistence;
 
 use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Domain\Identifier\Uuid;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Tenancy\Domain\Organization;
 use Metered\Tenancy\Domain\OrganizationRepository;
 use Metered\Tenancy\Domain\Slug;
@@ -54,7 +54,7 @@ final readonly class DatabaseOrganizationRepository implements OrganizationRepos
             Uuid::fromString(RowReader::string($values['id'] ?? null, 'id')),
             RowReader::string($values['name'] ?? null, 'name'),
             Slug::fromString(RowReader::string($values['slug'] ?? null, 'slug')),
-            TenancyRow::instant($values['created_at'] ?? null, 'created_at'),
+            RowReader::instant($values['created_at'] ?? null, 'created_at'),
         );
     }
 }

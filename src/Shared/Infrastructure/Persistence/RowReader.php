@@ -2,8 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Metered\Shared\Infrastructure\Outbox;
+namespace Metered\Shared\Infrastructure\Persistence;
 
+use DateTimeImmutable;
+use DateTimeZone;
 use JsonException;
 use RuntimeException;
 
@@ -13,6 +15,9 @@ use RuntimeException;
  *
  * The alternative — casting mixed values and hoping — puts a silent corruption
  * one schema change away.
+ *
+ * Every module's repositories read rows, so this lives in the kernel rather
+ * than beside the first table that needed it.
  */
 final class RowReader
 {
@@ -72,6 +77,39 @@ final class RowReader
         }
 
         return $map;
+    }
+
+    /**
+     * Timestamps arrive with the session's offset attached, and the offset
+     * inside the string wins over any zone passed alongside it — so the value
+     * is converted rather than merely constructed. The instant is the same
+     * either way; what this fixes is everything downstream that renders one,
+     * from a panel column to an assertion in a test.
+     */
+    public static function instant(mixed $value, string $column): DateTimeImmutable
+    {
+        $utc = new DateTimeZone('UTC');
+
+        return new DateTimeImmutable(self::string($value, $column), $utc)->setTimezone($utc);
+    }
+
+    public static function instantOrNull(mixed $value, string $column): ?DateTimeImmutable
+    {
+        return $value === null ? null : self::instant($value, $column);
+    }
+
+    /**
+     * @return list<string>
+     */
+    public static function stringList(mixed $value, string $column): array
+    {
+        $strings = [];
+
+        foreach (self::jsonObject($value, $column) as $key => $item) {
+            $strings[] = self::string($item, $column . '.' . $key);
+        }
+
+        return $strings;
     }
 
     private static function unexpected(string $column, string $expected, mixed $value): RuntimeException

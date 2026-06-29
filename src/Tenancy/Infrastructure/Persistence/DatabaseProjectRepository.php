@@ -7,7 +7,7 @@ namespace Metered\Tenancy\Infrastructure\Persistence;
 use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Tenancy\Domain\Environment;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
@@ -86,7 +86,7 @@ final readonly class DatabaseProjectRepository implements ProjectRepository
             Slug::fromString(RowReader::string($values['slug'] ?? null, 'slug')),
             Environment::from(RowReader::string($values['environment'] ?? null, 'environment')),
             RowReader::string($values['currency'] ?? null, 'currency'),
-            TenancyRow::instant($values['created_at'] ?? null, 'created_at'),
+            RowReader::instant($values['created_at'] ?? null, 'created_at'),
         );
     }
 }

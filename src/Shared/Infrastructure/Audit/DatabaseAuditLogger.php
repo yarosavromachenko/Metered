@@ -11,7 +11,7 @@ use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Domain\Audit\AuditEntry;
 use Metered\Shared\Domain\Audit\ChainHash;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use RuntimeException;
 
 /**

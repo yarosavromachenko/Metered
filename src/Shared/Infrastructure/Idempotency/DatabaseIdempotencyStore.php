@@ -11,7 +11,7 @@ use Metered\Shared\Application\Idempotency\IdempotencyStore;
 use Metered\Shared\Domain\Idempotency\Claim;
 use Metered\Shared\Domain\Idempotency\StoredResponse;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Psr\Clock\ClockInterface;
 
 /**

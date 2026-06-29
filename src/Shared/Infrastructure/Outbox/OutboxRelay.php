@@ -10,6 +10,7 @@ use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Application\Outbox\OutboxPublisher;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;

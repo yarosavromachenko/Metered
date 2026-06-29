@@ -8,7 +8,7 @@ use Illuminate\Database\DatabaseManager;
 use JsonException;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\Environment;
@@ -102,9 +102,9 @@ final readonly class DatabaseApiKeyRepository implements ApiKeyRepository
             RowReader::string($values['secret_hash'] ?? null, 'secret_hash'),
             Environment::from(RowReader::string($values['environment'] ?? null, 'environment')),
             $this->decodeScopes($values['scopes'] ?? null),
-            TenancyRow::instant($values['created_at'] ?? null, 'created_at'),
-            TenancyRow::instantOrNull($values['revoked_at'] ?? null, 'revoked_at'),
-            TenancyRow::instantOrNull($values['last_used_at'] ?? null, 'last_used_at'),
+            RowReader::instant($values['created_at'] ?? null, 'created_at'),
+            RowReader::instantOrNull($values['revoked_at'] ?? null, 'revoked_at'),
+            RowReader::instantOrNull($values['last_used_at'] ?? null, 'last_used_at'),
         );
     }
 
@@ -130,7 +130,7 @@ final readonly class DatabaseApiKeyRepository implements ApiKeyRepository
     {
         return array_map(
             Scope::from(...),
-            TenancyRow::stringList($value, 'scopes'),
+            RowReader::stringList($value, 'scopes'),
         );
     }
 }

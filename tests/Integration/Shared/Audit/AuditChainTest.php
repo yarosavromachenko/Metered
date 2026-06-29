@@ -8,7 +8,7 @@ use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Audit\ChainVerifier;
 use Metered\Shared\Domain\Audit\AuditEntry;
 use Metered\Shared\Domain\Audit\ChainHash;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Psr\Clock\ClockInterface;
 
 function record(string $action, string $actor = 'user:test'): void

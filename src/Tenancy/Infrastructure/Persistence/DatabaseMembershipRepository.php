@@ -6,7 +6,7 @@ namespace Metered\Tenancy\Infrastructure\Persistence;
 
 use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Domain\Identifier\Uuid;
-use Metered\Shared\Infrastructure\Outbox\RowReader;
+use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Tenancy\Domain\Membership;
 use Metered\Tenancy\Domain\MembershipRepository;
 use Metered\Tenancy\Domain\Role;
@@ -77,7 +77,7 @@ final readonly class DatabaseMembershipRepository implements MembershipRepositor
             Uuid::fromString(RowReader::string($values['organization_id'] ?? null, 'organization_id')),
             Uuid::fromString(RowReader::string($values['user_id'] ?? null, 'user_id')),
             Role::from(RowReader::string($values['role'] ?? null, 'role')),
-            TenancyRow::instant($values['created_at'] ?? null, 'created_at'),
+            RowReader::instant($values['created_at'] ?? null, 'created_at'),
         );
     }
 }
