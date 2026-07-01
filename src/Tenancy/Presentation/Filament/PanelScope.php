@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\Auth;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Tenancy\Application\Contract\PanelScope as PanelScopeContract;
 use Metered\Tenancy\Domain\Membership;
 use Metered\Tenancy\Domain\MembershipRepository;
 use Metered\Tenancy\Domain\Project;
@@ -26,8 +27,13 @@ use Metered\Tenancy\Domain\ProjectRepository;
  * Resolved per request rather than kept as a singleton. Under Octane a
  * singleton holding a request or a session belongs to whoever created it, and
  * the next request would inherit their scope while every query kept succeeding.
+ *
+ * Other modules' screens see only the two questions on
+ * {@see PanelScopeContract}: which tenant, and may this person do that. The
+ * rest — switching, the list of reachable projects — is the switcher's, and
+ * the switcher is Tenancy's.
  */
-final readonly class PanelScope
+final readonly class PanelScope implements PanelScopeContract
 {
     public const string SESSION_KEY = 'metered.panel_scope';
 
