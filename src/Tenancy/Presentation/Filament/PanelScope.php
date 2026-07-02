@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Presentation\Filament;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
@@ -73,6 +74,11 @@ final readonly class PanelScope implements PanelScopeContract
     public function may(Permission $permission): bool
     {
         return $this->membership()?->may($permission) === true;
+    }
+
+    public function actor(): Actor
+    {
+        return PanelActor::current();
     }
 
     /**

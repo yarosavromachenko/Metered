@@ -54,6 +54,10 @@ final class AdminPanelProvider extends PanelProvider
                 in: base_path('src/Tenancy/Presentation/Filament/Resources'),
                 for: 'Metered\\Tenancy\\Presentation\\Filament\\Resources',
             )
+            ->discoverResources(
+                in: base_path('src/Billing/Presentation/Filament/Resources'),
+                for: 'Metered\\Billing\\Presentation\\Filament\\Resources',
+            )
             ->pages([
                 Dashboard::class,
             ])

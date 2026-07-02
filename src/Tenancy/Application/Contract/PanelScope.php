@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Application\Contract;
 
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use RuntimeException;
 
 /**
  * What the person at the keyboard is currently looking at, for the screens
@@ -25,4 +27,15 @@ interface PanelScope
     public function tenant(): ?TenantContext;
 
     public function may(Permission $permission): bool;
+
+    /**
+     * The signed-in person, as the actor a command carries. Read from the
+     * guard, never from anything the browser sent — an actor taken from a
+     * form field would be a request to act as somebody else.
+     *
+     * @throws RuntimeException when nobody is signed in, which inside a panel
+     *                          action means the request should not have got
+     *                          this far
+     */
+    public function actor(): Actor;
 }
