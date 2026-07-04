@@ -2,17 +2,19 @@
 
 declare(strict_types=1);
 
-namespace Metered\Tenancy\Presentation\Http;
+namespace Metered\Shared\Presentation\Http;
 
 use Illuminate\Http\Request;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
-use Metered\Shared\Presentation\Http\RequestAttributeScope;
-use Metered\Tenancy\Domain\ApiKey;
 use RuntimeException;
 
 /**
  * Where the authenticated tenant lives for the duration of one request.
+ *
+ * On the request object, deliberately, and nowhere else. It lives in the
+ * shared kernel because every module's endpoints read it and none of them may
+ * reach into Tenancy to do so.
  *
  * On the request object, deliberately, and nowhere else. A container
  * singleton or a static would survive the request under Octane, where the
@@ -26,14 +28,20 @@ final class TenantRequest
 
     public const string API_KEY = 'metered.api_key';
 
-    public static function attach(Request $request, ApiKey $key): void
+    /**
+     * Called by whatever authenticated the request — today the API key
+     * middleware, and it hands over the tenant and the key's id rather than
+     * the key itself: the shared kernel has no business knowing what an API
+     * key is, and a controller downstream has no business reading its hash.
+     */
+    public static function attach(Request $request, TenantContext $tenant, Uuid $apiKeyId): void
     {
-        $request->attributes->set(self::TENANT, $key->tenant);
-        $request->attributes->set(self::API_KEY, $key);
+        $request->attributes->set(self::TENANT, $tenant);
+        $request->attributes->set(self::API_KEY, $apiKeyId);
 
         // The idempotency middleware scopes keys per project, and this is
         // where it learns which one (see RequestAttributeScope).
-        $request->attributes->set(RequestAttributeScope::ATTRIBUTE, $key->tenant->projectId->value);
+        $request->attributes->set(RequestAttributeScope::ATTRIBUTE, $tenant->projectId->value);
     }
 
     public static function tenant(Request $request): TenantContext
@@ -52,8 +60,8 @@ final class TenantRequest
 
     public static function apiKeyId(Request $request): ?Uuid
     {
-        $key = $request->attributes->get(self::API_KEY);
+        $id = $request->attributes->get(self::API_KEY);
 
-        return $key instanceof ApiKey ? $key->id : null;
+        return $id instanceof Uuid ? $id : null;
     }
 }

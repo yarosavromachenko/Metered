@@ -9,7 +9,7 @@ use Illuminate\Cache\RateLimiter;
 use Illuminate\Http\Request;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Presentation\Http\Problem;
-use Metered\Tenancy\Presentation\Http\TenantRequest;
+use Metered\Shared\Presentation\Http\TenantRequest;
 use Symfony\Component\HttpFoundation\Response;
 
 /**

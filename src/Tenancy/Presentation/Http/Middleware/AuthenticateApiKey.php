@@ -7,10 +7,10 @@ namespace Metered\Tenancy\Presentation\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Metered\Shared\Presentation\Http\Problem;
+use Metered\Shared\Presentation\Http\TenantRequest;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authentication\AuthenticationFailed;
 use Metered\Tenancy\Domain\Scope;
-use Metered\Tenancy\Presentation\Http\TenantRequest;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -65,7 +65,7 @@ final readonly class AuthenticateApiKey
             );
         }
 
-        TenantRequest::attach($request, $key);
+        TenantRequest::attach($request, $key->tenant, $key->id);
 
         return $next($request);
     }

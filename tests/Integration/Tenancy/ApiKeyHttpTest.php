@@ -6,9 +6,9 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
 use Metered\Shared\Presentation\Http\RequestAttributeScope;
+use Metered\Shared\Presentation\Http\TenantRequest;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\Scope;
-use Metered\Tenancy\Presentation\Http\TenantRequest;
 
 use function Pest\Laravel\getJson;
 

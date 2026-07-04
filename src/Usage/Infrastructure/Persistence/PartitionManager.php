@@ -176,7 +176,9 @@ final readonly class PartitionManager
                 $name,
                 $day->format('Y-m-d'),
                 self::TABLE,
-            ), $failure->getCode(), previous: $failure);
+                // Cast, because a PDO exception's code is a SQLSTATE string
+                // ('23514') and an exception's code is an int.
+            ), (int) $failure->getCode(), previous: $failure);
         }
 
         return true;
