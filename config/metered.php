@@ -94,6 +94,12 @@ return [
     'usage' => [
         'connection' => env('USAGE_CONNECTION', 'pgsql_direct'),
 
+        // Events per request. A hundred keeps one request's work bounded —
+        // both the JSON a worker decodes and the pipeline it writes — while
+        // being large enough that a busy client is not making a request per
+        // event.
+        'batch_limit' => (int) env('USAGE_BATCH_LIMIT', 100),
+
         // How far an event's own timestamp may sit from now and still be
         // counted. Seven days back is the promise in docs/api.md — lengthening
         // it means accepting events for periods that may be invoiced. Five
@@ -104,6 +110,7 @@ return [
         ],
 
         'stream' => [
+            'connection' => env('USAGE_STREAM_CONNECTION', 'default'),
             'key' => env('USAGE_STREAM_KEY', 'usage:events'),
             'dead_letter_key' => env('USAGE_STREAM_DLQ_KEY', 'usage:events:dead'),
             'group' => env('USAGE_STREAM_GROUP', 'usage-writers'),
