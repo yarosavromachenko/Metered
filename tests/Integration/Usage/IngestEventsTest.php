@@ -28,7 +28,7 @@ beforeEach(function (): void {
 
 function stream(): PhpRedisConnection
 {
-    $connection = app(RedisFactory::class)->connection();
+    $connection = app(RedisFactory::class)->connection('usage');
 
     return $connection instanceof PhpRedisConnection
         ? $connection

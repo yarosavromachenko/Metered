@@ -152,6 +152,30 @@ return [
             'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
         ],
 
+        /*
+         * Usage ingestion: its own database, and no key prefix.
+         *
+         * The prefix is a client-side convenience that phpredis applies to
+         * key arguments — and not to a stream name that travels as a map key,
+         * which is how XREADGROUP takes it. Half-prefixed keys mean a producer
+         * and a consumer that never meet. Stream names are an operational
+         * contract anyway: they are what an operator types into redis-cli and
+         * what the lag widget reports on.
+         */
+        'usage' => [
+            'url' => env('REDIS_URL'),
+            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'username' => env('REDIS_USERNAME'),
+            'password' => env('REDIS_PASSWORD'),
+            'port' => env('REDIS_PORT', '6379'),
+            'database' => env('REDIS_USAGE_DB', '2'),
+            'prefix' => '',
+            'max_retries' => env('REDIS_MAX_RETRIES', 3),
+            'backoff_algorithm' => env('REDIS_BACKOFF_ALGORITHM', 'decorrelated_jitter'),
+            'backoff_base' => env('REDIS_BACKOFF_BASE', 100),
+            'backoff_cap' => env('REDIS_BACKOFF_CAP', 1000),
+        ],
+
         'cache' => [
             'url' => env('REDIS_URL'),
             'host' => env('REDIS_HOST', '127.0.0.1'),

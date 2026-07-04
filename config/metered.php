@@ -110,7 +110,7 @@ return [
         ],
 
         'stream' => [
-            'connection' => env('USAGE_STREAM_CONNECTION', 'default'),
+            'connection' => env('USAGE_STREAM_CONNECTION', 'usage'),
             'key' => env('USAGE_STREAM_KEY', 'usage:events'),
             'dead_letter_key' => env('USAGE_STREAM_DLQ_KEY', 'usage:events:dead'),
             'group' => env('USAGE_STREAM_GROUP', 'usage-writers'),

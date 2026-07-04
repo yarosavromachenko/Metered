@@ -11,12 +11,24 @@ use Illuminate\Database\DatabaseManager;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Metered\Billing\Application\Contract\CustomerDirectory;
+use Metered\Billing\Application\Contract\MeterCatalog;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Usage\Application\Command\IngestEventsHandler;
+use Metered\Usage\Application\Ingestion\BatchProcessor;
+use Metered\Usage\Application\Ingestion\Deduplicator;
+use Metered\Usage\Application\Ingestion\EventWriter;
+use Metered\Usage\Application\Ingestion\RejectionLog;
 use Metered\Usage\Application\Stream\EventStream;
 use Metered\Usage\Application\Stream\StreamDepth;
+use Metered\Usage\Domain\AcceptanceWindow;
+use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
+use Metered\Usage\Infrastructure\Persistence\DatabaseRejectionLog;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
+use Metered\Usage\Infrastructure\Redis\RedisDeduplicator;
 use Metered\Usage\Infrastructure\Redis\RedisEventStream;
+use Metered\Usage\Infrastructure\Redis\StreamConsumer;
+use Metered\Usage\Presentation\Console\ConsumeUsageCommand;
 use Metered\Usage\Presentation\Console\EnsurePartitionsCommand;
 use Metered\Usage\Presentation\Http\IngestEventsController;
 use Psr\Clock\ClockInterface;
@@ -69,6 +81,71 @@ final class UsageServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(
+            AcceptanceWindow::class,
+            static fn(Application $app): AcceptanceWindow => AcceptanceWindow::of(
+                self::configInt($app, 'metered.usage.acceptance.max_age_seconds', 604_800),
+                self::configInt($app, 'metered.usage.acceptance.max_drift_seconds', 300),
+            ),
+        );
+
+        $this->app->singleton(
+            EventWriter::class,
+            static fn(Application $app): EventWriter => new DatabaseEventWriter(
+                $app->make(DatabaseManager::class),
+                self::connection($app),
+                $app->make(ClockInterface::class),
+            ),
+        );
+
+        $this->app->singleton(
+            RejectionLog::class,
+            static fn(Application $app): RejectionLog => new DatabaseRejectionLog(
+                $app->make(DatabaseManager::class),
+                self::connection($app),
+            ),
+        );
+
+        $this->app->singleton(
+            Deduplicator::class,
+            static fn(Application $app): Deduplicator => new RedisDeduplicator(
+                self::redis($app),
+                self::configInt($app, 'metered.usage.deduplication.ttl_seconds', 604_800),
+            ),
+        );
+
+        $this->app->singleton(
+            BatchProcessor::class,
+            static fn(Application $app): BatchProcessor => new BatchProcessor(
+                $app->make(MeterCatalog::class),
+                $app->make(CustomerDirectory::class),
+                $app->make(Deduplicator::class),
+                $app->make(EventWriter::class),
+                $app->make(RejectionLog::class),
+                $app->make(IdentifierGenerator::class),
+                $app->make(ClockInterface::class),
+                $app->make(AcceptanceWindow::class),
+            ),
+        );
+
+        $this->app->singleton(
+            StreamConsumer::class,
+            static fn(Application $app): StreamConsumer => new StreamConsumer(
+                self::redis($app),
+                $app->make(BatchProcessor::class),
+                $app->make(RejectionLog::class),
+                $app->make(IdentifierGenerator::class),
+                $app->make(ClockInterface::class),
+                self::configString($app, 'metered.usage.stream.key', 'usage:events'),
+                self::configString($app, 'metered.usage.stream.dead_letter_key', 'usage:events:dead'),
+                self::configString($app, 'metered.usage.stream.group', 'usage-writers'),
+                self::configInt($app, 'metered.usage.consumer.batch_size', 500),
+                self::configInt($app, 'metered.usage.consumer.block_milliseconds', 2000),
+                self::configInt($app, 'metered.usage.consumer.reclaim_idle_milliseconds', 60_000),
+                self::configInt($app, 'metered.usage.consumer.max_deliveries', 5),
+            ),
+        );
+
+        $this->app->singleton(
             IngestEventsController::class,
             static fn(Application $app): IngestEventsController => new IngestEventsController(
                 $app->make(IngestEventsHandler::class),
@@ -81,7 +158,7 @@ final class UsageServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([EnsurePartitionsCommand::class]);
+            $this->commands([EnsurePartitionsCommand::class, ConsumeUsageCommand::class]);
         }
 
         // The module carries its own routes, as it carries its own screens: a
