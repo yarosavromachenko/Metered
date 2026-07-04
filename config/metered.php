@@ -81,6 +81,76 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Usage ingestion
+    |--------------------------------------------------------------------------
+    |
+    | The hot path answers 202 once the batch is in the stream, and everything
+    | below describes what happens after that (ADR-0003). The daemon connects
+    | to PostgreSQL directly rather than through PgBouncer, for the same reason
+    | the outbox relay does.
+    |
+    */
+
+    'usage' => [
+        'connection' => env('USAGE_CONNECTION', 'pgsql_direct'),
+
+        // How far an event's own timestamp may sit from now and still be
+        // counted. Seven days back is the promise in docs/api.md — lengthening
+        // it means accepting events for periods that may be invoiced. Five
+        // minutes forward is clock drift, not a feature.
+        'acceptance' => [
+            'max_age_seconds' => (int) env('USAGE_MAX_AGE_SECONDS', 7 * 24 * 60 * 60),
+            'max_drift_seconds' => (int) env('USAGE_MAX_DRIFT_SECONDS', 300),
+        ],
+
+        'stream' => [
+            'key' => env('USAGE_STREAM_KEY', 'usage:events'),
+            'dead_letter_key' => env('USAGE_STREAM_DLQ_KEY', 'usage:events:dead'),
+            'group' => env('USAGE_STREAM_GROUP', 'usage-writers'),
+
+            // Approximate trimming: exact trimming makes XADD walk the stream,
+            // and the whole point of this path is that XADD is cheap.
+            'max_length' => (int) env('USAGE_STREAM_MAX_LENGTH', 1_000_000),
+
+            // Above this depth ingestion answers 503 with Retry-After rather
+            // than accepting work it is visibly failing to drain.
+            'backpressure_threshold' => (int) env('USAGE_STREAM_BACKPRESSURE', 500_000),
+            'retry_after_seconds' => (int) env('USAGE_STREAM_RETRY_AFTER', 5),
+        ],
+
+        'consumer' => [
+            'batch_size' => (int) env('USAGE_CONSUMER_BATCH', 500),
+            'block_milliseconds' => (int) env('USAGE_CONSUMER_BLOCK_MS', 2000),
+
+            // A message nobody acknowledged within this long is assumed to
+            // belong to a consumer that died, and is reclaimed.
+            'reclaim_idle_milliseconds' => (int) env('USAGE_CONSUMER_RECLAIM_MS', 60_000),
+
+            // After this many deliveries a message goes to the dead-letter
+            // stream. Retrying a poison message forever is how one bad payload
+            // becomes an outage.
+            'max_deliveries' => (int) env('USAGE_CONSUMER_MAX_DELIVERIES', 5),
+        ],
+
+        // The deduplication layer the database cannot provide: it catches a
+        // resend that changed `occurred_at` (ADR-0002). Seven days matches the
+        // acceptance window, because that is how long a resend can matter.
+        'deduplication' => [
+            'ttl_seconds' => (int) env('USAGE_DEDUP_TTL_SECONDS', 7 * 24 * 60 * 60),
+        ],
+
+        'partitions' => [
+            'days_ahead' => (int) env('USAGE_PARTITION_DAYS_AHEAD', 7),
+
+            // Only ever acted on when the command is asked to prune. Raw
+            // events are what `usage:reconcile` checks aggregates against, so
+            // dropping them is an operator's decision, not a default.
+            'retention_days' => (int) env('USAGE_PARTITION_RETENTION_DAYS', 400),
+        ],
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tracing
     |--------------------------------------------------------------------------
     |

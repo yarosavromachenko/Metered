@@ -84,5 +84,6 @@
              proves nothing. -->
         <env name="DB_CONNECTION" value="pgsql_testing" force="true"/>
         <env name="OUTBOX_CONNECTION" value="pgsql_testing" force="true"/>
+        <env name="USAGE_CONNECTION" value="pgsql_testing" force="true"/>
     </php>
 </phpunit>
