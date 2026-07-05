@@ -26,6 +26,7 @@ use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
 use Metered\Usage\Infrastructure\Persistence\DatabaseRejectionLog;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
+use Metered\Usage\Infrastructure\Persistence\UsageSummaryReader;
 use Metered\Usage\Infrastructure\Redis\RedisDeduplicator;
 use Metered\Usage\Infrastructure\Redis\RedisEventStream;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
@@ -33,6 +34,7 @@ use Metered\Usage\Presentation\Console\ConsumeUsageCommand;
 use Metered\Usage\Presentation\Console\EnsurePartitionsCommand;
 use Metered\Usage\Presentation\Console\ReconcileUsageCommand;
 use Metered\Usage\Presentation\Http\IngestEventsController;
+use Metered\Usage\Presentation\Http\ReadCustomerUsageController;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
 
@@ -85,6 +87,14 @@ final class UsageServiceProvider extends ServiceProvider
         $this->app->singleton(
             UsageReconciler::class,
             static fn(Application $app): UsageReconciler => new UsageReconciler(
+                $app->make(DatabaseManager::class),
+                self::connection($app),
+            ),
+        );
+
+        $this->app->singleton(
+            UsageSummaryReader::class,
+            static fn(Application $app): UsageSummaryReader => new UsageSummaryReader(
                 $app->make(DatabaseManager::class),
                 self::connection($app),
             ),
@@ -182,6 +192,17 @@ final class UsageServiceProvider extends ServiceProvider
             ->prefix('api/v1')
             ->group(static function (): void {
                 Route::post('usage/events', IngestEventsController::class)->name('usage.events.ingest');
+            });
+
+        // Reading somebody's usage is an admin key's business, not an
+        // ingestion key's: the key in a client's product should be able to
+        // report usage and nothing else, so that leaking it leaks nothing
+        // about their customers.
+        Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
+            ->prefix('api/v1')
+            ->group(static function (): void {
+                Route::get('customers/{reference}/usage', ReadCustomerUsageController::class)
+                    ->name('usage.customer.read');
             });
     }
 
