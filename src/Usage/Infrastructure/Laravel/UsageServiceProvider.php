@@ -25,11 +25,13 @@ use Metered\Usage\Domain\AcceptanceWindow;
 use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
 use Metered\Usage\Infrastructure\Persistence\DatabaseRejectionLog;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
+use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
 use Metered\Usage\Infrastructure\Redis\RedisDeduplicator;
 use Metered\Usage\Infrastructure\Redis\RedisEventStream;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
 use Metered\Usage\Presentation\Console\ConsumeUsageCommand;
 use Metered\Usage\Presentation\Console\EnsurePartitionsCommand;
+use Metered\Usage\Presentation\Console\ReconcileUsageCommand;
 use Metered\Usage\Presentation\Http\IngestEventsController;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
@@ -77,6 +79,14 @@ final class UsageServiceProvider extends ServiceProvider
                 $app->make(ClockInterface::class),
                 self::configInt($app, 'metered.usage.stream.backpressure_threshold', 500_000),
                 self::configInt($app, 'metered.usage.stream.retry_after_seconds', 5),
+            ),
+        );
+
+        $this->app->singleton(
+            UsageReconciler::class,
+            static fn(Application $app): UsageReconciler => new UsageReconciler(
+                $app->make(DatabaseManager::class),
+                self::connection($app),
             ),
         );
 
@@ -158,7 +168,11 @@ final class UsageServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([EnsurePartitionsCommand::class, ConsumeUsageCommand::class]);
+            $this->commands([
+                EnsurePartitionsCommand::class,
+                ConsumeUsageCommand::class,
+                ReconcileUsageCommand::class,
+            ]);
         }
 
         // The module carries its own routes, as it carries its own screens: a

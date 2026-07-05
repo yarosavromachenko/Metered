@@ -16,6 +16,7 @@ use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authorization\PermissionGuard;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Application\Contract\PanelScope as PanelScopeContract;
+use Metered\Tenancy\Application\Contract\ProjectDirectory;
 use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\MembershipRepository;
@@ -26,6 +27,7 @@ use Metered\Tenancy\Infrastructure\Persistence\CachingApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseMembershipRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
+use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectDirectory;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
 use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
 use Metered\Tenancy\Presentation\Filament\Components\ProjectSwitcher;
@@ -51,6 +53,7 @@ final class TenancyServiceProvider extends ServiceProvider
         // The answer other modules ask for. They hold the contract; the guard
         // that reads memberships is Tenancy's business and stays here.
         $this->app->singleton(Authorizer::class, PermissionGuard::class);
+        $this->app->singleton(ProjectDirectory::class, DatabaseProjectDirectory::class);
         // Bound, never shared: the scope reads the current request's session,
         // and a singleton would hand the next request the previous person's
         // organization while every query kept succeeding.

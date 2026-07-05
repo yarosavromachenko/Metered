@@ -10,9 +10,12 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Tenancy\Domain\Scope;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\EventWriter;
+use Metered\Usage\Application\Ingestion\IncomingEvent;
 use Metered\Usage\Application\Ingestion\WriteOutcome;
 use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
+use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
+use Metered\Usage\Infrastructure\Redis\StreamEnvelope;
 
 use function Pest\Laravel\postJson;
 
@@ -267,4 +270,68 @@ it('writes the event on the retry that follows a failed write', function (): voi
     runConsumer();
 
     expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1);
+});
+
+it('leaves no drift when a consumer dies between the commit and the acknowledgement', function (): void {
+    ['tenant' => $tenant, 'headers' => $headers] = recoveryTenant();
+
+    post($headers, ['event_id' => 'evt_1', 'quantity' => '2.5']);
+    post($headers, ['event_id' => 'evt_2', 'quantity' => '1.5']);
+
+    app(StreamConsumer::class)->ensureGroup();
+
+    // The batch is delivered and written, and then the process dies — the
+    // window between the commit and the XACK, which is the one a crash is
+    // most likely to land in because it is the one that involves a network
+    // call after a transaction.
+    $delivered = usageRedis()->command('xreadgroup', [
+        RECOVERY_GROUP,
+        'consumer-that-died',
+        [RECOVERY_STREAM => '>'],
+        10,
+    ]);
+
+    $incoming = [];
+    $messages = is_array($delivered) && isset($delivered[RECOVERY_STREAM]) && is_array($delivered[RECOVERY_STREAM])
+        ? $delivered[RECOVERY_STREAM]
+        : [];
+
+    foreach ($messages as $fields) {
+        $message = [];
+
+        foreach (is_array($fields) ? $fields : [] as $name => $value) {
+            $message[(string) $name] = is_scalar($value) ? (string) $value : '';
+        }
+
+        $envelope = StreamEnvelope::decode($message);
+
+        if ($envelope instanceof StreamEnvelope) {
+            $incoming[] = new IncomingEvent($envelope->event, $envelope->receivedAt);
+        }
+    }
+
+    app(BatchProcessor::class)->process($tenant, $incoming);
+
+    expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(2);
+
+    // Restart: the unacknowledged messages are reclaimed and handed over
+    // again, exactly as they would be to a new container.
+    config(['metered.usage.consumer.reclaim_idle_milliseconds' => 0]);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    runConsumer('consumer-that-lived');
+
+    $drift = app(UsageReconciler::class)->check(
+        $tenant,
+        new DateTimeImmutable('-1 day'),
+        new DateTimeImmutable('+1 hour'),
+    );
+
+    // The redelivery inserted nothing, so it folded nothing: the aggregate
+    // still equals the events under it (ADR-0004).
+    expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(2)
+        ->and(DB::table('usage_aggregates')->where('project_id', $tenant->projectId->value)->value('quantity'))
+        ->toBe('4.000000')
+        ->and($drift)->toBe([]);
 });
