@@ -110,6 +110,8 @@ final readonly class BatchProcessor
                     $event->properties,
                 ),
                 $meter->aggregation,
+                $meter->code,
+                $customer->reference,
             );
         }
 

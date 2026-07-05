@@ -68,7 +68,7 @@ final readonly class DatabaseEventWriter implements EventWriter
 
     /**
      * @param  list<ResolvedEvent>  $events
-     * @return list<array{customer_id: string, meter_id: string, quantity: string, occurred_at: string}>
+     * @return list<array{customer_id: string, meter_id: string, meter_code: string, customer_ref: string, quantity: string, occurred_at: string}>
      */
     private function insert(ConnectionInterface $connection, array $events): array
     {
@@ -78,13 +78,15 @@ final readonly class DatabaseEventWriter implements EventWriter
         foreach ($events as $resolved) {
             $event = $resolved->event;
 
-            $placeholders[] = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)';
+            $placeholders[] = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?::jsonb)';
             $bindings[] = $event->id->value;
             $bindings[] = $event->tenant->organizationId->value;
             $bindings[] = $event->tenant->projectId->value;
             $bindings[] = $event->eventId->value;
             $bindings[] = $event->customerId->value;
             $bindings[] = $event->meterId->value;
+            $bindings[] = $resolved->meterCode;
+            $bindings[] = $resolved->customerReference;
             $bindings[] = (string) $event->quantity;
             $bindings[] = $event->occurredAt->format('Y-m-d H:i:s.uP');
             $bindings[] = $event->receivedAt->format('Y-m-d H:i:s.uP');
@@ -94,12 +96,13 @@ final readonly class DatabaseEventWriter implements EventWriter
 
         $rows = $connection->select(
             'INSERT INTO usage_events '
-            . '(id, organization_id, project_id, event_id, customer_id, meter_id, quantity, occurred_at, received_at, properties) '
+            . '(id, organization_id, project_id, event_id, customer_id, meter_id, meter_code, customer_ref, '
+            . 'quantity, occurred_at, received_at, properties) '
             . 'VALUES ' . implode(', ', $placeholders) . ' '
             // The conflict target is the primary key, which is the natural key
             // deduplication turns on (ADR-0002).
             . 'ON CONFLICT (project_id, event_id, occurred_at) DO NOTHING '
-            . 'RETURNING customer_id, meter_id, quantity, occurred_at',
+            . 'RETURNING customer_id, meter_id, meter_code, customer_ref, quantity, occurred_at',
             $bindings,
         );
 
@@ -115,6 +118,8 @@ final readonly class DatabaseEventWriter implements EventWriter
             $returned[] = [
                 'customer_id' => RowReader::string($values['customer_id'] ?? null, 'customer_id'),
                 'meter_id' => RowReader::string($values['meter_id'] ?? null, 'meter_id'),
+                'meter_code' => RowReader::string($values['meter_code'] ?? null, 'meter_code'),
+                'customer_ref' => RowReader::string($values['customer_ref'] ?? null, 'customer_ref'),
                 'quantity' => RowReader::string($values['quantity'] ?? null, 'quantity'),
                 'occurred_at' => RowReader::string($values['occurred_at'] ?? null, 'occurred_at'),
             ];
@@ -131,9 +136,9 @@ final readonly class DatabaseEventWriter implements EventWriter
      * same. SQL is left with the part only it can do: merging this delta into
      * whatever another consumer committed a moment ago.
      *
-     * @param  list<array{customer_id: string, meter_id: string, quantity: string, occurred_at: string}>  $inserted
+     * @param  list<array{customer_id: string, meter_id: string, meter_code: string, customer_ref: string, quantity: string, occurred_at: string}>  $inserted
      * @param  list<ResolvedEvent>  $events
-     * @return list<array{customer_id: string, meter_id: string, bucket: DateTimeImmutable, quantity: Quantity, count: int, aggregation: Aggregation}>
+     * @return list<array{customer_id: string, meter_id: string, meter_code: string, customer_ref: string, bucket: DateTimeImmutable, quantity: Quantity, count: int, aggregation: Aggregation}>
      */
     private function fold(array $inserted, array $events): array
     {
@@ -155,6 +160,8 @@ final readonly class DatabaseEventWriter implements EventWriter
             $deltas[$key] = [
                 'customer_id' => $row['customer_id'],
                 'meter_id' => $row['meter_id'],
+                'meter_code' => $row['meter_code'],
+                'customer_ref' => $row['customer_ref'],
                 'bucket' => $bucket->start,
                 'quantity' => $aggregation->fold($running, Quantity::fromString($row['quantity'])),
                 'count' => ($deltas[$key]['count'] ?? 0) + 1,
@@ -166,7 +173,7 @@ final readonly class DatabaseEventWriter implements EventWriter
     }
 
     /**
-     * @param  list<array{customer_id: string, meter_id: string, bucket: DateTimeImmutable, quantity: Quantity, count: int, aggregation: Aggregation}>  $deltas
+     * @param  list<array{customer_id: string, meter_id: string, meter_code: string, customer_ref: string, bucket: DateTimeImmutable, quantity: Quantity, count: int, aggregation: Aggregation}>  $deltas
      */
     private function upsertAggregates(ConnectionInterface $connection, TenantContext $tenant, array $deltas): void
     {
@@ -187,7 +194,7 @@ final readonly class DatabaseEventWriter implements EventWriter
     }
 
     /**
-     * @param  list<array{customer_id: string, meter_id: string, bucket: DateTimeImmutable, quantity: Quantity, count: int, aggregation: Aggregation}>  $deltas
+     * @param  list<array{customer_id: string, meter_id: string, meter_code: string, customer_ref: string, bucket: DateTimeImmutable, quantity: Quantity, count: int, aggregation: Aggregation}>  $deltas
      */
     private function merge(
         ConnectionInterface $connection,
@@ -204,11 +211,13 @@ final readonly class DatabaseEventWriter implements EventWriter
         $bindings = [];
 
         foreach ($deltas as $delta) {
-            $placeholders[] = '(?, ?, ?, ?, ?, ?, ?, ?)';
+            $placeholders[] = '(?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
             $bindings[] = $tenant->organizationId->value;
             $bindings[] = $tenant->projectId->value;
             $bindings[] = $delta['customer_id'];
             $bindings[] = $delta['meter_id'];
+            $bindings[] = $delta['meter_code'];
+            $bindings[] = $delta['customer_ref'];
             $bindings[] = $delta['bucket']->format('Y-m-d H:i:sP');
             $bindings[] = (string) $delta['quantity'];
             $bindings[] = $delta['count'];
@@ -217,7 +226,8 @@ final readonly class DatabaseEventWriter implements EventWriter
 
         $connection->statement(
             'INSERT INTO usage_aggregates '
-            . '(organization_id, project_id, customer_id, meter_id, bucket_start, quantity, event_count, updated_at) '
+            . '(organization_id, project_id, customer_id, meter_id, meter_code, customer_ref, '
+            . 'bucket_start, quantity, event_count, updated_at) '
             . 'VALUES ' . implode(', ', $placeholders) . ' '
             . 'ON CONFLICT (project_id, customer_id, meter_id, bucket_start) DO UPDATE SET '
             . 'quantity = ' . $quantityExpression . ', '

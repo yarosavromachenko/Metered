@@ -20,6 +20,20 @@ return new class extends Migration {
                 event_id         varchar(128)   NOT NULL,
                 customer_id      uuid           NOT NULL,
                 meter_id         uuid           NOT NULL,
+
+                -- The code and the reference the client actually sent, beside
+                -- the ids they resolved to.
+                --
+                -- Denormalised deliberately, and safe to denormalise: both are
+                -- immutable by contract — a meter's code cannot change and a
+                -- customer's reference cannot change — so there is no update
+                -- that could make these disagree with the catalog. What they
+                -- buy is an event row that is a faithful record of what
+                -- arrived, which is what support questions are asked about,
+                -- and a usage explorer that needs no join across a module
+                -- boundary to be readable.
+                meter_code       varchar(64)    NOT NULL,
+                customer_ref     varchar(128)   NOT NULL,
                 quantity         numeric(20, 6) NOT NULL,
                 occurred_at      timestamptz(6) NOT NULL,
                 received_at      timestamptz(6) NOT NULL,

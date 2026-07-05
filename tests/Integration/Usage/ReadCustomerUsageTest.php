@@ -40,12 +40,16 @@ function aggregateRow(
     string $bucket,
     string $quantity,
     int $events = 1,
+    string $meterCode = 'api.requests',
+    string $customerRef = 'cus_4471',
 ): void {
     DB::table('usage_aggregates')->insert([
         'organization_id' => $tenant->organizationId->value,
         'project_id' => $tenant->projectId->value,
         'customer_id' => $customerId,
         'meter_id' => $meterId,
+        'meter_code' => $meterCode,
+        'customer_ref' => $customerRef,
         'bucket_start' => $bucket,
         'quantity' => $quantity,
         'event_count' => $events,
@@ -75,8 +79,8 @@ it('takes the peak of a max meter rather than adding its hours together', functi
     $meter = CatalogFactory::meter($tenant, 'seats.peak', Aggregation::Max);
     $customer = CatalogFactory::customer($tenant, 'cus_4471');
 
-    aggregateRow($tenant, $customer->id->value, $meter->id->value, '2026-09-22T10:00:00+00:00', '12.000000');
-    aggregateRow($tenant, $customer->id->value, $meter->id->value, '2026-09-22T11:00:00+00:00', '7.000000');
+    aggregateRow($tenant, $customer->id->value, $meter->id->value, '2026-09-22T10:00:00+00:00', '12.000000', meterCode: 'seats.peak');
+    aggregateRow($tenant, $customer->id->value, $meter->id->value, '2026-09-22T11:00:00+00:00', '7.000000', meterCode: 'seats.peak');
 
     // Adding hourly peaks would give 19 seats, which is a number that means
     // nothing and looks entirely plausible on an invoice.
@@ -93,7 +97,7 @@ it('narrows to one meter when asked, by the code however it is capitalised', fun
     $customer = CatalogFactory::customer($tenant, 'cus_4471');
 
     aggregateRow($tenant, $customer->id->value, $requests->id->value, '2026-09-22T10:00:00+00:00', '10.000000');
-    aggregateRow($tenant, $customer->id->value, $storage->id->value, '2026-09-22T10:00:00+00:00', '3.000000');
+    aggregateRow($tenant, $customer->id->value, $storage->id->value, '2026-09-22T10:00:00+00:00', '3.000000', meterCode: 'storage.gb');
 
     $response = getJson(
         '/api/v1/customers/cus_4471/usage?meter=API.Requests'
@@ -159,7 +163,7 @@ it('ignores an aggregate id that belongs to another customer', function (): void
     $theirs = CatalogFactory::customer($tenant, 'cus_9999');
 
     aggregateRow($tenant, $mine->id->value, $meter->id->value, '2026-09-22T10:00:00+00:00', '10.000000');
-    aggregateRow($tenant, $theirs->id->value, $meter->id->value, '2026-09-22T10:00:00+00:00', '99.000000');
+    aggregateRow($tenant, $theirs->id->value, $meter->id->value, '2026-09-22T10:00:00+00:00', '99.000000', customerRef: 'cus_9999');
 
     getJson('/api/v1/customers/cus_4471/usage?from=2026-09-22T00:00:00%2B00:00&to=2026-09-23T00:00:00%2B00:00', $headers)
         ->assertOk()

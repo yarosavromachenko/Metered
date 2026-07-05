@@ -16,6 +16,13 @@ return new class extends Migration {
             $table->uuid('customer_id');
             $table->uuid('meter_id');
 
+            // As on the events: the identifiers a tenant knows, carried so
+            // that the screen showing an aggregate — and the invoice line
+            // built from it — needs nothing else to be readable. Both are
+            // immutable, so neither can drift from the catalog.
+            $table->string('meter_code', 64);
+            $table->string('customer_ref', 128);
+
             // The hour the events fell in. Second precision: a bucket start is
             // always on the hour, and a column that could hold microseconds
             // could hold two rows where there must be one.

@@ -101,8 +101,10 @@ final readonly class UsageReconciler
 
             $connection->statement(
                 'INSERT INTO usage_aggregates
-                 (organization_id, project_id, customer_id, meter_id, bucket_start, quantity, event_count, updated_at)
-                 SELECT ?, project_id, customer_id, meter_id, bucket_start, quantity, event_count, now()
+                 (organization_id, project_id, customer_id, meter_id, meter_code, customer_ref,
+                  bucket_start, quantity, event_count, updated_at)
+                 SELECT ?, project_id, customer_id, meter_id, meter_code, customer_ref,
+                        bucket_start, quantity, event_count, now()
                  FROM (' . $this->recomputedSql() . ') AS recomputed',
                 [$tenant->organizationId->value, $tenant->projectId->value, ...$window],
             );
@@ -142,6 +144,8 @@ final readonly class UsageReconciler
             SELECT e.project_id,
                    e.customer_id,
                    e.meter_id,
+                   min(e.meter_code) AS meter_code,
+                   min(e.customer_ref) AS customer_ref,
                    date_trunc('hour', e.occurred_at) AS bucket_start,
                    -- Cast to the aggregate column's own type: numeric
                    -- equality ignores trailing zeros, but a report a person

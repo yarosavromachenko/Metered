@@ -39,19 +39,21 @@ final readonly class UsageSummaryReader
         DateTimeImmutable $to,
         ?string $meterCode = null,
     ): array {
+        // One join, to meters, and only for the aggregation mode: the
+        // aggregate already carries the code and the reference it was folded
+        // under, so neither label needs looking up.
         $query = $this->db->connection($this->connection)
             ->table('usage_aggregates as a')
             ->join('meters as m', 'm.id', '=', 'a.meter_id')
-            ->join('customers as c', 'c.id', '=', 'a.customer_id')
             ->where('a.project_id', $tenant->projectId->value)
             ->where('a.organization_id', $tenant->organizationId->value)
-            ->where('c.reference', $customerReference)
+            ->where('a.customer_ref', $customerReference)
             ->where('a.bucket_start', '>=', $from->format('Y-m-d H:i:sP'))
             ->where('a.bucket_start', '<', $to->format('Y-m-d H:i:sP'))
-            ->groupBy('m.code', 'm.aggregation')
-            ->orderBy('m.code')
+            ->groupBy('a.meter_code', 'm.aggregation')
+            ->orderBy('a.meter_code')
             ->selectRaw(
-                "m.code AS meter_code,
+                "a.meter_code AS meter_code,
                  m.aggregation AS aggregation,
                  CASE m.aggregation
                      WHEN 'max' THEN max(a.quantity)
@@ -61,7 +63,7 @@ final readonly class UsageSummaryReader
             );
 
         if ($meterCode !== null) {
-            $query->where('m.code', $meterCode);
+            $query->where('a.meter_code', $meterCode);
         }
 
         $summary = [];
