@@ -101,7 +101,7 @@ it('refuses to carve a day out from under rows already in the default partition'
     // than repeat the constraint name.
     expect(static fn(): array => app(PartitionManager::class)
         ->ensure(new DateTimeImmutable('2019-10-10T00:00:00+00:00'), daysBack: 0, daysAhead: 0))
-        ->toThrow(RuntimeException::class, 'Move them out of usage_events_default');
+        ->toThrow(RuntimeException::class, 'the default partition already holds rows');
 
     // No cleanup here on purpose: the failed CREATE aborted the surrounding
     // transaction, so the only statement PostgreSQL will still accept is the
@@ -158,3 +158,45 @@ function usageRow(string $occurredAt, string $eventId = 'evt_1'): array
         'properties' => '{}',
     ];
 }
+
+it('arrives with a fortnight of partitions, so the first event has a home', function (): void {
+    // The scheduler has never run on a fresh installation, and the first
+    // events usually arrive before it does. Without partitions around today
+    // they would land in the default one, and the command could no longer
+    // carve today out from under them.
+    $today = new DateTimeImmutable('today', new DateTimeZone('UTC'));
+
+    expect(partitionNames())->toContain('usage_events_p' . $today->format('Ymd'))
+        ->and(partitionNames())->toContain(
+            'usage_events_p' . $today->sub(new DateInterval('P7D'))->format('Ymd'),
+        );
+});
+
+it('moves rows stranded in the default partition into the day they belong to', function (): void {
+    DB::table('usage_events')->insert(usageRow('2019-12-24T10:00:00+00:00', 'evt_stranded'));
+
+    $created = app(PartitionManager::class)->ensure(
+        new DateTimeImmutable('2019-12-24T00:00:00+00:00'),
+        daysBack: 0,
+        daysAhead: 0,
+        rescueStrandedRows: true,
+    );
+
+    expect($created)->toBe(['usage_events_p20191224'])
+        ->and(DB::table('usage_events_p20191224')->where('event_id', 'evt_stranded')->count())->toBe(1)
+        ->and(DB::table('usage_events_default')->where('event_id', 'evt_stranded')->count())->toBe(0)
+        // The row is still one row of the parent table: nothing was copied
+        // into two places.
+        ->and(DB::table('usage_events')->where('event_id', 'evt_stranded')->count())->toBe(1);
+
+    DB::table('usage_events')->where('event_id', 'evt_stranded')->delete();
+    dropPartitions(...$created);
+});
+
+it('names the flag that fixes stranded rows rather than only refusing', function (): void {
+    DB::table('usage_events')->insert(usageRow('2019-12-25T10:00:00+00:00', 'evt_stranded'));
+
+    expect(static fn(): array => app(PartitionManager::class)
+        ->ensure(new DateTimeImmutable('2019-12-25T00:00:00+00:00'), daysBack: 0, daysAhead: 0))
+        ->toThrow(RuntimeException::class, '--rescue');
+});

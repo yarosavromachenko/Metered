@@ -48,14 +48,18 @@ final readonly class PartitionManager
      *
      * @return list<string>
      */
-    public function ensure(DateTimeImmutable $around, int $daysBack, int $daysAhead): array
-    {
+    public function ensure(
+        DateTimeImmutable $around,
+        int $daysBack,
+        int $daysAhead,
+        bool $rescueStrandedRows = false,
+    ): array {
         $day = $this->midnight($around)->sub(new DateInterval('P' . max(0, $daysBack) . 'D'));
         $last = $this->midnight($around)->add(new DateInterval('P' . max(0, $daysAhead) . 'D'));
         $created = [];
 
         while ($day <= $last) {
-            if ($this->create($day)) {
+            if ($this->create($day, $rescueStrandedRows)) {
                 $created[] = self::PREFIX . $day->format('Ymd');
             }
 
@@ -145,7 +149,7 @@ final readonly class PartitionManager
         return ['partitions' => count($this->partitions()), 'default_rows' => $count];
     }
 
-    private function create(DateTimeImmutable $day): bool
+    private function create(DateTimeImmutable $day, bool $rescueStrandedRows): bool
     {
         $name = self::PREFIX . $day->format('Ymd');
 
@@ -154,6 +158,25 @@ final readonly class PartitionManager
         }
 
         $next = $day->add(new DateInterval('P1D'));
+
+        if ($this->defaultHolds($day, $next)) {
+            // PostgreSQL will not carve a range out from under rows that are
+            // already in the default partition, so those rows have to move
+            // first. That is data movement under a lock, which is a decision
+            // rather than a repair the scheduler makes on its own.
+            if (! $rescueStrandedRows) {
+                throw new RuntimeException(sprintf(
+                    'Cannot create partition %s: the default partition already holds rows for %s. '
+                    . 'Run usage:partitions:ensure --rescue to move them into it.',
+                    $name,
+                    $day->format('Y-m-d'),
+                ));
+            }
+
+            $this->rescue($name, $day, $next);
+
+            return true;
+        }
 
         try {
             // IF NOT EXISTS as well as the check above: two schedulers, or a
@@ -166,22 +189,68 @@ final readonly class PartitionManager
                 $next->format('Y-m-d H:i:sP'),
             ));
         } catch (QueryException $failure) {
-            // The one failure worth explaining: rows for this day already sit
-            // in the default partition, so PostgreSQL will not carve the range
-            // out from under them. It means a day was missed, and the rows
-            // have to be moved before the partition can exist.
             throw new RuntimeException(sprintf(
-                'Cannot create partition %s: the default partition already holds rows for %s. '
-                . 'Move them out of %s_default before creating it.',
+                'Could not create partition %s: %s',
                 $name,
-                $day->format('Y-m-d'),
-                self::TABLE,
-                // Cast, because a PDO exception's code is a SQLSTATE string
-                // ('23514') and an exception's code is an int.
+                $failure->getMessage(),
             ), (int) $failure->getCode(), previous: $failure);
         }
 
         return true;
+    }
+
+    /**
+     * Moves a day's stranded rows out of the default partition and attaches
+     * them as that day's partition.
+     *
+     * Copy, delete, attach — in one transaction, so a failure leaves the rows
+     * where they were rather than in two places or in none. Attaching builds
+     * the child indexes from the parent's, which is why the new table is
+     * created empty of them.
+     */
+    private function rescue(string $name, DateTimeImmutable $day, DateTimeImmutable $next): void
+    {
+        $connection = $this->db->connection($this->connection);
+        $from = $day->format('Y-m-d H:i:sP');
+        $to = $next->format('Y-m-d H:i:sP');
+
+        $connection->transaction(function () use ($connection, $name, $from, $to): void {
+            $connection->statement(sprintf(
+                'CREATE TABLE %s (LIKE %s INCLUDING DEFAULTS INCLUDING CONSTRAINTS)',
+                $name,
+                self::TABLE,
+            ));
+
+            $connection->statement(sprintf(
+                'WITH moved AS (
+                     DELETE FROM %s_default WHERE occurred_at >= ? AND occurred_at < ? RETURNING *
+                 )
+                 INSERT INTO %s SELECT * FROM moved',
+                self::TABLE,
+                $name,
+            ), [$from, $to]);
+
+            $connection->statement(sprintf(
+                "ALTER TABLE %s ATTACH PARTITION %s FOR VALUES FROM ('%s') TO ('%s')",
+                self::TABLE,
+                $name,
+                $from,
+                $to,
+            ));
+        });
+    }
+
+    private function defaultHolds(DateTimeImmutable $day, DateTimeImmutable $next): bool
+    {
+        $row = $this->db->connection($this->connection)->selectOne(
+            sprintf(
+                'SELECT 1 AS found FROM %s_default WHERE occurred_at >= ? AND occurred_at < ? LIMIT 1',
+                self::TABLE,
+            ),
+            [$day->format('Y-m-d H:i:sP'), $next->format('Y-m-d H:i:sP')],
+        );
+
+        return $row !== null;
     }
 
     private function exists(string $name): bool

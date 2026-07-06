@@ -1,5 +1,14 @@
 name: metered
 
+# The worker containers are built from the same image as the web app, and so
+# inherit FrankenPHP's healthcheck against its admin endpoint on port 2019.
+# None of them serves HTTP, so that check can only ever fail — and a service
+# reported "unhealthy" forever is how a whole column stops being read. A daemon
+# whose liveness is "the process is running" already has that answered by the
+# restart policy.
+x-no-inherited-healthcheck: &no-inherited-healthcheck
+  disable: true
+
 # Host ports are overridable, because a developer machine usually has another
 # project already holding 8080. Set APP_PORT in .env to move them.
 
@@ -53,6 +62,7 @@ services:
       dockerfile: docker/app/Dockerfile
       target: development
     command: ["php", "artisan", "outbox:relay"]
+    healthcheck: *no-inherited-healthcheck
     volumes:
       - .:/app
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
@@ -79,12 +89,53 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # The ingestion daemon. Scaled with replicas rather than threads: the
+  # consumer group hands each replica its own messages, and two replicas
+  # cannot be given the same one (ADR-0003).
+  usage-consumer:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: development
+    command: ["php", "artisan", "usage:consume"]
+    healthcheck: *no-inherited-healthcheck
+    volumes:
+      - .:/app
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    environment:
+      HOME: /tmp
+      XDG_CONFIG_HOME: /tmp/.config
+      XDG_DATA_HOME: /tmp/.local/share
+      APP_ENV: local
+      # Direct to PostgreSQL, like the relay: this process holds a connection
+      # across many transactions, and PgBouncer's transaction pooling hands a
+      # backend to whoever asks next.
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_DATABASE: metered
+      DB_USERNAME: metered
+      DB_PASSWORD: secret
+      USAGE_CONNECTION: pgsql
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    # SIGTERM finishes the batch in hand; ten seconds is generous for a batch
+    # of five hundred and short enough that a deploy does not crawl.
+    stop_grace_period: 10s
+    restart: unless-stopped
+
   horizon:
     build:
       context: .
       dockerfile: docker/app/Dockerfile
       target: development
     command: ["php", "artisan", "horizon"]
+    healthcheck: *no-inherited-healthcheck
     volumes:
       - .:/app
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
@@ -109,6 +160,21 @@ services:
       redis:
         condition: service_healthy
     restart: unless-stopped
+
+  # Load profile only: `make load`. Not part of `make up`.
+  k6:
+    image: grafana/k6:0.54.0
+    profiles: ["load"]
+    volumes:
+      - ./k6:/scripts:ro
+    environment:
+      METERED_URL: http://app:8080
+      METERED_KEY: ${METERED_KEY:-}
+      METERED_METER: ${METERED_METER:-api.requests}
+      METERED_CUSTOMER: ${METERED_CUSTOMER:-cus_bench}
+      BATCH: ${BATCH:-50}
+    depends_on:
+      - app
 
   # Catches every message the application sends, and shows it in a browser.
   # Nothing leaves the machine, which is the only acceptable arrangement for a

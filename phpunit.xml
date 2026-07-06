@@ -85,5 +85,13 @@
         <env name="DB_CONNECTION" value="pgsql_testing" force="true"/>
         <env name="OUTBOX_CONNECTION" value="pgsql_testing" force="true"/>
         <env name="USAGE_CONNECTION" value="pgsql_testing" force="true"/>
+        <!--
+            Ingestion's own Redis database, and not the one the development
+            stack uses. The consumer daemon in docker compose reads the same
+            stream key from the same group: without this, a test run and a
+            running `usage:consume` steal each other's messages, and the test
+            fails describing a bug that does not exist.
+        -->
+        <env name="REDIS_USAGE_DB" value="15" force="true"/>
     </php>
 </phpunit>

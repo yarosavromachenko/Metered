@@ -66,6 +66,28 @@ return new class extends Migration {
              ON usage_events (project_id, customer_id, meter_id, occurred_at)',
         );
 
+        // The first events usually arrive before the scheduler has ever run,
+        // so the table is created with a fortnight of partitions around
+        // today: a week back, because that is how far the acceptance window
+        // reaches, and a week forward. Without them the very first event
+        // would land in the default partition and the scheduled command could
+        // no longer carve today out from under it.
+        $day = new DateTimeImmutable('today', new DateTimeZone('UTC'));
+        $day = $day->sub(new DateInterval('P7D'));
+
+        for ($i = 0; $i <= 14; $i++) {
+            $next = $day->add(new DateInterval('P1D'));
+
+            DB::statement(sprintf(
+                "CREATE TABLE usage_events_p%s PARTITION OF usage_events FOR VALUES FROM ('%s') TO ('%s')",
+                $day->format('Ymd'),
+                $day->format('Y-m-d H:i:sP'),
+                $next->format('Y-m-d H:i:sP'),
+            ));
+
+            $day = $next;
+        }
+
         // Where rows land when the scheduled command has not created the
         // partition they belong to. They stop being pruned and start being
         // slow, which is the point: an ingestion that keeps working badly is

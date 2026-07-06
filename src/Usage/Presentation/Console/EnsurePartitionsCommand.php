@@ -21,7 +21,8 @@ final class EnsurePartitionsCommand extends Command
 {
     protected $signature = 'usage:partitions:ensure
         {--days= : How many days ahead to create, defaults to the configured window}
-        {--prune : Also drop partitions older than the retention window}';
+        {--prune : Also drop partitions older than the retention window}
+        {--rescue : Move rows stranded in the default partition into the day they belong to}';
 
     protected $description = 'Create the coming days\' usage partitions, and optionally drop expired ones';
 
@@ -34,7 +35,7 @@ final class EnsurePartitionsCommand extends Command
         // days ago is legitimate and must not land in the default partition.
         $daysBack = (int) ceil($this->config('metered.usage.acceptance.max_age_seconds', 604800) / 86400);
 
-        $created = $partitions->ensure($now, $daysBack, $daysAhead);
+        $created = $partitions->ensure($now, $daysBack, $daysAhead, $this->option('rescue') === true);
 
         $created === []
             ? $this->line('Partitions are up to date.')
