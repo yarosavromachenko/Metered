@@ -37,6 +37,9 @@ services:
       HOME: /tmp
       XDG_CONFIG_HOME: /tmp/.config
       XDG_DATA_HOME: /tmp/.local/share
+      # Raised for a load run, where the per-key limit would otherwise be
+      # what is measured: API_KEY_RATE_LIMIT_PER_MINUTE=1000000 make up.
+      API_KEY_RATE_LIMIT_PER_MINUTE: ${API_KEY_RATE_LIMIT_PER_MINUTE:-600}
     depends_on:
       postgres:
         condition: service_healthy
