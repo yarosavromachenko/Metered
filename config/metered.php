@@ -119,8 +119,12 @@ return [
             // and the whole point of this path is that XADD is cheap.
             'max_length' => (int) env('USAGE_STREAM_MAX_LENGTH', 1_000_000),
 
-            // Above this depth ingestion answers 503 with Retry-After rather
-            // than accepting work it is visibly failing to drain.
+            // Above this backlog — events accepted but not yet written —
+            // ingestion answers 503 with Retry-After rather than accepting
+            // work it is visibly failing to drain. It is deliberately a
+            // fraction of max_length: the stream keeps entries after they
+            // have been written, so its length is not a measure of anything
+            // being behind.
             'backpressure_threshold' => (int) env('USAGE_STREAM_BACKPRESSURE', 500_000),
             'retry_after_seconds' => (int) env('USAGE_STREAM_RETRY_AFTER', 5),
         ],

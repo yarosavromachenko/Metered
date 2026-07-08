@@ -66,6 +66,7 @@ final class UsageServiceProvider extends ServiceProvider
             static fn(Application $app): RedisEventStream => new RedisEventStream(
                 self::redis($app),
                 self::configString($app, 'metered.usage.stream.key', 'usage:events'),
+                self::configString($app, 'metered.usage.stream.group', 'usage-writers'),
                 self::configInt($app, 'metered.usage.stream.max_length', 1_000_000),
             ),
         );

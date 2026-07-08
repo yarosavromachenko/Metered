@@ -15,9 +15,12 @@ namespace Metered\Usage\Application\Stream;
 interface StreamDepth
 {
     /**
-     * Messages sitting in the stream, delivered or not. Approximate by
-     * nature — it is a number about a moving queue — and used only for
-     * decisions that tolerate being slightly stale.
+     * Messages accepted but not yet written: waiting for the consumer, or
+     * held by it and not yet acknowledged. Not the size of the stream, which
+     * keeps entries after they have been dealt with.
+     *
+     * Approximate by nature — it is a number about a moving queue — and used
+     * only for decisions that tolerate being slightly stale.
      */
     public function pending(): int;
 }

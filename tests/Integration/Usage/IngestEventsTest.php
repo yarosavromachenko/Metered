@@ -214,6 +214,39 @@ it('counts what is waiting, which is what backpressure is decided on', function 
     expect(app(StreamDepth::class)->pending())->toBe(2);
 });
 
+it('stops counting an event once the consumer has dealt with it', function (): void {
+    $project = TenantFactory::tenant();
+
+    postJson('/api/v1/usage/events', ['events' => [anEvent(), anEvent(['event_id' => 'evt_2'])]], ingestionHeaders($project));
+
+    stream()->command('xgroup', ['CREATE', STREAM_KEY, 'usage-writers', '0', true]);
+
+    expect(app(StreamDepth::class)->pending())->toBe(2);
+
+    // Read both, acknowledge one. A stream keeps every entry until MAXLEN
+    // trims it, so its length stays at two throughout — and reading the
+    // length is how ingestion used to answer 503 with an idle consumer and
+    // nothing at all waiting to be written.
+    $read = stream()->command('xreadgroup', ['usage-writers', 'test-consumer', [STREAM_KEY => '>'], 2]);
+
+    expect($read)->toBeArray();
+
+    /** @var array<string, array<string, array<string, string>>> $read */
+    $ids = array_keys($read[STREAM_KEY] ?? []);
+
+    expect($ids)->toHaveCount(2);
+    expect(app(StreamDepth::class)->pending())->toBe(2);
+
+    stream()->command('xack', [STREAM_KEY, 'usage-writers', [$ids[0]]]);
+
+    expect(app(StreamDepth::class)->pending())->toBe(1);
+
+    stream()->command('xack', [STREAM_KEY, 'usage-writers', [$ids[1]]]);
+
+    expect(app(StreamDepth::class)->pending())->toBe(0);
+    expect(stream()->command('xlen', [STREAM_KEY]))->toBe(2);
+});
+
 it('sheds load with a Retry-After once the stream is deeper than it should be', function (): void {
     config(['metered.usage.stream.backpressure_threshold' => 1]);
     $project = TenantFactory::tenant();
