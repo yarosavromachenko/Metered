@@ -176,6 +176,9 @@ services:
       METERED_METER: ${METERED_METER:-api.requests}
       METERED_CUSTOMER: ${METERED_CUSTOMER:-cus_bench}
       BATCH: ${BATCH:-50}
+      # Names the run inside the event ids it sends, so two runs are two sets
+      # of events rather than one set and a pile of duplicates.
+      RUN: ${RUN:-}
     depends_on:
       - app
 

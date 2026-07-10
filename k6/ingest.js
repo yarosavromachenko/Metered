@@ -18,6 +18,7 @@ import { Counter, Trend } from 'k6/metrics';
  *   METERED_METER     the meter code events are sent under
  *   METERED_CUSTOMER  the customer reference they are sent for
  *   BATCH             events per request, default 50
+ *   RUN               tag that makes this run's event ids its own
  *
  * The per-key rate limit applies here like anywhere else, so a run against
  * the default 600 requests a minute measures the limiter. Raise it for the
@@ -29,6 +30,22 @@ const key = __ENV.METERED_KEY;
 const meter = __ENV.METERED_METER || 'api.requests';
 const customer = __ENV.METERED_CUSTOMER || 'cus_bench';
 const batch = Number(__ENV.BATCH || 50);
+
+// Event ids have to be unique between runs and stable within one.
+//
+// Unique between runs, because deduplication is doing its job: a second run
+// sending the first run's ids is answered 202 by the endpoint and then
+// discarded by the consumer, so the writes the run is supposed to measure
+// never happen and the lag it reports is the lag of doing nothing.
+//
+// Stable within a run, because the init context executes once per VU: the
+// tag a VU computes here is the same for all of its iterations, so a request
+// k6 retries carries the ids it carried the first time and is deduplicated,
+// which is the behaviour this profile is meant to exercise.
+//
+// Set RUN explicitly to name a run — it is the prefix its events and any
+// rejections carry in the database afterwards.
+const run = __ENV.RUN || `${Date.now()}-${__VU}`;
 
 const accepted = new Counter('events_accepted');
 const shed = new Counter('requests_shed');
@@ -77,10 +94,11 @@ function events(count) {
 
     for (let i = 0; i < count; i++) {
         list.push({
-            // Unique per event and stable if this request is retried by k6:
-            // the id is what makes a resend safe, and a test that sends a new
-            // id every time would never exercise deduplication.
-            event_id: `k6-${__VU}-${__ITER}-${i}`,
+            // Unique per event within the run, and identical if k6 retries
+            // this request: the id is what makes a resend safe, and a profile
+            // that sent a new one every time would never exercise
+            // deduplication at all.
+            event_id: `k6-${run}-${__VU}-${__ITER}-${i}`,
             meter_code: meter,
             customer_ref: customer,
             quantity: '1',

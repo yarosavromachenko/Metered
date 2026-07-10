@@ -118,8 +118,14 @@ demo-reset: ## Wipe demo tenants and reseed
 	$(EXEC) php artisan sim:seed --profile=demo
 
 .PHONY: load
+# --no-deps, because `compose run` otherwise reconciles the services this one
+# depends on — and a load run is normally started from a shell that does not
+# carry the raised API_KEY_RATE_LIMIT_PER_MINUTE the stack was brought up with.
+# The app is then recreated at the default limit, in the middle of the run, so
+# the number reported is the limiter's and the restart appears as connection
+# errors. The stack under test is started by `make up`; this only sends traffic.
 load: ## Run the k6 load profile against the local stack
-	$(DC) --profile load run --rm k6 run /scripts/ingest.js
+	$(DC) --profile load run --rm --no-deps k6 run /scripts/ingest.js
 
 .PHONY: openapi
 openapi: ## Regenerate the OpenAPI document
