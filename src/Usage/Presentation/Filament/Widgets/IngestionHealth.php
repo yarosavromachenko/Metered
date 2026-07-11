@@ -22,6 +22,8 @@ use Metered\Usage\Infrastructure\Persistence\PartitionManager;
  */
 final class IngestionHealth extends StatsOverviewWidget
 {
+    private const int COUNT_CAP = 100_000;
+
     protected static ?int $sort = 1;
 
     protected ?string $heading = 'Ingestion';
@@ -40,18 +42,29 @@ final class IngestionHealth extends StatsOverviewWidget
             ->where('rejected_at', '>=', now()->subDay())
             ->count();
 
-        $written = DB::table('usage_events')
-            ->where('project_id', $tenant?->projectId->value)
-            ->where('received_at', '>=', now()->subHour())
-            ->count();
+        // Counted up to a cap and no further. The widget polls every few
+        // seconds, and an uncapped count of a busy hour is millions of index
+        // entries each time; past the cap, the exact number tells an operator
+        // nothing the cap does not. By occurred_at rather than received_at
+        // because that is the column the recent-events index covers.
+        $recent = DB::query()->fromSub(
+            DB::table('usage_events')
+                ->select('occurred_at')
+                ->where('project_id', $tenant?->projectId->value)
+                ->where('occurred_at', '>=', now()->subHour())
+                ->limit(self::COUNT_CAP + 1),
+            'recent',
+        )->count();
 
         return [
             Stat::make('Waiting in the stream', (string) $depth)
                 ->description($depth === 0 ? 'The consumer is caught up' : 'Accepted, not yet written')
                 ->color($depth > 100_000 ? 'danger' : ($depth > 0 ? 'warning' : 'success')),
 
-            Stat::make('Events written, last hour', (string) $written)
-                ->description('In this project'),
+            Stat::make('Events in the last hour', $recent > self::COUNT_CAP
+                ? number_format(self::COUNT_CAP) . '+'
+                : number_format($recent))
+                ->description('By when they happened, in this project'),
 
             Stat::make('Rejected, last day', (string) $rejected)
                 ->description($rejected === 0 ? 'Everything was counted' : 'Look at the rejections screen')

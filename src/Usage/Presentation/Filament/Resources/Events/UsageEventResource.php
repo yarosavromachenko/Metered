@@ -9,11 +9,12 @@ use Filament\Resources\Pages\PageRegistration;
 use Filament\Resources\Resource;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Enums\PaginationMode;
 use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Support\Facades\DB;
+use Metered\Billing\Application\Contract\MeterCatalog;
 use Metered\Tenancy\Application\Contract\PanelScope;
 use Metered\Usage\Infrastructure\Eloquent\UsageEvent;
 use Metered\Usage\Presentation\Filament\Resources\Events\Pages\ListUsageEvents;
@@ -26,9 +27,11 @@ use UnitEnum;
  * one. An event is a fact that already happened; correcting it is another
  * event or a credit note, never an edit.
  *
- * The default sort is `occurred_at` descending, which is also the leading
- * column of the partition key, so the first page of this screen reads one
- * partition rather than all of them.
+ * The default sort is `occurred_at` descending, which the recent-events
+ * index hands back in order from every partition, so a page reads the rows it
+ * shows and no others. Pagination is simple — next and previous, no page
+ * count — because a total would be a `count(*)` over every event the project
+ * ever sent, repeated on every page load (docs/query-plans.md).
  */
 final class UsageEventResource extends Resource
 {
@@ -80,13 +83,17 @@ final class UsageEventResource extends Resource
                     ->query(static fn(Builder $query): Builder => $query->where('occurred_at', '>=', now()->subHour())),
             ])
             ->defaultSort('occurred_at', 'desc')
+            ->paginationMode(PaginationMode::Simple)
             ->emptyStateHeading('No events yet')
             ->emptyStateDescription('Events appear here seconds after they are accepted.');
     }
 
     /**
-     * The codes this project has actually sent events under — which is a
-     * better list to filter by than every meter ever defined.
+     * The meters this project has defined, from the catalog.
+     *
+     * Not the codes the events were sent under: finding those is a
+     * `distinct` over every event the project has, on every page load, and
+     * the answer differs only by the meters that have not been used yet.
      *
      * @return array<string, string>
      */
@@ -94,22 +101,13 @@ final class UsageEventResource extends Resource
     {
         $tenant = app(PanelScope::class)->tenant();
 
-        $codes = DB::table('usage_events')
-            ->where('project_id', $tenant?->projectId->value)
-            ->distinct()
-            ->orderBy('meter_code')
-            ->pluck('meter_code')
-            ->all();
-
-        $options = [];
-
-        foreach ($codes as $code) {
-            if (is_string($code)) {
-                $options[$code] = $code;
-            }
+        if ($tenant === null) {
+            return [];
         }
 
-        return $options;
+        $codes = app(MeterCatalog::class)->codes($tenant);
+
+        return array_combine($codes, $codes);
     }
 
     /**

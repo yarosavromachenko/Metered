@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Filament\Facades\Filament;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Support\Facades\DB;
 use Livewire\Livewire;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
@@ -12,6 +13,8 @@ use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Role;
 use Metered\Tenancy\Infrastructure\Eloquent\User;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
+use Metered\Usage\Presentation\Filament\Resources\Events\Pages\ListUsageEvents;
+use Metered\Usage\Presentation\Filament\Resources\Events\UsageEventResource;
 use Metered\Usage\Presentation\Filament\Widgets\IngestionHealth;
 
 use function Pest\Laravel\actingAs;
@@ -116,6 +119,38 @@ it('lists this project’s events and never another tenant’s', function (): vo
         ->assertDontSee('cus_theirs');
 });
 
+it('offers every meter the project defined as a filter, sent under or not', function (): void {
+    $mine = signedInOn('acme');
+    $theirs = TenantFactory::tenant('north-wind');
+
+    CatalogFactory::meter($mine->tenant(), 'api.requests');
+    CatalogFactory::meter($mine->tenant(), 'storage.gb', Aggregation::Max);
+    CatalogFactory::meter($theirs->tenant(), 'emails.sent');
+
+    expect(UsageEventResource::meterCodes())->toBe([
+        'api.requests' => 'api.requests',
+        'storage.gb' => 'storage.gb',
+    ]);
+});
+
+it('pages the explorer without counting every event the project has', function (): void {
+    $project = signedInOn();
+    $meter = CatalogFactory::meter($project->tenant(), 'api.requests');
+    $customer = CatalogFactory::customer($project->tenant(), 'cus_4471');
+    storedEvent($project->tenant(), 'evt_1', $meter->id->value, $customer->id->value);
+
+    $counts = [];
+    DB::listen(static function (QueryExecuted $query) use (&$counts): void {
+        if (str_contains($query->sql, 'count(') && str_contains($query->sql, 'usage_events')) {
+            $counts[] = $query->sql;
+        }
+    });
+
+    Livewire::test(ListUsageEvents::class)->assertSee('cus_4471');
+
+    expect($counts)->toBe([]);
+});
+
 it('shows rejections with the reason a tenant can act on', function (): void {
     $project = signedInOn();
 
@@ -179,7 +214,7 @@ it('reports ingestion health on the dashboard', function (): void {
     $widget = Livewire::test(IngestionHealth::class);
 
     $widget->assertSee('Waiting in the stream');
-    $widget->assertSee('Events written, last hour');
+    $widget->assertSee('Events in the last hour');
     $widget->assertSee('Look at the rejections screen');
 });
 
