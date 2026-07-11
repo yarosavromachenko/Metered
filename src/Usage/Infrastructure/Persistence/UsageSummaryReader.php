@@ -6,6 +6,7 @@ namespace Metered\Usage\Infrastructure\Persistence;
 
 use DateTimeImmutable;
 use Illuminate\Database\DatabaseManager;
+use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
 use stdClass;
@@ -34,7 +35,7 @@ final readonly class UsageSummaryReader
      */
     public function forCustomer(
         TenantContext $tenant,
-        string $customerReference,
+        Uuid $customerId,
         DateTimeImmutable $from,
         DateTimeImmutable $to,
         ?string $meterCode = null,
@@ -47,7 +48,10 @@ final readonly class UsageSummaryReader
             ->join('meters as m', 'm.id', '=', 'a.meter_id')
             ->where('a.project_id', $tenant->projectId->value)
             ->where('a.organization_id', $tenant->organizationId->value)
-            ->where('a.customer_ref', $customerReference)
+            // By id, not by the reference the aggregate also carries: the id
+            // is the second column of the primary key, so the read is a range
+            // over one customer's buckets rather than a scan of the project's.
+            ->where('a.customer_id', $customerId->value)
             ->where('a.bucket_start', '>=', $from->format('Y-m-d H:i:sP'))
             ->where('a.bucket_start', '<', $to->format('Y-m-d H:i:sP'))
             ->groupBy('a.meter_code', 'm.aggregation')

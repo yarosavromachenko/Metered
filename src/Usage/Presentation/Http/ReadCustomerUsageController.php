@@ -47,7 +47,9 @@ final readonly class ReadCustomerUsageController
             'meter' => ['sometimes', 'string', 'max:64'],
         ])->validate();
 
-        if (! $this->customers->find($tenant, $reference) instanceof CustomerDescriptor) {
+        $customer = $this->customers->find($tenant, $reference);
+
+        if (! $customer instanceof CustomerDescriptor) {
             return Problem::response(
                 'customer-not-found',
                 'No such customer',
@@ -71,7 +73,7 @@ final readonly class ReadCustomerUsageController
             'to' => $to->format(DATE_ATOM),
             'meters' => $this->usage->forCustomer(
                 $tenant,
-                $reference,
+                $customer->id,
                 $from,
                 $to,
                 is_string($meter) && $meter !== '' ? strtolower(trim($meter)) : null,
