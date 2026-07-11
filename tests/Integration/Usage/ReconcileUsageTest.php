@@ -223,3 +223,59 @@ it('exits zero and says so when everything matches', function (): void {
     expect($status)->toBe(0)
         ->and(Artisan::output())->toContain('No drift');
 });
+
+it('widens a window that starts inside a bucket to the whole of that bucket', function (): void {
+    $fixture = reconcilable();
+
+    insertEvent($fixture, 'evt_1', '2.500000', '2026-09-22T10:10:00+00:00');
+    insertEvent($fixture, 'evt_2', '1.500000', '2026-09-22T10:40:00+00:00');
+    insertAggregate($fixture, '2026-09-22T10:00:00+00:00', '4.000000', 2);
+
+    // Cut at 10:30, the window would hold one of the two events and none of
+    // the aggregate, and report a bucket that is correct as missing.
+    $from = new DateTimeImmutable('2026-09-22T10:30:00+00:00');
+    $to = new DateTimeImmutable('2026-09-23T00:00:00+00:00');
+
+    expect(reconciler()->check($fixture['tenant'], $from, $to))->toBe([]);
+});
+
+it('widens a window that ends inside a bucket to the whole of that bucket', function (): void {
+    $fixture = reconcilable();
+
+    insertEvent($fixture, 'evt_1', '2.500000', '2026-09-22T10:10:00+00:00');
+    insertEvent($fixture, 'evt_2', '1.500000', '2026-09-22T10:40:00+00:00');
+    insertAggregate($fixture, '2026-09-22T10:00:00+00:00', '4.000000', 2);
+
+    $from = new DateTimeImmutable('2026-09-22T00:00:00+00:00');
+    $to = new DateTimeImmutable('2026-09-22T10:30:00+00:00');
+
+    expect(reconciler()->check($fixture['tenant'], $from, $to))->toBe([]);
+});
+
+it('repairs a bucket the window starts inside from all of its events, not the half in the window', function (): void {
+    $fixture = reconcilable();
+
+    insertEvent($fixture, 'evt_1', '2.500000', '2026-09-22T10:10:00+00:00');
+    insertEvent($fixture, 'evt_2', '1.500000', '2026-09-22T10:40:00+00:00');
+    insertAggregate($fixture, '2026-09-22T10:00:00+00:00', '9.000000', 2);
+
+    $from = new DateTimeImmutable('2026-09-22T10:30:00+00:00');
+    $to = new DateTimeImmutable('2026-09-22T12:00:00+00:00');
+
+    reconciler()->repair($fixture['tenant'], $from, $to);
+
+    expect(DB::table('usage_aggregates')->where('project_id', $fixture['tenant']->projectId->value)->value('quantity'))
+        ->toBe('4.000000')
+        ->and(reconciler()->check($fixture['tenant'], $from, $to))->toBe([]);
+});
+
+it('names the whole hours it actually compared', function (): void {
+    reconcilable();
+
+    Artisan::call('usage:reconcile', [
+        '--from' => '2026-09-22T10:30:00+00:00',
+        '--to' => '2026-09-22T12:15:00+00:00',
+    ]);
+
+    expect(Artisan::output())->toContain('between 2026-09-22T10:00:00+00:00 and 2026-09-22T13:00:00+00:00');
+});

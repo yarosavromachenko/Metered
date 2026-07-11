@@ -42,6 +42,10 @@ final class ReconcileUsageCommand extends Command
         $from = $this->instant('from') ?? $now->sub(new DateInterval('P1D'));
         $to = $this->instant('to') ?? $now;
 
+        // Said back as the whole hours compared, so the message never claims
+        // a window narrower than the one that was checked.
+        [$from, $to] = $reconciler->window($from, $to);
+
         $tenants = $this->tenants($projects);
 
         if ($tenants === []) {

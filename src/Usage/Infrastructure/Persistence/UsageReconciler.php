@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Metered\Usage\Infrastructure\Persistence;
 
+use DateInterval;
 use DateTimeImmutable;
 use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
+use Metered\Usage\Domain\Bucket;
 use stdClass;
 
 /**
@@ -32,10 +34,36 @@ final readonly class UsageReconciler
     ) {}
 
     /**
+     * The window a check or a repair actually covers: the one asked for,
+     * widened outwards to whole buckets.
+     *
+     * Events are filtered by the instant they occurred and aggregates by the
+     * hour they start, so a window cut mid-hour holds part of a bucket's
+     * events and none or all of its aggregate. The check would then report
+     * a correct bucket as drift, and a repair would rebuild it from half its
+     * events. The default window, the last 24 hours, is cut mid-hour almost
+     * every time it runs.
+     *
+     * @return array{DateTimeImmutable, DateTimeImmutable}
+     */
+    public function window(DateTimeImmutable $from, DateTimeImmutable $to): array
+    {
+        $end = Bucket::containing($to)->start;
+
+        if ($end < $to) {
+            $end = $end->add(new DateInterval('PT1H'));
+        }
+
+        return [Bucket::containing($from)->start, $end];
+    }
+
+    /**
      * @return list<Drift>
      */
     public function check(TenantContext $tenant, DateTimeImmutable $from, DateTimeImmutable $to): array
     {
+        [$from, $to] = $this->window($from, $to);
+
         $rows = $this->db->connection($this->connection)->select(
             $this->sql(),
             [
@@ -88,6 +116,7 @@ final readonly class UsageReconciler
      */
     public function repair(TenantContext $tenant, DateTimeImmutable $from, DateTimeImmutable $to): int
     {
+        [$from, $to] = $this->window($from, $to);
         $connection = $this->db->connection($this->connection);
         $window = [$from->format('Y-m-d H:i:sP'), $to->format('Y-m-d H:i:sP')];
 
