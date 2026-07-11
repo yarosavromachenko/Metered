@@ -43,6 +43,16 @@ it('does not resolve another tenant’s meter', function (): void {
     expect(app(MeterCatalog::class)->find($rival, 'api.requests'))->toBeNull();
 });
 
+it('lists this project’s meter codes in order, and no other project’s', function (): void {
+    $acme = TenantFactory::tenant('acme')->tenant();
+    $rival = TenantFactory::tenant('north-wind')->tenant();
+    CatalogFactory::meter($acme, 'storage.gb', Aggregation::Max);
+    CatalogFactory::meter($acme, 'api.requests');
+    CatalogFactory::meter($rival, 'emails.sent');
+
+    expect(app(MeterCatalog::class)->codes($acme))->toBe(['api.requests', 'storage.gb']);
+});
+
 it('resolves the reference an event carries to the customer behind it', function (): void {
     $tenant = TenantFactory::tenant()->tenant();
     $customer = CatalogFactory::customer($tenant, 'cus_4471', 'North Wind Ltd');

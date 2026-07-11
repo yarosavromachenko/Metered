@@ -46,4 +46,16 @@ final readonly class DatabaseMeterCatalog implements MeterCatalog
             ? new MeterDescriptor($meter->id, $meter->code->value, $meter->aggregation)
             : null;
     }
+
+    public function codes(TenantContext $tenant): array
+    {
+        $codes = array_map(
+            static fn(Meter $meter): string => $meter->code->value,
+            $this->meters->listFor($tenant),
+        );
+
+        sort($codes);
+
+        return $codes;
+    }
 }

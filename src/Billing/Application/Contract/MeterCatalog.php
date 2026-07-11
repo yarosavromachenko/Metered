@@ -21,4 +21,12 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 interface MeterCatalog
 {
     public function find(TenantContext $tenant, string $code): ?MeterDescriptor;
+
+    /**
+     * Every code this project has defined, in alphabetical order — what a
+     * screen offers to filter by without reading the events to find out.
+     *
+     * @return list<string>
+     */
+    public function codes(TenantContext $tenant): array;
 }
