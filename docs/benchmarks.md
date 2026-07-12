@@ -176,3 +176,8 @@ Deviations from the method in the run above, stated rather than buried:
 - **Consumer batch write duration is not reported**, because the consumer does
   not yet time its own batches. It reports what it read, counted and rejected,
   which was enough to confirm zero lag but not enough to put a number here.
+- **The run predates `usage_events_recent_index`** (`3960979`), which the
+  usage explorer needed ([`query-plans.md`](query-plans.md), query 7). The
+  index is one more descent per inserted row. It sits on the consumer's write,
+  not on the request path this run measured, but the next run has to include
+  it before these numbers are quoted as current.

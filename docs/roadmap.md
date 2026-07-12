@@ -77,7 +77,7 @@ aggregates, a stream-lag widget.
 - [ ] Integration tests: duplicates, redelivery, poison message → DLQ, late and future events
 - [ ] Kill the consumer mid-batch → after restart `usage:reconcile` reports zero drift
 - [x] k6 baseline recorded in [`benchmarks.md`](benchmarks.md)
-- [ ] `EXPLAIN (ANALYZE, BUFFERS)` of the hot queries in [`query-plans.md`](query-plans.md)
+- [x] `EXPLAIN (ANALYZE, BUFFERS)` of the hot queries in [`query-plans.md`](query-plans.md) — five captured, the invoice build provisional until M5, webhooks waiting for M6
 - [ ] ADR-0002, ADR-0003, ADR-0004 accepted
 
 ## M4 — Billing catalog and subscriptions
