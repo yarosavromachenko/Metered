@@ -76,7 +76,6 @@ services:
       APP_ENV: local
       # Daemons bypass PgBouncer: transaction pooling does not preserve the
       # session state that SELECT ... FOR UPDATE SKIP LOCKED relies on.
-      DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_DATABASE: metered
@@ -113,7 +112,6 @@ services:
       # Direct to PostgreSQL, like the relay: this process holds a connection
       # across many transactions, and PgBouncer's transaction pooling hands a
       # backend to whoever asks next.
-      DB_CONNECTION: pgsql
       DB_HOST: postgres
       DB_PORT: "5432"
       DB_DATABASE: metered
@@ -147,7 +145,6 @@ services:
       XDG_CONFIG_HOME: /tmp/.config
       XDG_DATA_HOME: /tmp/.local/share
       APP_ENV: local
-      DB_CONNECTION: pgsql
       DB_HOST: pgbouncer
       DB_PORT: "6432"
       DB_DIRECT_HOST: postgres
