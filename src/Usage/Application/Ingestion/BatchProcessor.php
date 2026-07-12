@@ -16,7 +16,6 @@ use Metered\Usage\Domain\Rejection;
 use Metered\Usage\Domain\RejectionReason;
 use Metered\Usage\Domain\UsageEvent;
 use Psr\Clock\ClockInterface;
-use Throwable;
 
 /**
  * What happens to one batch of events between the stream and the database.
@@ -131,30 +130,30 @@ final readonly class BatchProcessor
             return new IngestionOutcome();
         }
 
-        $claimed = $this->deduplicator->claim($tenant, $claimable);
-        $duplicates = count($claimable) - count($claimed);
+        $events = [];
 
-        $toWrite = [];
-
-        foreach ($claimed as $eventId) {
-            $toWrite[] = $resolved[$eventId->value];
+        foreach ($claimable as $eventId) {
+            $events[] = $resolved[$eventId->value]->event;
         }
 
-        if ($toWrite === []) {
+        $passed = $this->deduplicator->claim($tenant, $events);
+        $duplicates = count($claimable) - count($passed);
+
+        if ($passed === []) {
             return new IngestionOutcome(duplicates: $duplicates);
         }
 
-        try {
-            $outcome = $this->writer->write($tenant, $toWrite);
-        } catch (Throwable $failure) {
-            // The claims were taken for a write that did not happen. Left
-            // alone, the redelivery would be dismissed as a duplicate and the
-            // events would be lost — which is the one failure this system is
-            // not allowed to have.
-            $this->deduplicator->release($tenant, $claimed);
+        $toWrite = [];
 
-            throw $failure;
+        foreach ($passed as $event) {
+            $toWrite[] = $resolved[$event->eventId->value];
         }
+
+        // No claim is given back if this throws. A claim records the
+        // timestamp it was taken for, so the redelivery passes it again and
+        // the unique key decides — which is also all that could happen after
+        // a crash, when there is nobody left to give anything back.
+        $outcome = $this->writer->write($tenant, $toWrite);
 
         return new IngestionOutcome(
             counted: $outcome->inserted,

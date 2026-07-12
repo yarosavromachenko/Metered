@@ -9,6 +9,7 @@ use Illuminate\Support\Facades\DB;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Tenancy\Domain\Scope;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
+use Metered\Usage\Application\Ingestion\Deduplicator;
 use Metered\Usage\Application\Ingestion\EventWriter;
 use Metered\Usage\Application\Ingestion\IncomingEvent;
 use Metered\Usage\Application\Ingestion\WriteOutcome;
@@ -212,13 +213,14 @@ it('sets aside a message that has been delivered too many times', function (): v
         ->and(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(0);
 });
 
-it('gives back its deduplication claims when the write did not happen', function (): void {
+it('keeps the claim of a write that did not happen, stamped with the event’s own time', function (): void {
     ['tenant' => $tenant, 'headers' => $headers] = recoveryTenant();
-    post($headers);
+    $occurredAt = now()->subMinute()->startOfSecond();
+    post($headers, ['occurred_at' => $occurredAt->toAtomString()]);
 
-    // The transaction fails after the claim was taken. Left claimed, the
-    // redelivery would look like a duplicate and the event would be lost —
-    // the one outcome this system is not allowed to have.
+    // The transaction fails after the claim was taken. The claim stays, and
+    // holds the timestamp it was taken for: that is what lets the redelivery
+    // through to the database instead of being dismissed as a duplicate.
     app()->bind(EventWriter::class, fn(): EventWriter => new class implements EventWriter {
         public function write(TenantContext $tenant, array $events): WriteOutcome
         {
@@ -234,7 +236,7 @@ it('gives back its deduplication claims when the write did not happen', function
 
     $claim = usageRedis()->command('get', ['usage:dedup:' . $tenant->projectId->value . ':evt_1']);
 
-    expect($claim)->toBeFalsy();
+    expect($claim)->toBe($occurredAt->format('U.u'));
 });
 
 it('writes the event on the retry that follows a failed write', function (): void {
@@ -334,4 +336,55 @@ it('leaves no drift when a consumer dies between the commit and the acknowledgem
         ->and(DB::table('usage_aggregates')->where('project_id', $tenant->projectId->value)->value('quantity'))
         ->toBe('4.000000')
         ->and($drift)->toBe([]);
+});
+
+it('loses nothing when a consumer dies between the claim and the commit', function (): void {
+    ['tenant' => $tenant, 'headers' => $headers] = recoveryTenant();
+    post($headers, ['event_id' => 'evt_1', 'quantity' => '2.5']);
+
+    // The events are claimed in Redis, and the process dies before the
+    // transaction commits. Nothing runs afterwards to give the claims back:
+    // this is SIGKILL, an OOM, a host going away, not an exception the
+    // processor gets to catch. So the claims stay, and the write never lands.
+    $real = app(Deduplicator::class);
+    app()->bind(Deduplicator::class, static fn(): Deduplicator => new readonly class ($real) implements Deduplicator {
+        public function __construct(private Deduplicator $real) {}
+
+        public function claim(TenantContext $tenant, array $events): array
+        {
+            return $this->real->claim($tenant, $events);
+        }
+    });
+    app()->bind(EventWriter::class, fn(): EventWriter => new class implements EventWriter {
+        public function write(TenantContext $tenant, array $events): WriteOutcome
+        {
+            throw new RuntimeException('Killed before the commit.');
+        }
+    });
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    try {
+        runConsumer('consumer-that-died');
+    } catch (RuntimeException) {
+        // The process is gone; the message is pending and the claim is held.
+    }
+
+    // Restart: the message is reclaimed, and the claim the dead consumer left
+    // behind must not be mistaken for the event having been counted.
+    app()->bind(Deduplicator::class, static fn(): Deduplicator => $real);
+    app()->bind(EventWriter::class, static fn(): EventWriter => new DatabaseEventWriter(
+        app(DatabaseManager::class),
+        testConnection(),
+        app(ClockInterface::class),
+    ));
+    config(['metered.usage.consumer.reclaim_idle_milliseconds' => 0]);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    runConsumer('consumer-that-lived');
+
+    expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1)
+        ->and(DB::table('usage_aggregates')->where('project_id', $tenant->projectId->value)->value('quantity'))
+        ->toBe('2.500000');
 });
