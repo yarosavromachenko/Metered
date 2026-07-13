@@ -26,10 +26,19 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | **Membership** | What connects a user to an organization, carrying their role. Authorization asks the membership, never the user. |
 | **Role** | One of `owner`, `admin`, `billing_operator`, `viewer`. `admin` (the catalog) and `billing_operator` (the actions that move money) are deliberately not nested. |
 | **Panel scope** | The organization and project the panel is currently showing, held in the session and re-derived from the signed-in person's memberships on every read. |
-| **Customer** | The end customer of the organization — the party being billed. Identified inside a project by `external_id`, the id the tenant already uses in their own system. |
-| **Meter** | The definition of something measurable: a `code` and an aggregation type (`sum`, `count`, `max`). |
-| **Usage event** | One fact of consumption: `event_id`, meter, customer, `quantity`, `occurred_at`, free-form `properties`. Immutable. |
-| **Usage aggregate** | A pre-aggregate of usage per (customer, meter, hour bucket). It is what invoicing reads; raw events are only for audit and reconciliation. |
+| **Customer** | The end customer of the organization — the party being billed. Identified inside a project by its **reference**, the id the tenant already uses in their own system, which events carry as `customer_ref`. A reference cannot change once registered. |
+| **Meter** | The definition of something measurable: a `code` and an **aggregation**. The code is lowercase letters and digits with single `.`, `_` or `-` separators, is matched case-insensitively, and cannot change once defined. |
+| **Aggregation** | How a meter's events fold into one number: `sum` adds quantities, `count` counts events whatever their quantity, `max` keeps the highest quantity. All three are commutative, so the order events arrive in never matters. |
+| **Usage event** | One fact of consumption: `event_id`, `meter_code`, `customer_ref`, `quantity`, `occurred_at`, free-form `properties`, and the `received_at` it reached the API. Immutable. |
+| **Acceptance window** | How far an event's `occurred_at` may sit from its `received_at` and still be counted: seven days back, five minutes ahead. |
+| **Rejection** | An accepted event the consumer could not count, stored with its reason (`unknown_meter`, `unknown_customer`, `too_old`, `in_the_future`, `malformed`) and shown in the panel. |
+| **Bucket** | The UTC hour an event's `occurred_at` falls in, and the key of its aggregate. |
+| **Usage aggregate** | A pre-aggregate of usage per (customer, meter, bucket), with the number of events folded into it. It is what invoicing reads; raw events are only for audit and reconciliation. |
+| **Deduplication claim** | A Redis key per (project, `event_id`) holding the `occurred_at` it was first seen with, for seven days. It stops a resend with a corrected timestamp, the one duplicate the database's unique key cannot see. |
+| **Backlog** | Events accepted into the stream and not yet written to PostgreSQL. Ingestion answers `503` when it passes the backpressure threshold. Not the stream's length, which includes events already written. |
+| **Dead-letter stream** | Where a stream message goes after it could not be read, or after five failed deliveries, so that one bad message cannot stop the consumer. |
+| **Drift** | A disagreement `usage:reconcile` finds between an aggregate and the events under it: `missing` (events, no aggregate), `extra` (aggregate, no events) or `mismatch`. |
+| **Default partition** | Where events land when their day's partition was not created in time. They are stored and counted, but no longer pruned by time, and are moved out with `usage:partitions:ensure --rescue`. |
 | **Plan / PlanVersion** | A tariff and its versions. A version becomes immutable the moment a subscription uses it — otherwise history could be rewritten under a finalized invoice. |
 | **Price** | One pricing rule inside a plan version: `flat_fee`, `per_unit`, `graduated`, or `volume`. Usage-based models reference a meter. |
 | **Subscription** | A customer's subscription to a plan version, made of **phases** — intervals each pinned to one plan version. A plan change adds a phase rather than mutating history. |
@@ -50,6 +59,7 @@ These are the statements the test suite exists to defend.
 
 **Usage**
 
+0. An accepted event is never lost: it is written, or it is rejected with a recorded reason. A consumer killed at any point, including between the deduplication claim and the commit, loses nothing on redelivery.
 1. An event is counted at most once. Redelivery inserts nothing and aggregates nothing.
 2. An aggregate always equals the sum (or count, or max) of the raw events it covers — `usage:reconcile` proves it and is run after every chaos scenario.
 3. An event outside the acceptance window (older than seven days, or more than five minutes in the future) is rejected with a recorded reason, never silently dropped.
