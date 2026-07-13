@@ -108,11 +108,13 @@ measures history rather than backlog. Under a steady load with an idle consumer,
 ingestion started answering `503`. It now measures what is delivered-but-pending
 plus what is not yet delivered, and sheds above 500,000.
 
-**One invariant follows from that and is not enforced by code:** the threshold
-has to stay well below `USAGE_STREAM_MAX_LENGTH` (1,000,000). `MAXLEN ~` trims
-the oldest entries whether or not they have been written. As long as the backlog
-cannot get close to the stream's length, the entries trimmed are ones that were
-acknowledged long ago.
+**One invariant follows from that:** the threshold has to stay well below
+`USAGE_STREAM_MAX_LENGTH` (1,000,000). `MAXLEN ~` trims the oldest entries
+whether or not they have been written. As long as the backlog cannot get close
+to the stream's length, the entries trimmed are ones that were acknowledged long
+ago. Both are environment variables and nothing stops them being set apart at
+runtime. A test holds the configuration to at most half of the length, so the
+shipped values cannot drift apart without it failing.
 
 **What the baseline showed about latency.** [`benchmarks.md`](../benchmarks.md)
 has the run: 2,031 events a second accepted, no errors, the consumer at zero

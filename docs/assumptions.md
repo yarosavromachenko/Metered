@@ -23,6 +23,11 @@ code.
 | 13 | Panel tenant scope | **Session, both halves.** Filament's built-in tenancy models one tenant; this system scopes by organization *and* project, so using it would split the scope between a URL segment and the session | [ADR-0013](adr/0013-multi-tenancy.md) |
 | 14 | Managing members | **Read-only in M2.** Roles exist and are enforced everywhere; the screen that changes them, and invitations, are not built. Demo sign-up makes its visitor the owner, and `org:create` needs no members at all | [ADR-0017](adr/0017-admin-authentication.md) |
 | 15 | Sign-up form coverage | The **handler** is tested directly, and the page's presence is tested in both demo and non-demo boots. The three lines that map form fields to the command are not driven through Livewire | [`docs/testing.md`](testing.md) |
+| 16 | A catalog before ingestion | **A minimal slice of M4 was built in M3:** meters (code, name, aggregation) and customers (reference, name), defined through handlers and shown in the panel. Events are keyed by meter and customer id, and an event cannot be resolved to ids until those exist. Plans, prices and subscriptions stay in M4, as does the management API for meters and customers | [ADR-0003](adr/0003-redis-streams-ingestion.md) |
+| 17 | Raw event retention | **400 days, and opt-in.** `usage:partitions:ensure --prune` drops partitions older than that, and the schedule does not pass it. Reconciliation and invoice disputes are checked against raw events, so deleting them is an operator's decision | [ADR-0002](adr/0002-partitioning-and-deduplication.md) |
+| 18 | Explorer filtered by a quiet meter | **Left slow, on purpose, until the `heavy` profile says otherwise.** The page walks events newest first and discards other meters. The index that would fix it, `(project_id, meter_id, occurred_at)`, would be the fourth on the largest table | [`query-plans.md`](query-plans.md) |
+| 19 | OpenAPI document | **Not generated yet.** `make openapi` names a generator that is not installed, so `docs/api.md` is the reference until it is | [`api.md`](api.md) |
+| 20 | Ingestion p99 | **The 150ms threshold stands and the baseline fails it** (570ms). It is not lowered without a cause, and naming the cause needs the request tracing that M8 builds | [`benchmarks.md`](benchmarks.md) |
 
 ## Consequences worth remembering
 
@@ -43,7 +48,9 @@ moves the clock past it.
 
 **The deduplication TTL is coupled to the acceptance window.** Changing one
 without the other opens a hole in the deduplication guarantee. Both are
-configuration, and the test suite asserts they match.
+configuration, and `UsageConfigurationTest` asserts the TTL covers the window.
+The same test holds the backpressure threshold to at most half the stream's
+trim length, the other pair of settings that are only correct together.
 
 ## Pinned at M0, not before
 
