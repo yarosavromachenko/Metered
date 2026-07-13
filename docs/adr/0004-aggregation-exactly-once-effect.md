@@ -1,6 +1,6 @@
 # 0004. Aggregation with an exactly-once effect
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 
 ## Context
@@ -76,3 +76,37 @@ history.
 
 **Store aggregates in Redis.** Fast, and not durable. The number a customer is
 billed on belongs in the database that holds the invoice.
+
+## Accepted in M3
+
+Built as decided: one transaction, the insert returns what it actually inserted,
+only those rows are folded, and `XACK` comes after the commit. A test lets the
+consumer die between the commit and the acknowledgement, redelivers, and finds
+the same two events, the same aggregate and no drift.
+
+What the building added:
+
+**The fold is the domain's.** Rows returned by the insert are folded in PHP by
+`Aggregation::fold`, the same code the unit tests reason about, and SQL only
+merges the result into whatever is already stored: added for `sum` and `count`,
+`GREATEST` for `max`. `count` meters were not in the original sketch. They fold
+occurrences, not quantities, and they are commutative like the other two.
+`usage:reconcile` re-derives the fold in SQL, which means the same rule is written
+twice. An integration test folds the same events both ways and compares, so the
+two cannot drift apart without a failing test.
+
+**Reconciliation works in whole buckets.** Its first version cut the window at
+the instants it was given, and filtered events by `occurred_at` while filtering
+aggregates by `bucket_start`. Any window cut mid-hour therefore held part of an
+edge bucket's events and none of its aggregate. The default window, the last 24
+hours, is cut mid-hour nearly every time, and against a week of data it reported
+530 correct buckets as missing. `--repair` then failed on the primary key. The
+window is now widened to whole hours before checking or repairing, and the
+command reports the hours it actually compared.
+
+**What reconciliation cannot see.** It proves that aggregates equal the events
+under them. It cannot prove that every accepted event became a row, because an
+event lost before the insert leaves the two in agreement. That was not
+hypothetical: ADR-0002 records the deduplication claim that did exactly this
+until M3 fixed it. The guard against that failure is a test of the path that
+causes it, not the reconciler.

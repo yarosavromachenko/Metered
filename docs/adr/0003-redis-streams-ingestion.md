@@ -1,6 +1,6 @@
 # 0003. Redis Streams for ingestion
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 
 ## Context
@@ -82,3 +82,47 @@ to be rebuilt by hand. Streams provide precisely those primitives.
 give supervision for free, but at-least-once retry semantics on top of a stream
 duplicates the mechanism, and controlling batch size and ack ordering from inside
 a job fights the framework.
+
+## Accepted in M3
+
+The shape is as decided: the endpoint validates shape, appends to the stream in
+one pipelined round trip, and answers `202`. `usage:consume` is a daemon that
+reads 500 at a time with a two-second block. It acknowledges only after the
+commit, reclaims anything idle for a minute with `XAUTOCLAIM`, and after five
+deliveries sends the message to `usage:events:dead`. On `SIGTERM` it finishes
+the batch it has. Redis runs `appendonly yes` with `appendfsync everysec`. The
+consumer and the relay connect to PostgreSQL directly, and the web tier goes
+through PgBouncer.
+
+What the building added:
+
+**Existence is checked in the consumer, not the endpoint.** An unknown meter or
+customer gets a `202` and a stored rejection with a reason, as this decision
+promised. Resolving them needed a catalog to exist first, so a minimal slice of
+M4's meters and customers was brought forward ([`assumptions.md`](../assumptions.md)).
+
+**Backpressure is based on the backlog, not the stream's length.** The first
+version compared `XLEN` against the threshold. But the stream keeps entries after
+they are acknowledged, and only `MAXLEN ~` trimming removes them, so its length
+measures history rather than backlog. Under a steady load with an idle consumer,
+ingestion started answering `503`. It now measures what is delivered-but-pending
+plus what is not yet delivered, and sheds above 500,000.
+
+**One invariant follows from that and is not enforced by code:** the threshold
+has to stay well below `USAGE_STREAM_MAX_LENGTH` (1,000,000). `MAXLEN ~` trims
+the oldest entries whether or not they have been written. As long as the backlog
+cannot get close to the stream's length, the entries trimmed are ones that were
+acknowledged long ago.
+
+**What the baseline showed about latency.** [`benchmarks.md`](../benchmarks.md)
+has the run: 2,031 events a second accepted, no errors, the consumer at zero
+lag, p50 31.6ms and p95 36.1ms. **The p99 is 570ms against a threshold of 150ms,
+so the run fails, and the threshold was left where it is.** The consequence
+claimed above, that latency is Redis latency plus serialisation, is the part
+that did not hold. The Redis append is about a millisecond. The handler's
+slowest pass in 3,243 requests was 21.7ms. The median and the tail are both in
+the framework's middleware and in validating a fifty-event body. Redis, the
+consumer, Octane worker recycling, PHP's garbage collector and debug mode were
+each ruled out by changing only that one thing and measuring again. Naming the
+cause needs the request trace that M8 builds. Until then the baseline is recorded
+as failing rather than having its threshold moved.

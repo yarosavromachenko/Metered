@@ -1,6 +1,6 @@
 # 0002. Partitioning and deduplication of usage events
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-29
 
 ## Context
@@ -66,3 +66,45 @@ would let duplicates through, and there would be nothing behind it.
 
 **Deduplicate only in PostgreSQL.** Accepted as the floor, but on its own it
 cannot catch a differing `occurred_at`, so the Redis layer earns its place.
+
+## Accepted in M3
+
+Built as decided: daily `RANGE (occurred_at)` partitions, the natural key as the
+primary key, `ON CONFLICT DO NOTHING` against it, and a Redis layer in front.
+Four things changed or were added once it existed.
+
+**A claim records the timestamp it was taken for.** The first version set
+`dedup:{project}:{event_id}` with `NX` before the write and deleted it if the
+write threw. A consumer killed between the claim and the commit never gets to
+delete anything, so the redelivered message found every event already claimed,
+counted them as duplicates and wrote none of them. `usage:reconcile` could not
+see the loss, because aggregates and events were both missing the same rows. The
+claim now stores `occurred_at` and is taken with `SET NX GET`. An event under a
+claim with the same timestamp goes to the database, which decides with the
+primary key. Only a claim with a different timestamp counts as a duplicate, and
+that is exactly the case the Redis layer is for. A test kills the write after
+the claim and asserts the event arrives on redelivery.
+
+**The default partition takes events rather than rejecting them.** The table is
+created with a fortnight of partitions around the day of the migration, and
+`usage:partitions:ensure` runs daily at 03:10 to keep a week ahead. If it does
+not run, events land in `usage_events_default` and are no longer pruned. They
+are still written, because slow ingestion is better than none. Once the default
+partition holds rows for a day, PostgreSQL will not create that day's partition
+on top of them, so the scheduled run stops and says so. Moving them is
+`usage:partitions:ensure --rescue`, which copies the rows out and attaches them
+as their day in one transaction. That is data moving under a lock, so an
+operator decides when it runs, not the scheduler. Both the ingestion widget and
+the command show how many rows are sitting in the default partition.
+
+**Retention is opt-in.** `usage:partitions:ensure --prune` detaches and drops
+partitions older than `USAGE_PARTITION_RETENTION_DAYS` (400 by default), and
+the schedule does not pass `--prune`. Raw events are what `usage:reconcile` and
+any invoice dispute are checked against (ADR-0004), so deleting them should be a
+decision someone makes, not something the scheduler does.
+
+**A third index.** The usage explorer opens on a project's newest events, and
+neither the primary key nor the reading index can return those in order. Without
+help, every page load sorted the whole table. `(project_id, occurred_at)` fixes
+that, and costs one more index descent per inserted row. The plans before and
+after, and the measured cost, are in [`query-plans.md`](../query-plans.md).
