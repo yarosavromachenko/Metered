@@ -6,9 +6,9 @@ namespace Metered\Usage\Presentation\Http;
 
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\Contracts\Validation\Factory as ValidatorFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Metered\Shared\Domain\Exception\DomainException;
 use Metered\Shared\Domain\Quantity\Quantity;
 use Metered\Shared\Presentation\Http\Problem;
@@ -38,7 +38,6 @@ final readonly class IngestEventsController
 {
     public function __construct(
         private IngestEventsHandler $handler,
-        private ValidatorFactory $validator,
         private int $batchLimit,
     ) {}
 
@@ -47,16 +46,21 @@ final readonly class IngestEventsController
         $tenant = TenantRequest::tenant($request);
 
         /** @var array{events: list<array<string, mixed>>} $payload */
-        $payload = $this->validator->make($request->all(), [
+        $payload = Validator::make($request->all(), [
             'events' => ['required', 'array', 'min:1', 'max:' . $this->batchLimit],
             'events.*.event_id' => ['required', 'string', 'max:128'],
             'events.*.meter_code' => ['required', 'string', 'max:64'],
             'events.*.customer_ref' => ['required', 'string', 'max:128'],
-            // Numeric rather than a string rule: a client sending 2.5 as a
-            // JSON number is being reasonable. It becomes a decimal string
-            // before it reaches anything that adds it up.
+            // A non-negative decimal. Send it as a string ("2.5") to keep its
+            // precision; a JSON number is accepted too, and is turned into a
+            // decimal string before anything adds it up.
             'events.*.quantity' => ['required', 'numeric'],
             'events.*.occurred_at' => ['required', 'date'],
+            /**
+             * Free-form attributes of the event, stored with it.
+             *
+             * @var array<string, mixed>
+             */
             'events.*.properties' => ['sometimes', 'array'],
         ])->validate();
 

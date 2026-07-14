@@ -6,7 +6,6 @@ namespace Metered\Usage\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
-use Illuminate\Contracts\Validation\Factory as ValidatorFactory;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\Route;
@@ -170,7 +169,6 @@ final class UsageServiceProvider extends ServiceProvider
             IngestEventsController::class,
             static fn(Application $app): IngestEventsController => new IngestEventsController(
                 $app->make(IngestEventsHandler::class),
-                $app->make(ValidatorFactory::class),
                 self::configInt($app, 'metered.usage.batch_limit', 100),
             ),
         );

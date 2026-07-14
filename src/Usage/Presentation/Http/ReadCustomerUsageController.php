@@ -7,9 +7,9 @@ namespace Metered\Usage\Presentation\Http;
 use DateInterval;
 use DateTimeImmutable;
 use DateTimeZone;
-use Illuminate\Contracts\Validation\Factory as ValidatorFactory;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Metered\Billing\Application\Contract\CustomerDescriptor;
 use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Shared\Presentation\Http\Problem;
@@ -33,7 +33,6 @@ final readonly class ReadCustomerUsageController
     public function __construct(
         private UsageSummaryReader $usage,
         private CustomerDirectory $customers,
-        private ValidatorFactory $validator,
         private ClockInterface $clock,
     ) {}
 
@@ -41,7 +40,7 @@ final readonly class ReadCustomerUsageController
     {
         $tenant = TenantRequest::tenant($request);
 
-        $this->validator->make($request->query(), [
+        Validator::make($request->all(), [
             'from' => ['sometimes', 'date'],
             'to' => ['sometimes', 'date'],
             'meter' => ['sometimes', 'string', 'max:64'],

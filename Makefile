@@ -129,4 +129,5 @@ load: ## Run the k6 load profile against the local stack
 
 .PHONY: openapi
 openapi: ## Regenerate the OpenAPI document
-	$(EXEC) php artisan scramble:export --path=docs/api/openapi.json
+	@mkdir -p docs/api
+	$(EXEC) php artisan scramble:export

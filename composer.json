@@ -32,6 +32,7 @@
         "symfony/clock": "^7.3 || ^8.0"
     },
     "require-dev": {
+        "dedoc/scramble": "^0.13.34",
         "deptrac/deptrac": "^4.6",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.10",
