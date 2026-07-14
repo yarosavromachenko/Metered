@@ -279,3 +279,21 @@ it('names the whole hours it actually compared', function (): void {
 
     expect(Artisan::output())->toContain('between 2026-09-22T10:00:00+00:00 and 2026-09-22T13:00:00+00:00');
 });
+
+it('refuses a window that ends before it starts, rather than finding no drift in it', function (string $from): void {
+    reconcilable();
+
+    // "-1h" reads as an hour ago and parses as a timezone: now, at UTC-01:00,
+    // which is an hour in the future. An empty window has no drift in it, and
+    // "no drift" is the one answer an operator in the middle of an incident
+    // will not question.
+    $status = Artisan::call('usage:reconcile', ['--from' => $from]);
+    $output = Artisan::output();
+
+    expect($status)->toBe(1)
+        ->and($output)->toContain('must be earlier than');
+    expect($output)->not->toContain('No drift');
+})->with([
+    'a timezone mistaken for an offset' => ['-1h'],
+    'a start in the future' => ['+2 hours'],
+]);

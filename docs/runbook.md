@@ -34,7 +34,7 @@ visible, retryable rejection into unbounded lag.
 Nothing is lost by design, but verify it rather than believing it:
 
 1. Restart the consumer. `XAUTOCLAIM` reclaims messages idle for more than 60s.
-2. `php artisan usage:reconcile --from=-2h` compares aggregates against raw events.
+2. `php artisan usage:reconcile --from="-2 hours"` compares aggregates against raw events.
 3. Expect zero drift. A non-zero result is a bug worth an issue, not a manual correction.
 
 ## Messages in the dead-letter stream

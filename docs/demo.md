@@ -73,7 +73,7 @@ make destroy      # stop and delete volumes
 ```bash
 docker compose exec app php artisan sim:traffic --rps=200 --duration=120 --dup-rate=0.02 --late-rate=0.01
 docker compose exec app php artisan sim:chaos kill-consumer
-docker compose exec app php artisan usage:reconcile --from=-1h
+docker compose exec app php artisan usage:reconcile --from="-1 hour"
 ```
 
 `sim:chaos` kills a component mid-flight and then checks the invariants. Each

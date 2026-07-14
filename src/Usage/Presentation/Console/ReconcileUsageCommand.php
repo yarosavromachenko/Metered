@@ -42,6 +42,19 @@ final class ReconcileUsageCommand extends Command
         $from = $this->instant('from') ?? $now->sub(new DateInterval('P1D'));
         $to = $this->instant('to') ?? $now;
 
+        // An empty window has no drift in it, and "no drift" is the answer
+        // nobody double-checks. PHP reads "-1h" as a timezone rather than an
+        // hour ago, which puts the start in the future without any error.
+        if ($from >= $to) {
+            $this->error(sprintf(
+                'The window is empty: --from (%s) must be earlier than --to (%s). For a relative time write "-1 hour", not "-1h".',
+                $from->format(DATE_ATOM),
+                $to->format(DATE_ATOM),
+            ));
+
+            return self::FAILURE;
+        }
+
         // Said back as the whole hours compared, so the message never claims
         // a window narrower than the one that was checked.
         [$from, $to] = $reconciler->window($from, $to);
