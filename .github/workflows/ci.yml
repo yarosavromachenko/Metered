@@ -191,6 +191,23 @@ jobs:
           path: build/coverage
           retention-days: 7
 
+      # Generated from the code on every run and published rather than
+      # committed, so the document a reader downloads is the one this commit
+      # serves. Here rather than in the build job because this job already has
+      # PHP, the dependencies and an environment; the suite above includes the
+      # contract test that holds the document against real responses.
+      - name: Export the OpenAPI document
+        run: |
+          mkdir -p docs/api
+          php artisan scramble:export
+
+      - name: Upload the OpenAPI document
+        uses: actions/upload-artifact@v7
+        with:
+          name: openapi
+          path: docs/api/openapi.json
+          retention-days: 30
+
   mutation:
     name: Mutation
     runs-on: ubuntu-latest
