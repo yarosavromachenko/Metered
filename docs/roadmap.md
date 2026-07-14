@@ -74,11 +74,16 @@ in one transaction, partition management, deduplication, backpressure,
 rejections, reconciliation, usage queries. Admin: usage explorer, rejections,
 aggregates, a stream-lag widget.
 
-- [ ] Integration tests: duplicates, redelivery, poison message → DLQ, late and future events
-- [ ] Kill the consumer mid-batch → after restart `usage:reconcile` reports zero drift
-- [x] k6 baseline recorded in [`benchmarks.md`](benchmarks.md)
+- [x] Integration tests: duplicates, redelivery, poison message → DLQ, late and future events
+- [x] Kill the consumer mid-batch → after restart `usage:reconcile` reports zero drift — tested for a death before the commit and between the commit and the acknowledgement, and run for real: 200,000 events queued, the consumer `SIGKILL`ed with a batch unacknowledged, all 200,000 written once after restart, no drift. The repeatable version is `sim:chaos` in M7
+- [x] k6 baseline recorded in [`benchmarks.md`](benchmarks.md) — and failing its p99 threshold (570ms against 150ms), which stands until M8's tracing names the cause
 - [x] `EXPLAIN (ANALYZE, BUFFERS)` of the hot queries in [`query-plans.md`](query-plans.md) — five captured, the invoice build provisional until M5, webhooks waiting for M6
-- [ ] ADR-0002, ADR-0003, ADR-0004 accepted
+- [x] ADR-0002, ADR-0003, ADR-0004 accepted
+
+A minimal slice of M4 was built here: meters and customers, defined in the
+panel, because an event cannot be resolved to a meter and a customer that do not
+exist yet. Plans, prices, subscriptions and the catalog's API stay in M4
+([`assumptions.md`](assumptions.md), 16).
 
 ## M4 — Billing catalog and subscriptions
 
