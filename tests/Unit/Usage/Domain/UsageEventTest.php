@@ -100,3 +100,28 @@ function recordEvent(
         Properties::fromArray($properties),
     );
 }
+
+it('takes labels right up to their limits', function (): void {
+    $many = [];
+
+    for ($i = 1; $i <= 32; $i++) {
+        $many['label_' . $i] = 'x';
+    }
+
+    expect(Properties::fromArray($many)->all())->toHaveCount(32)
+        ->and(Properties::fromArray(['note' => str_repeat('n', 256)])->all()['note'])->toHaveLength(256);
+});
+
+it('refuses a label named only in whitespace', function (): void {
+    expect(static fn(): Properties => Properties::fromArray(['   ' => 'eu-central']))
+        ->toThrow(InvalidProperties::class, 'Every property has to be named');
+});
+
+it('explains why a nested label is refused', function (): void {
+    expect(static fn(): Properties => Properties::fromArray(['region' => ['eu', 'central']]))
+        ->toThrow(
+            InvalidProperties::class,
+            'The property "region" has to be a single value, not a nested one. '
+            . 'Properties label an event; they do not carry a document.',
+        );
+});

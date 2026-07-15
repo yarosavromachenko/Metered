@@ -59,3 +59,11 @@ function at(string $instant): DateTimeImmutable
 {
     return new DateTimeImmutable($instant);
 }
+
+it('reads a negative setting as no tolerance at all, not as a window that runs backwards', function (): void {
+    $strict = AcceptanceWindow::of(maxAgeSeconds: -60, maxDriftSeconds: -60);
+    $zero = AcceptanceWindow::of(maxAgeSeconds: 0, maxDriftSeconds: 0);
+
+    expect([$strict->maxAgeSeconds, $strict->maxDriftSeconds])->toBe([0, 0])
+        ->and([$zero->maxAgeSeconds, $zero->maxDriftSeconds])->toBe([0, 0]);
+});

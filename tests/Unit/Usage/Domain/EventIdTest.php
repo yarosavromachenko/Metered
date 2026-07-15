@@ -40,3 +40,14 @@ it('refuses an id longer than the column that stores it', function (): void {
     expect(static fn(): EventId => EventId::fromString(str_repeat('e', 129)))
         ->toThrow(InvalidEventId::class, 'at most 128');
 });
+
+it('takes an id exactly as long as the column', function (): void {
+    expect(strlen((string) EventId::fromString(str_repeat('e', 128))))->toBe(128);
+});
+
+it('says an empty id is missing, not malformed', function (): void {
+    // An empty id would also fail the character check further down; the
+    // message has to be the one that tells the client what they forgot.
+    expect(static fn(): EventId => EventId::fromString('   '))
+        ->toThrow(InvalidEventId::class, 'An event needs an id');
+});

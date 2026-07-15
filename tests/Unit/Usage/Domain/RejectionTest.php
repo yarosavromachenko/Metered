@@ -38,7 +38,8 @@ it('takes the id out of the payload only when it is a usable string', function (
     'an empty string' => ['', null],
     'a nested structure' => [['evt_1'], null],
     'null' => [null, null],
-    'longer than the column' => [str_repeat('e', 200), null],
+    'exactly as long as the column' => [str_repeat('e', 128), str_repeat('e', 128)],
+    'longer than the column' => [str_repeat('e', 129), null],
 ]);
 
 it('says what went wrong in words the tenant can act on', function (): void {
