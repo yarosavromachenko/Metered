@@ -50,3 +50,16 @@ it('refuses a code longer than the column that stores it', function (): void {
     expect(static fn(): MeterCode => MeterCode::fromString(str_repeat('a', 65)))
         ->toThrow(InvalidMeterCode::class, 'at most 64');
 });
+
+it('takes a code exactly as long as the column', function (): void {
+    expect((string) MeterCode::fromString(str_repeat('m', 64)))->toHaveLength(64);
+});
+
+it('tells the author of a malformed code what a code may contain', function (): void {
+    expect(static fn(): MeterCode => MeterCode::fromString('api requests'))
+        ->toThrow(
+            InvalidMeterCode::class,
+            '"api requests" is not a valid meter code: lowercase letters, digits, and single dots, '
+            . 'hyphens or underscores between them.',
+        );
+});

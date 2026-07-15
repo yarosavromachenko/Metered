@@ -43,3 +43,12 @@ it('refuses a reference longer than the column that stores it', function (): voi
     expect(static fn(): CustomerReference => CustomerReference::fromString(str_repeat('c', 129)))
         ->toThrow(InvalidCustomerReference::class, 'at most 128');
 });
+
+it('takes a reference exactly as long as the column', function (): void {
+    expect((string) CustomerReference::fromString(str_repeat('c', 128)))->toHaveLength(128);
+});
+
+it('says an empty reference is missing, not malformed', function (): void {
+    expect(static fn(): CustomerReference => CustomerReference::fromString("  \t"))
+        ->toThrow(InvalidCustomerReference::class, 'A customer reference cannot be empty');
+});
