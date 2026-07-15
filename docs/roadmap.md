@@ -11,8 +11,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M0 | Foundation | S–M | ✅ done |
 | M1 | Shared kernel | M | ✅ done |
 | M2 | Tenancy and the admin shell | M | ✅ done |
-| M3 | Usage ingestion | L | 🔜 next |
-| M4 | Billing catalog and subscriptions | M | ⬜ |
+| M3 | Usage ingestion | L | ✅ done |
+| M4 | Billing catalog and subscriptions | M | 🔜 next |
 | M5 | Invoicing and ledger | L | ⬜ |
 | M6 | Webhooks | M | ⬜ |
 | M7 | Simulation, seed profiles and chaos | M | ⬜ |
