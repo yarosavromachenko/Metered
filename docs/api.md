@@ -4,10 +4,15 @@ Base path `/api/v1`. Authentication is an API key sent as
 `Authorization: Bearer mk_<env>_<prefix>_<secret>`. The key identifies the
 project, and therefore the tenant — there is no tenant id in any path.
 
-This page is the reference for now. A generated OpenAPI document is planned
-(`make openapi` is wired to it), but the generator is not installed yet, so the
-target does not work. Until it is, this page describes both the shape and the
-rules behind it, and where the two disagree, this page is wrong and gets fixed.
+The precise shape of every request and response is in the OpenAPI document,
+generated from the code: `make openapi` writes it to `docs/api/openapi.json`, CI
+publishes it with every run as the `openapi` artifact, and on the running stack
+it is browsable at `/docs/api`. It is not committed, so it cannot fall behind the
+code it describes. A contract test sends real requests and checks that the
+answers match the schemas the document declares.
+
+This page explains what a schema cannot: what is checked when, what
+deduplication promises, what `202` does and does not mean.
 
 ## Authentication
 
@@ -56,11 +61,10 @@ like this:
   "type": "https://metered.dev/problems/validation-failed",
   "title": "Validation failed",
   "status": 422,
-  "detail": "One or more events were rejected.",
+  "detail": "The request body did not pass validation.",
   "instance": "/api/v1/usage/events",
-  "request_id": "01J9X2...",
   "errors": [
-    {"pointer": "/events/3/quantity", "detail": "must be a non-negative decimal"}
+    {"pointer": "/events/3/quantity", "detail": "The events.3.quantity field must be a number."}
   ]
 }
 ```
@@ -99,7 +103,7 @@ surface, including what does not exist yet, so a client knows what to expect.
 | Invoices | `GET /invoices` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | M5 |
 | Payments | `POST /invoices/{id}/pay` | M5 |
 | Webhooks | `POST/GET/PATCH/DELETE /webhook-endpoints` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries` · `POST /webhook-deliveries/{id}/replay` | M6 |
-| Ops | `GET /health/live` · `GET /health/ready` | not yet |
+| Ops | `GET /health/live` · `GET /health/ready` | M8 |
 
 ## Ingestion, in detail
 
@@ -206,6 +210,10 @@ Authorization: Bearer mk_test_7f3a1b2c_...
   ]
 }
 ```
+
+The key needs the `admin` scope. An ingestion key can report usage but not
+read it back, so a key leaked from a client's product reveals nothing about
+their customers.
 
 The customer is addressed by the reference the tenant registered, not by an
 internal id. `from` and `to` are optional and default to the last 24 hours;

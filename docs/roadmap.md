@@ -139,9 +139,13 @@ manual replay, breaker state.
 
 Grafana dashboards (ingestion, stream lag, outbox lag, webhooks, billing),
 Prometheus alert rules committed to the repository, an end-to-end trace spanning
-HTTP → stream → consumer → database → outbox → queue → webhook.
+HTTP → stream → consumer → database → outbox → queue → webhook. Health endpoints:
+`GET /health/live` (the process answers) and `GET /health/ready` (PostgreSQL,
+Redis and the ingestion backlog are within bounds), used by the compose
+healthchecks.
 
 - [ ] Screenshots of the end-to-end trace and the dashboards in [`observability.md`](observability.md)
+- [ ] `/health/ready` fails when PostgreSQL or Redis is unreachable, or the backlog is past the backpressure threshold (test)
 - [ ] ADR-0012 accepted
 
 ## M9 — Release polish
