@@ -73,6 +73,13 @@ static: ## Larastan (level max) + Deptrac (layers and module boundaries)
 test: ## Full test suite with coverage thresholds
 	$(EXEC) php artisan test --coverage --min=85
 
+.PHONY: test-fast
+# The coverage threshold is measured serially, as CI measures it: merged
+# per-process coverage comes out a few tenths lower and would make the gate
+# disagree with the pipeline. This target answers "does it still pass" only.
+test-fast: ## Full test suite in parallel, without coverage (the loop between edits)
+	$(EXEC) vendor/bin/pest --parallel
+
 .PHONY: test-unit
 test-unit: ## Domain unit tests only (fast, no containers needed)
 	$(EXEC) vendor/bin/pest --testsuite=Unit
@@ -92,6 +99,14 @@ test-arch: ## Architecture tests (Pest Arch)
 .PHONY: mutation
 mutation: ## Mutation testing on the four Domain layers (score >= 85)
 	$(EXEC) vendor/bin/pest --mutate --parallel --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' --min=85 --ignore-min-score-on-zero-mutations
+
+.PHONY: mutation-module
+# `make mutation` reports one score over all four domain layers, so a module
+# that is weak on its own can pass behind the others. Milestone criteria name a
+# module; this is how they are checked. Usage: make mutation-module MODULE=Billing
+mutation-module: ## Mutation testing on one module's Domain layer (score >= 85)
+	@test -n "$(MODULE)" || { echo "usage: make mutation-module MODULE=Billing"; exit 2; }
+	$(EXEC) vendor/bin/pest --mutate --parallel --class='Metered\$(MODULE)\Domain' --min=85 --ignore-min-score-on-zero-mutations
 
 .PHONY: security
 security: ## Dependency and filesystem vulnerability scan

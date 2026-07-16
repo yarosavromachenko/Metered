@@ -16,12 +16,20 @@ meaningful.
 
 ```bash
 make test               # everything, with the coverage threshold
+make test-fast          # everything, in parallel, no coverage: the loop between edits
 make test-unit          # fast loop while writing domain logic
 make test-integration   # needs the containers up
 make test-concurrency   # slow; run before pushing
 make test-arch          # cheap; run constantly
 make mutation           # mutation testing on the four domain layers
+make mutation-module MODULE=Billing   # one module's domain layer, on its own
 ```
+
+`make mutation` reports a single score over all four domain layers, which lets
+a weak module pass behind strong ones: at the end of M3, `Billing\Domain` alone
+scored 73.68% while the combined score was 89.36%. A milestone criterion that
+names a module is checked with `make mutation-module`, which also takes well
+under a minute against several for the whole set.
 
 ## Rules that are not negotiable
 
