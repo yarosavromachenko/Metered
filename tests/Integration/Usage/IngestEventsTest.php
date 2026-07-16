@@ -12,6 +12,7 @@ use Metered\Usage\Infrastructure\Redis\StreamEnvelope;
 use function Pest\Laravel\postJson;
 
 use Tests\Support\TenantFactory;
+use Tests\Support\UsageStream;
 
 /**
  * The hot path, against a real Redis.
@@ -20,10 +21,8 @@ use Tests\Support\TenantFactory;
  * true is that a batch lands in the stream, in one round trip, in the shape
  * the consumer will read (ADR-0003).
  */
-const STREAM_KEY = 'usage:events';
-
 beforeEach(function (): void {
-    stream()->command('del', [STREAM_KEY]);
+    stream()->command('del', [UsageStream::key()]);
 });
 
 function stream(): PhpRedisConnection
@@ -68,7 +67,7 @@ function anEvent(array $overrides = []): array
  */
 function streamed(): array
 {
-    $entries = stream()->command('xrange', [STREAM_KEY, '-', '+']);
+    $entries = stream()->command('xrange', [UsageStream::key(), '-', '+']);
     $messages = [];
 
     foreach (is_array($entries) ? $entries : [] as $fields) {
@@ -219,7 +218,7 @@ it('stops counting an event once the consumer has dealt with it', function (): v
 
     postJson('/api/v1/usage/events', ['events' => [anEvent(), anEvent(['event_id' => 'evt_2'])]], ingestionHeaders($project));
 
-    stream()->command('xgroup', ['CREATE', STREAM_KEY, 'usage-writers', '0', true]);
+    stream()->command('xgroup', ['CREATE', UsageStream::key(), UsageStream::group(), '0', true]);
 
     expect(app(StreamDepth::class)->pending())->toBe(2);
 
@@ -227,24 +226,24 @@ it('stops counting an event once the consumer has dealt with it', function (): v
     // trims it, so its length stays at two throughout — and reading the
     // length is how ingestion used to answer 503 with an idle consumer and
     // nothing at all waiting to be written.
-    $read = stream()->command('xreadgroup', ['usage-writers', 'test-consumer', [STREAM_KEY => '>'], 2]);
+    $read = stream()->command('xreadgroup', [UsageStream::group(), 'test-consumer', [UsageStream::key() => '>'], 2]);
 
     expect($read)->toBeArray();
 
     /** @var array<string, array<string, array<string, string>>> $read */
-    $ids = array_keys($read[STREAM_KEY] ?? []);
+    $ids = array_keys($read[UsageStream::key()] ?? []);
 
     expect($ids)->toHaveCount(2);
     expect(app(StreamDepth::class)->pending())->toBe(2);
 
-    stream()->command('xack', [STREAM_KEY, 'usage-writers', [$ids[0]]]);
+    stream()->command('xack', [UsageStream::key(), UsageStream::group(), [$ids[0]]]);
 
     expect(app(StreamDepth::class)->pending())->toBe(1);
 
-    stream()->command('xack', [STREAM_KEY, 'usage-writers', [$ids[1]]]);
+    stream()->command('xack', [UsageStream::key(), UsageStream::group(), [$ids[1]]]);
 
     expect(app(StreamDepth::class)->pending())->toBe(0);
-    expect(stream()->command('xlen', [STREAM_KEY]))->toBe(2);
+    expect(stream()->command('xlen', [UsageStream::key()]))->toBe(2);
 });
 
 it('sheds load with a Retry-After once the stream is deeper than it should be', function (): void {

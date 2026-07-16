@@ -121,6 +121,16 @@ holds service providers and the console kernel and nothing else. If `app/`
 ever grows something a coverage number should defend, that something is in
 the wrong directory.
 
+Mutation testing runs the suite with `--parallel`, in CI and in `make mutation`
+alike. Each process gets its own database, but all of them share one Redis, so
+anything a test keeps in Redis under a fixed name is shared between processes.
+The ingestion stream was, and one process's consumer read another's events and
+failed on foreign keys its own database could not satisfy. The test case now
+gives each process its own stream, dead-letter stream and consumer group
+(`Tests\Support\UsageStream`), and tests read those names from configuration
+rather than spelling them. Anything new that a test puts in Redis under a fixed
+name needs the same treatment.
+
 Mutation testing arms itself with the first unit test. Until a module has
 both domain logic and tests over it there is nothing to mutate, and a job
 that fails on an empty tree teaches nobody anything.

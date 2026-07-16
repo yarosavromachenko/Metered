@@ -91,7 +91,7 @@ test-arch: ## Architecture tests (Pest Arch)
 
 .PHONY: mutation
 mutation: ## Mutation testing on the four Domain layers (score >= 85)
-	$(EXEC) vendor/bin/pest --mutate --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' --min=85 --ignore-min-score-on-zero-mutations
+	$(EXEC) vendor/bin/pest --mutate --parallel --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' --min=85 --ignore-min-score-on-zero-mutations
 
 .PHONY: security
 security: ## Dependency and filesystem vulnerability scan

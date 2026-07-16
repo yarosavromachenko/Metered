@@ -23,6 +23,7 @@ use function Pest\Laravel\postJson;
 use Psr\Clock\ClockInterface;
 use Tests\Support\CatalogFactory;
 use Tests\Support\TenantFactory;
+use Tests\Support\UsageStream;
 
 /**
  * What happens when something goes wrong: a message nobody can read, a
@@ -32,21 +33,14 @@ use Tests\Support\TenantFactory;
  * These are the tests the design exists for. A batch that succeeds proves
  * plumbing; a batch that fails proves the guarantees.
  */
-const RECOVERY_STREAM = 'usage:events';
-
-const RECOVERY_DLQ = 'usage:events:dead';
-
-const RECOVERY_GROUP = 'usage-writers';
-
 beforeEach(function (): void {
-    usageRedis()->command('del', [RECOVERY_STREAM]);
-    usageRedis()->command('del', [RECOVERY_DLQ]);
+    usageRedis()->command('del', [UsageStream::key()]);
+    usageRedis()->command('del', [UsageStream::deadLetter()]);
 
-    $claims = usageRedis()->command('keys', ['usage:dedup:*']);
-
-    foreach (is_array($claims) ? $claims : [] as $key) {
-        usageRedis()->command('del', [$key]);
-    }
+    // Deduplication claims are left alone. Each is keyed by its project, and
+    // every test makes a new one, so no claim can reach another test; and
+    // deleting them all would reach into the other processes of a parallel
+    // run and take claims their tests are about to assert on.
 });
 
 function usageRedis(): PhpRedisConnection
@@ -102,7 +96,7 @@ function runConsumer(string $name = 'test-consumer'): void
  */
 function deadLettered(): array
 {
-    $entries = usageRedis()->command('xrange', [RECOVERY_DLQ, '-', '+']);
+    $entries = usageRedis()->command('xrange', [UsageStream::deadLetter(), '-', '+']);
     $messages = [];
 
     foreach (is_array($entries) ? $entries : [] as $fields) {
@@ -124,7 +118,7 @@ it('dead-letters a message it cannot read, and tells the tenant why', function (
     // A message from a version this consumer does not know: exactly what a
     // half-finished deploy produces, and the one case where guessing would be
     // worse than refusing.
-    usageRedis()->command('xadd', [RECOVERY_STREAM, '*', [
+    usageRedis()->command('xadd', [UsageStream::key(), '*', [
         'v' => '99',
         'organization_id' => $tenant->organizationId->value,
         'project_id' => $tenant->projectId->value,
@@ -142,7 +136,7 @@ it('dead-letters a message it cannot read, and tells the tenant why', function (
 });
 
 it('dead-letters an unreadable message even when it cannot say whose it is', function (): void {
-    usageRedis()->command('xadd', [RECOVERY_STREAM, '*', ['nonsense' => 'entirely']]);
+    usageRedis()->command('xadd', [UsageStream::key(), '*', ['nonsense' => 'entirely']]);
 
     runConsumer();
 
@@ -153,12 +147,12 @@ it('dead-letters an unreadable message even when it cannot say whose it is', fun
 });
 
 it('acknowledges what it dead-letters, so it is not handed the same poison forever', function (): void {
-    usageRedis()->command('xadd', [RECOVERY_STREAM, '*', ['nonsense' => 'entirely']]);
+    usageRedis()->command('xadd', [UsageStream::key(), '*', ['nonsense' => 'entirely']]);
 
     runConsumer();
     runConsumer();
 
-    $pending = usageRedis()->command('xpending', [RECOVERY_STREAM, RECOVERY_GROUP]);
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
 
     expect(deadLettered())->toHaveCount(1)
         ->and(is_array($pending) ? $pending[0] : 0)->toBe(0);
@@ -172,7 +166,7 @@ it('takes over the work of a consumer that stopped acknowledging', function (): 
 
     // A consumer reads a batch and dies before writing anything: the message
     // stays pending, owned by a name that will never come back.
-    usageRedis()->command('xreadgroup', [RECOVERY_GROUP, 'consumer-that-died', [RECOVERY_STREAM => '>'], 10]);
+    usageRedis()->command('xreadgroup', [UsageStream::group(), 'consumer-that-died', [UsageStream::key() => '>'], 10]);
 
     expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(0);
 
@@ -192,7 +186,7 @@ it('sets aside a message that has been delivered too many times', function (): v
     post($headers);
 
     app(StreamConsumer::class)->ensureGroup();
-    usageRedis()->command('xreadgroup', [RECOVERY_GROUP, 'consumer-that-died', [RECOVERY_STREAM => '>'], 10]);
+    usageRedis()->command('xreadgroup', [UsageStream::group(), 'consumer-that-died', [UsageStream::key() => '>'], 10]);
 
     // One delivery already happened, and this consumer is configured to allow
     // none: the next reclaim is the last straw. In production the number is
@@ -287,15 +281,15 @@ it('leaves no drift when a consumer dies between the commit and the acknowledgem
     // most likely to land in because it is the one that involves a network
     // call after a transaction.
     $delivered = usageRedis()->command('xreadgroup', [
-        RECOVERY_GROUP,
+        UsageStream::group(),
         'consumer-that-died',
-        [RECOVERY_STREAM => '>'],
+        [UsageStream::key() => '>'],
         10,
     ]);
 
     $incoming = [];
-    $messages = is_array($delivered) && isset($delivered[RECOVERY_STREAM]) && is_array($delivered[RECOVERY_STREAM])
-        ? $delivered[RECOVERY_STREAM]
+    $messages = is_array($delivered) && isset($delivered[UsageStream::key()]) && is_array($delivered[UsageStream::key()])
+        ? $delivered[UsageStream::key()]
         : [];
 
     foreach ($messages as $fields) {

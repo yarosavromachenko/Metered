@@ -15,6 +15,7 @@ use function Pest\Laravel\postJson;
 
 use Tests\Support\CatalogFactory;
 use Tests\Support\TenantFactory;
+use Tests\Support\UsageStream;
 
 /**
  * Ingestion end to end, over a real stream and a real database: post a batch
@@ -26,19 +27,14 @@ use Tests\Support\TenantFactory;
  * aside — are properties of the arrangement, and a fake stream has none of
  * them.
  */
-const CONSUME_STREAM = 'usage:events';
-
-const CONSUME_DLQ = 'usage:events:dead';
-
 beforeEach(function (): void {
-    redis()->command('del', [CONSUME_STREAM]);
-    redis()->command('del', [CONSUME_DLQ]);
+    redis()->command('del', [UsageStream::key()]);
+    redis()->command('del', [UsageStream::deadLetter()]);
 
-    $claims = redis()->command('keys', ['usage:dedup:*']);
-
-    foreach (is_array($claims) ? $claims : [] as $key) {
-        redis()->command('del', [$key]);
-    }
+    // Deduplication claims are left alone. Each is keyed by its project, and
+    // every test makes a new one, so no claim can reach another test; and
+    // deleting them all would reach into the other processes of a parallel
+    // run and take claims their tests are about to assert on.
 });
 
 function redis(): PhpRedisConnection
@@ -276,7 +272,7 @@ it('acknowledges what it wrote, so a second pass has nothing to do', function ()
     consume();
     consume();
 
-    $pending = redis()->command('xpending', [CONSUME_STREAM, 'usage-writers']);
+    $pending = redis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
 
     expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1)
         ->and(is_array($pending) ? $pending[0] : 0)->toBe(0);
