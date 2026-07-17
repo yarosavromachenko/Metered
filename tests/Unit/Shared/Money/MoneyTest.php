@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Brick\Math\BigDecimal;
 use Metered\Shared\Domain\Exception\CurrencyMismatch;
 use Metered\Shared\Domain\Exception\InvalidMoney;
 use Metered\Shared\Domain\Money\Money;
@@ -96,4 +97,27 @@ it('is equal only to the same amount in the same currency', function (): void {
         // Comparing across currencies is a question with no answer, but asking
         // whether they are equal has one, and it is "no".
         ->and($euros->equals(Money::ofMinorUnits(100, 'USD')))->toBeFalse();
+});
+
+it('rounds an exact amount to the currency\'s minor unit once, half up', function (
+    string $amount,
+    string $currency,
+    int $expectedMinorUnits,
+): void {
+    $money = Money::rounded(BigDecimal::of($amount), $currency);
+
+    expect($money->minorUnits())->toBe($expectedMinorUnits)
+        ->and($money->currency())->toBe($currency);
+})->with([
+    'already exact' => ['12.34', 'EUR', 1234],
+    'exact half rounds up' => ['0.005', 'EUR', 1],
+    'just below half rounds down' => ['0.00499999', 'EUR', 0],
+    'many places' => ['37.0370367300', 'EUR', 3704],
+    'currency without a minor unit' => ['0.5', 'JPY', 1],
+    'currency with three decimals' => ['1.0005', 'BHD', 1001],
+]);
+
+it('refuses to round into a currency it does not know', function (): void {
+    expect(static fn(): Money => Money::rounded(BigDecimal::of('1'), 'ZZZ'))
+        ->toThrow(InvalidMoney::class, 'not a known ISO 4217 currency');
 });

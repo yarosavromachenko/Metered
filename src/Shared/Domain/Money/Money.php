@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Metered\Shared\Domain\Money;
 
+use Brick\Math\BigDecimal;
+use Brick\Math\RoundingMode;
 use Brick\Money\Exception\UnknownCurrencyException;
 use Brick\Money\Money as BrickMoney;
 use Metered\Shared\Domain\Exception\CurrencyMismatch;
@@ -106,12 +108,20 @@ final readonly class Money implements Stringable
     }
 
     /**
-     * @internal for the unit price, which is the only other type allowed to
-     *           build money from a decimal
+     * An exact amount, rounded to the currency's minor unit — half up, once.
+     *
+     * The one place in the system where a decimal becomes money. A price times
+     * a quantity arrives here, and so does a graduated charge summed across its
+     * tiers: rounding each tier on its own would give a different total than
+     * the line prints (ADR-0007).
      */
-    public static function fromBrick(BrickMoney $amount): self
+    public static function rounded(BigDecimal $amount, string $currency): self
     {
-        return new self($amount);
+        try {
+            return new self(BrickMoney::of($amount, strtoupper(trim($currency)), roundingMode: RoundingMode::HalfUp));
+        } catch (UnknownCurrencyException) {
+            throw InvalidMoney::unknownCurrency($currency);
+        }
     }
 
     private function guardSameCurrency(self $other): void

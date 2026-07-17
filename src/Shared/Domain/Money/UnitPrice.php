@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Metered\Shared\Domain\Money;
 
 use Brick\Math\BigDecimal;
-use Brick\Math\RoundingMode;
 use Brick\Money\Currency;
 use Brick\Money\Exception\UnknownCurrencyException;
-use Brick\Money\Money as BrickMoney;
 use Metered\Shared\Domain\Decimal\Decimals;
 use Metered\Shared\Domain\Exception\InvalidMoney;
 use Metered\Shared\Domain\Quantity\Quantity;
@@ -60,11 +58,7 @@ final readonly class UnitPrice implements Stringable
 
     public function multipliedBy(Quantity $quantity): Money
     {
-        $total = $this->amount->multipliedBy($quantity->toBigDecimal());
-
-        return Money::fromBrick(
-            BrickMoney::of($total, $this->currency, roundingMode: RoundingMode::HalfUp),
-        );
+        return Money::rounded($this->amount->multipliedBy($quantity->toBigDecimal()), $this->currency);
     }
 
     public function toBigDecimal(): BigDecimal
