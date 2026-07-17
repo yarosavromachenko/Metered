@@ -26,10 +26,12 @@ make mutation-module MODULE=Billing   # one module's domain layer, on its own
 ```
 
 `make mutation` reports a single score over all four domain layers, which lets
-a weak module pass behind strong ones: at the end of M3, `Billing\Domain` alone
-scored 73.68% while the combined score was 89.36%. A milestone criterion that
-names a module is checked with `make mutation-module`, which also takes well
-under a minute against several for the whole set.
+a weak module pass behind strong ones. A milestone criterion that names a
+module is checked with `make mutation-module`, which also takes well under a
+minute against several for the whole set. Read its score together with the
+paragraph on constants below: at the end of M3, `Billing\Domain` alone scored
+73.68%, and every one of its ten uncovered mutations was a constant
+declaration whose limit a test already pins.
 
 ## Rules that are not negotiable
 
