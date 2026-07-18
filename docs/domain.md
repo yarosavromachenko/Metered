@@ -159,6 +159,12 @@ stateDiagram-v2
 | `graduated` | Each tier prices only the units falling inside it | A quantity landing exactly on a tier boundary |
 | `volume` | The tier reached prices **all** units | The same boundary quantity, which must produce a different total than `graduated` |
 
+A tier's limit is **inclusive**: exactly 1,000 units lie in the tier that ends
+at 1,000. Tier limits rise strictly from zero, only the last tier is unbounded,
+and it must be — a table breaking any of those is refused when it is built,
+not when an invoice meets it. A graduated charge is summed across its tiers
+exactly and rounded once (ADR-0007).
+
 The calculator is a pure domain service: no framework, no clock, no database, no
 `float`. It is the single place where money is computed, and it is the module
 with the strictest mutation-testing threshold.
