@@ -43,6 +43,7 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | **Price** | One pricing rule inside a plan version: `flat_fee`, `per_unit`, `graduated`, or `volume`. Usage-based models reference a meter. |
 | **Subscription** | A customer's subscription to a plan version, made of **phases** — intervals each pinned to one plan version. A plan change adds a phase rather than mutating history. |
 | **Billing period** | A half-open interval `[start, end)` anchored on the subscription's `anchor_at`, clamped at month end (31 Jan → 28 Feb). |
+| **Billing cycle** | The sequence of billing periods following from an anchor and an interval (`month` or `year`). Each boundary is the anchor moved on by whole intervals, its time of day kept and its day clamped to the month it lands in — so a cycle anchored on 31 January runs 28 February, then 31 March. All in UTC; daylight saving never moves a boundary. |
 | **Grace window** | The delay between a period ending and its invoice being built, so that events arriving late still land in the right invoice. Default one hour. |
 | **Late event** | An event whose `occurred_at` falls inside an already finalized period. It appears on the *next* invoice as a separate line flagged `late`. |
 | **Invoice / InvoiceLine** | The document owed by a customer. Numbered gaplessly per organization. |
