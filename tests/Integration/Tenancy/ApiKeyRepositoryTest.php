@@ -54,9 +54,12 @@ it('lists the keys of one project, newest first', function (): void {
     $acme = TenantFactory::tenant('acme');
     $rival = TenantFactory::tenant('north-wind');
 
-    TenantFactory::apiKey($acme, name: 'First');
-    TenantFactory::apiKey($acme, name: 'Second');
-    TenantFactory::apiKey($rival, name: 'Theirs');
+    // The instants are stated rather than read from the clock twice in a row:
+    // the order under test is the one they name, not the one the machine's
+    // clock happened to produce between two inserts.
+    TenantFactory::apiKey($acme, name: 'First', issuedAt: new DateTimeImmutable('2026-09-14T09:00:00+00:00'));
+    TenantFactory::apiKey($acme, name: 'Second', issuedAt: new DateTimeImmutable('2026-09-14T09:00:01+00:00'));
+    TenantFactory::apiKey($rival, name: 'Theirs', issuedAt: new DateTimeImmutable('2026-09-14T09:00:02+00:00'));
 
     $names = array_map(
         static fn(ApiKey $key): string => $key->name,

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Support;
 
+use DateTimeImmutable;
 use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Identifier\Uuid;
@@ -117,6 +118,7 @@ final class TenantFactory
         Project $project,
         array $scopes = [Scope::UsageWrite],
         string $name = 'Ingestion',
+        ?DateTimeImmutable $issuedAt = null,
     ): array {
         $secret = ApiKeySecret::generate($project->environment);
 
@@ -126,7 +128,7 @@ final class TenantFactory
             $name,
             $secret,
             $scopes,
-            app(ClockInterface::class)->now(),
+            $issuedAt ?? app(ClockInterface::class)->now(),
         );
 
         app(ApiKeyRepository::class)->save($key);
