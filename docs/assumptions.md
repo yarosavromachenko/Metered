@@ -30,6 +30,7 @@ code.
 | 20 | Ingestion p99 | **The 150ms threshold stands and the baseline fails it** (570ms). It is not lowered without a cause, and naming the cause needs the request tracing that M8 builds | [`benchmarks.md`](benchmarks.md) |
 | 21 | When a plan version locks | **At publication, not at first use.** The glossary says a version in use is immutable; locking it when it is published is stronger and has no window in which a version is subscribed to but still editable. Only a published version can be subscribed to, and a price change is a new version | [`domain.md`](domain.md) |
 | 22 | Prices per meter | **One price per meter within a version.** Two prices on one meter would charge the same usage twice, which is always a mistake in the catalog rather than a pricing strategy; a charge that needs a base fee and a usage rate is a flat fee plus a usage price | [`domain.md`](domain.md) |
+| 23 | When a plan change takes effect | **At the end of the current period, on the same currency and interval.** Every period is then billed on exactly one version and nothing needs prorating; changing the currency or the interval would change what a period is, so it takes a new subscription. One change may wait at a time, and a cancellation at period end drops a change that would have started then. Immediate change with proration stays M5's stretch goal | [`domain.md`](domain.md) |
 
 ## Consequences worth remembering
 

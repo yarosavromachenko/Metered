@@ -127,6 +127,11 @@ stateDiagram-v2
     canceled --> [*]
 ```
 
+A plan change appends a phase that starts at the end of the current period, so
+every period is billed on one version. A cancellation at period end drops a
+change that would have started then; an immediate cancellation cuts the running
+phase short at that instant (assumptions, 23).
+
 ### Webhook delivery and circuit breaker
 
 ```mermaid
