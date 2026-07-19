@@ -40,4 +40,14 @@ final class InvalidPricing extends DomainException
     {
         return new self(sprintf('A price is set in one currency; its tiers mix %s and %s.', $first, $other));
     }
+
+    public static function meterOnFixedCharge(): self
+    {
+        return new self('A fixed charge does not depend on usage, so it cannot be attached to a meter.');
+    }
+
+    public static function usageWithoutMeter(): self
+    {
+        return new self('A usage-based price needs a meter to read its usage from.');
+    }
 }

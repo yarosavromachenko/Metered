@@ -28,6 +28,8 @@ code.
 | 18 | Explorer filtered by a quiet meter | **Left slow, on purpose, until the `heavy` profile says otherwise.** The page walks events newest first and discards other meters. The index that would fix it, `(project_id, meter_id, occurred_at)`, would be the fourth on the largest table | [`query-plans.md`](query-plans.md) |
 | 19 | OpenAPI document | **Generated, not committed.** `dedoc/scramble` (a development dependency) builds it from routes, validation rules and responses; CI publishes it as an artifact. Errors are described by a document transformer, because the generator would otherwise describe Laravel's default validation shape and miss the middleware's 401/403/429. A contract test holds real responses to the declared schemas | [`api.md`](api.md) |
 | 20 | Ingestion p99 | **The 150ms threshold stands and the baseline fails it** (570ms). It is not lowered without a cause, and naming the cause needs the request tracing that M8 builds | [`benchmarks.md`](benchmarks.md) |
+| 21 | When a plan version locks | **At publication, not at first use.** The glossary says a version in use is immutable; locking it when it is published is stronger and has no window in which a version is subscribed to but still editable. Only a published version can be subscribed to, and a price change is a new version | [`domain.md`](domain.md) |
+| 22 | Prices per meter | **One price per meter within a version.** Two prices on one meter would charge the same usage twice, which is always a mistake in the catalog rather than a pricing strategy; a charge that needs a base fee and a usage rate is a flat fee plus a usage price | [`domain.md`](domain.md) |
 
 ## Consequences worth remembering
 
