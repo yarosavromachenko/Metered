@@ -25,4 +25,10 @@ interface ProjectDirectory
     public function all(): array;
 
     public function find(Uuid $projectId): ?TenantContext;
+
+    /**
+     * The ISO 4217 code the project declared at creation, which everything
+     * priced beneath it uses; null when the tenant names no project.
+     */
+    public function currencyOf(TenantContext $tenant): ?string;
 }

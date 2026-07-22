@@ -47,6 +47,16 @@ final readonly class DatabaseProjectDirectory implements ProjectDirectory
         return $row instanceof stdClass ? $this->toTenant($row) : null;
     }
 
+    public function currencyOf(TenantContext $tenant): ?string
+    {
+        $currency = $this->db->connection()->table('projects')
+            ->where('id', $tenant->projectId->value)
+            ->where('organization_id', $tenant->organizationId->value)
+            ->value('currency');
+
+        return $currency === null ? null : RowReader::string($currency, 'currency');
+    }
+
     private function toTenant(stdClass $row): TenantContext
     {
         $values = get_object_vars($row);
