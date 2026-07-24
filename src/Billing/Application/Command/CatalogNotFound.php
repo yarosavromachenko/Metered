@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Billing\Application\Command;
 
+use Metered\Shared\Application\Exception\NotFound;
 use Metered\Shared\Domain\Identifier\Uuid;
 use RuntimeException;
 
@@ -12,7 +13,7 @@ use RuntimeException;
  * same answer whether it does not exist at all or belongs to another tenant,
  * so the error reveals nothing about anyone else's catalog.
  */
-final class CatalogNotFound extends RuntimeException
+final class CatalogNotFound extends RuntimeException implements NotFound
 {
     public static function of(string $what, Uuid $id): self
     {

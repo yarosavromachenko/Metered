@@ -10,6 +10,10 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Http\Request;
 use Illuminate\Validation\ValidationException;
+use Metered\Shared\Application\Exception\Conflict;
+use Metered\Shared\Application\Exception\NotFound;
+use Metered\Shared\Domain\Access\PermissionDenied;
+use Metered\Shared\Domain\Exception\DomainException;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
@@ -63,6 +67,25 @@ final class ProblemRenderer
                 $instance,
             ),
             $e instanceof AuthorizationException => Problem::response(
+                'forbidden',
+                'Forbidden',
+                403,
+                'The credentials used are not allowed to perform this action.',
+                $instance,
+            ),
+            // A module's own "no such thing" and "already taken", and a broken
+            // domain rule. Their messages are written for the caller, which is
+            // why these three may show them and the fallback below may not.
+            $e instanceof NotFound => Problem::response('not-found', 'Not found', 404, $e->getMessage(), $instance),
+            $e instanceof Conflict => Problem::response('conflict', 'Conflict', 409, $e->getMessage(), $instance),
+            $e instanceof DomainException => Problem::response(
+                'rule-violated',
+                'Rule violated',
+                422,
+                $e->getMessage(),
+                $instance,
+            ),
+            $e instanceof PermissionDenied => Problem::response(
                 'forbidden',
                 'Forbidden',
                 403,

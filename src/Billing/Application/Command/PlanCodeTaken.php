@@ -5,9 +5,10 @@ declare(strict_types=1);
 namespace Metered\Billing\Application\Command;
 
 use Metered\Billing\Domain\Plan\PlanCode;
+use Metered\Shared\Application\Exception\Conflict;
 use RuntimeException;
 
-final class PlanCodeTaken extends RuntimeException
+final class PlanCodeTaken extends RuntimeException implements Conflict
 {
     public static function withCode(PlanCode $code): self
     {

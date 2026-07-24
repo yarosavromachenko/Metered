@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Route;
+use Metered\Shared\Application\Exception\Conflict;
+use Metered\Shared\Application\Exception\NotFound;
+use Metered\Shared\Domain\Access\Actor;
+use Metered\Shared\Domain\Access\Permission;
+use Metered\Shared\Domain\Access\PermissionDenied;
+use Metered\Shared\Domain\Exception\DomainException;
 
 use function Pest\Laravel\getJson;
 use function Pest\Laravel\postJson;
@@ -29,6 +35,22 @@ beforeEach(function (): void {
 
     Route::middleware('api')->get('/api/v1/test-overloaded', function (): never {
         throw new ServiceUnavailableHttpException(30);
+    });
+
+    Route::middleware('api')->get('/api/v1/test-missing', function (): never {
+        throw new class ('No plan 01924b7c-0000-7000-8000-000000000001 in this project.') extends RuntimeException implements NotFound {};
+    });
+
+    Route::middleware('api')->get('/api/v1/test-taken', function (): never {
+        throw new class ('This project already has a plan with the code "pro".') extends RuntimeException implements Conflict {};
+    });
+
+    Route::middleware('api')->get('/api/v1/test-rule', function (): never {
+        throw new class ('A version cannot be published without a single price.') extends DomainException {};
+    });
+
+    Route::middleware('api')->get('/api/v1/test-denied', function (): never {
+        throw PermissionDenied::for(Actor::system('test'), Permission::ManageCatalog);
     });
 
     Route::middleware('api')->get('/api/v1/test-broken', function (): never {
@@ -69,6 +91,18 @@ it('uses one shape for every failure the framework raises', function (string $pa
     'unknown route' => ['/api/v1/nothing-here', 404, 'not-found'],
     'forbidden' => ['/api/v1/test-forbidden', 403, 'forbidden'],
     'shedding load' => ['/api/v1/test-overloaded', 503, 'service-unavailable'],
+    'a module\'s not found' => ['/api/v1/test-missing', 404, 'not-found'],
+    'a module\'s conflict' => ['/api/v1/test-taken', 409, 'conflict'],
+    'a broken domain rule' => ['/api/v1/test-rule', 422, 'rule-violated'],
+    'a missing permission' => ['/api/v1/test-denied', 403, 'forbidden'],
+]);
+
+it('shows the caller what a module wrote for them, and only that', function (string $path, string $detail): void {
+    getJson($path)->assertJsonPath('detail', $detail);
+})->with([
+    'not found' => ['/api/v1/test-missing', 'No plan 01924b7c-0000-7000-8000-000000000001 in this project.'],
+    'conflict' => ['/api/v1/test-taken', 'This project already has a plan with the code "pro".'],
+    'rule' => ['/api/v1/test-rule', 'A version cannot be published without a single price.'],
 ]);
 
 it('refuses a method the route does not have', function (): void {
