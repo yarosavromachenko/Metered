@@ -72,6 +72,9 @@ like this:
 **Pagination is cursor based.** Offsets over a partitioned event table get slower
 the further a client reads, and they skip rows when data arrives mid-scan.
 Responses carry `{"data": [...], "next_cursor": "..."}`; the cursor is opaque.
+The catalog's lists — meters, customers, plans — are the exception and return
+every item in `data`: they hold what people define by hand, and a page of them
+is the whole of them.
 
 **Rate limits are per key**, returned as `RateLimit-Limit`, `RateLimit-Remaining`
 and `RateLimit-Reset`. Exceeding them gives `429` with `Retry-After`. Per key
@@ -96,10 +99,10 @@ surface, including what does not exist yet, so a client knows what to expect.
 | Area | Endpoints | Available |
 |---|---|---|
 | Usage | `POST /usage/events` (batch of up to 100, returns `202`) · `GET /customers/{reference}/usage?meter&from&to` | ✅ M3 |
-| Meters | `POST /meters` · `GET /meters` | M4 (meters exist, defined in the admin panel) |
-| Plans | `POST /plans` · `GET /plans` · `POST /plans/{id}/versions` | M4 |
-| Customers | `POST /customers` · `GET /customers` | M4 (customers exist, registered in the admin panel) |
-| Subscriptions | `POST /subscriptions` · `POST /subscriptions/{id}/cancel` · `POST /subscriptions/{id}/change-plan` | M4 |
+| Meters | `POST /meters` · `GET /meters` | ✅ M4 |
+| Plans | `POST /plans` · `GET /plans` · `POST /plans/{id}/versions` | ✅ M4 |
+| Customers | `POST /customers` · `GET /customers` | ✅ M4 |
+| Subscriptions | `POST /subscriptions` · `POST /subscriptions/{id}/cancel` · `POST /subscriptions/{id}/change-plan` | ✅ M4 |
 | Invoices | `GET /invoices` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | M5 |
 | Payments | `POST /invoices/{id}/pay` | M5 |
 | Webhooks | `POST/GET/PATCH/DELETE /webhook-endpoints` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries` · `POST /webhook-deliveries/{id}/replay` | M6 |
@@ -227,3 +230,60 @@ a sum for `sum` and `count` meters, and the highest hourly peak for `max`
 meters. `events` is how many events were folded in. Accepted events that the
 consumer has not written yet are not in the numbers. The gap is seconds under
 normal load and is what the ingestion widget's stream count shows.
+
+## The catalog and subscriptions
+
+Every endpoint here needs an `admin` key, and every write needs an
+`Idempotency-Key`. A retried write returns the stored response instead of
+creating a second plan version or starting a second subscription.
+
+```http
+POST /api/v1/plans/{plan}/versions
+Authorization: Bearer mk_live_...
+Idempotency-Key: 5f0c7f0e-6a57-4f1b-9d3e-0c9b1f6e2a11
+Content-Type: application/json
+
+{
+  "interval": "month",
+  "prices": [
+    {"model": "flat_fee", "amount": 4900},
+    {"model": "per_unit", "meter": "api.requests", "unit_price": "0.002"},
+    {"model": "graduated", "meter": "storage.gb", "tiers": [
+      {"up_to": "100", "unit_price": "0"},
+      {"up_to": null, "unit_price": "0.05"}
+    ]}
+  ]
+}
+```
+
+A version is created with all its prices in one request and published unless
+`"publish": false` is sent. It takes the project's currency, so prices carry
+none: `amount` is minor units, and unit prices are decimal strings with at most
+eight places. Tier limits are inclusive, the last tier has `"up_to": null`, and
+`volume` takes the same tiers as `graduated`. A price names its meter by code;
+a flat fee names none. The whole request is one transaction, so a price the
+catalog refuses — a tier table that leaves a quantity unpriced, a second price
+on one meter — is `422 rule-violated` and leaves no half-built draft.
+
+A published version never changes; a new price is a new version.
+
+```http
+POST /api/v1/subscriptions
+{"customer_ref": "cus_4471", "plan_version_id": "0192..."}
+```
+
+A subscription starts now, on a published version, and is anchored at that
+instant: its periods run from the anchor, month or year at a time, clamped to
+the end of a shorter month. `POST /subscriptions/{id}/change-plan` with a
+`plan_version_id` takes effect at the end of the current period — the new phase
+in the response says exactly when — and may not change the currency or the
+interval. `POST /subscriptions/{id}/cancel` ends it at the end of the current
+period, or at once with `{"immediately": true}`.
+
+| Answer | When |
+|---|---|
+| `404 not-found` | The plan, version, customer or subscription is not in this project — including when it is another project's |
+| `409 conflict` | A meter code, customer reference or plan code the project already uses |
+| `422 validation-failed` | The body's shape: a missing field, an unknown model, a meter code the project does not have |
+| `422 rule-violated` | A catalog rule: an unpublished version, a change of interval, a tier table with a bounded last tier |
+
