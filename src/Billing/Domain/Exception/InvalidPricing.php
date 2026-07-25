@@ -50,4 +50,9 @@ final class InvalidPricing extends DomainException
     {
         return new self('A usage-based price needs a meter to read its usage from.');
     }
+
+    public static function unreadableAmount(string $amount, string $currency): self
+    {
+        return new self(sprintf('"%s" is not an amount of %s: a number with at most its minor-unit places.', $amount, $currency));
+    }
 }
