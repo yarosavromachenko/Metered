@@ -7,37 +7,20 @@ use Metered\Billing\Domain\MeterRepository;
 use Metered\Billing\Presentation\Filament\Actions\DefineMeterAction;
 use Metered\Billing\Presentation\Filament\Actions\RegisterCustomerAction;
 use Metered\Shared\Domain\Metering\Aggregation;
-use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Role;
-use Metered\Tenancy\Infrastructure\Eloquent\User;
-use Metered\Tenancy\Presentation\Filament\PanelScope;
 
-use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 
 use Tests\Support\CatalogFactory;
+use Tests\Support\PanelSession;
 use Tests\Support\TenantFactory;
 
 /**
  * The catalog screens, and the one rule they all answer to: a screen shows the
  * project in the panel scope and nothing else.
  */
-function signedInCatalogUser(string $organizationSlug = 'acme', Role $role = Role::Admin): Project
-{
-    $project = TenantFactory::tenant($organizationSlug);
-    $member = TenantFactory::member($project->organizationId, $role, $role->value . '@' . $organizationSlug . '.example');
-
-    $user = User::query()->find($member->userId?->value);
-    actingAs($user instanceof User ? $user : throw new RuntimeException('No user.'));
-
-    app('request')->setLaravelSession(app('session.store'));
-    app(PanelScope::class)->switchTo($project->id->value);
-
-    return $project;
-}
-
 it('defines a meter from the panel, ready for the events that name it', function (): void {
-    $project = signedInCatalogUser();
+    $project = PanelSession::signIn();
 
     DefineMeterAction::run([
         'code' => 'API.Requests',
@@ -53,7 +36,7 @@ it('defines a meter from the panel, ready for the events that name it', function
 });
 
 it('falls back to summing when the form sends an aggregation that is not one', function (): void {
-    $project = signedInCatalogUser();
+    $project = PanelSession::signIn();
 
     DefineMeterAction::run(['code' => 'storage.gb', 'name' => 'Storage', 'aggregation' => 'average']);
 
@@ -62,7 +45,7 @@ it('falls back to summing when the form sends an aggregation that is not one', f
 });
 
 it('refuses to define a meter for a role that may not shape the catalog', function (): void {
-    $project = signedInCatalogUser('acme', Role::BillingOperator);
+    $project = PanelSession::signIn('acme', Role::BillingOperator);
 
     DefineMeterAction::run(['code' => 'api.requests', 'name' => 'API requests', 'aggregation' => 'sum']);
 
@@ -70,7 +53,7 @@ it('refuses to define a meter for a role that may not shape the catalog', functi
 });
 
 it('registers a customer from the panel', function (): void {
-    $project = signedInCatalogUser();
+    $project = PanelSession::signIn();
 
     RegisterCustomerAction::run(['reference' => 'cus_4471', 'name' => 'North Wind Ltd']);
 
@@ -82,7 +65,7 @@ it('registers a customer from the panel', function (): void {
 });
 
 it('shows one project’s catalog and never another tenant’s', function (): void {
-    $acme = signedInCatalogUser();
+    $acme = PanelSession::signIn();
     $rival = TenantFactory::tenant('north-wind');
 
     CatalogFactory::meter($acme->tenant(), 'ours.requests');
@@ -102,7 +85,7 @@ it('shows one project’s catalog and never another tenant’s', function (): vo
 });
 
 it('shows a project’s meters, not the whole organization’s', function (): void {
-    $production = signedInCatalogUser();
+    $production = PanelSession::signIn();
     $sandbox = TenantFactory::project($production->organizationId, 'sandbox');
 
     CatalogFactory::meter($production->tenant(), 'production.requests');
