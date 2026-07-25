@@ -12,8 +12,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M1 | Shared kernel | M | ✅ done |
 | M2 | Tenancy and the admin shell | M | ✅ done |
 | M3 | Usage ingestion | L | ✅ done |
-| M4 | Billing catalog and subscriptions | M | 🔜 next |
-| M5 | Invoicing and ledger | L | ⬜ |
+| M4 | Billing catalog and subscriptions | M | ✅ done |
+| M5 | Invoicing and ledger | L | 🔜 next |
 | M6 | Webhooks | M | ⬜ |
 | M7 | Simulation, seed profiles and chaos | M | ⬜ |
 | M8 | Observability polish | S–M | ⬜ |
@@ -91,9 +91,17 @@ Meters, plans, versions, prices, customers, subscriptions with phases, period
 arithmetic (anchor, month-end clamp), and the pricing calculator as a pure domain
 service. Admin: CRUD for all of it.
 
-- [ ] Table-driven tests for all four pricing models, with cases sitting exactly on tier boundaries
-- [ ] Time-travel tests: 31 Jan → 28/29 Feb, year rollover, DST independence (everything is UTC)
-- [ ] Mutation score ≥ 85 on `Billing/Domain`
+- [x] Table-driven tests for all four pricing models, with cases sitting exactly on tier boundaries — on each boundary, a millionth past it and one unit past it, including the quantity where graduated and volume must disagree
+- [x] Time-travel tests: 31 Jan → 28/29 Feb, year rollover, DST independence (everything is UTC) — plus a MockClock walked a day at a time through a leap year holding the no-gap, no-overlap invariant, and subscriptions changed and canceled across the February clamp
+- [x] Mutation score ≥ 85 on `Billing/Domain` — measured on the module alone with `make mutation-module MODULE=Billing`, since the combined score could hide it
+
+The rules the domain types enforce are also in the schema, for rows written
+without them: a published version and its prices refuse any change, two phases
+of one subscription cannot overlap (an exclusion constraint), a phase cannot
+name a draft, and a price or subscription cannot reach another project's meter
+or customer. Admin: plans, plan versions with their prices, and subscriptions,
+beside the meters and customers built in M3; the management API covers all of
+it under an admin key ([`api.md`](api.md)).
 
 ## M5 — Invoicing and ledger
 

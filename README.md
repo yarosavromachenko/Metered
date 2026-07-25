@@ -5,14 +5,14 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: M2 complete — tenants, keys and the panel.** On top of the shared
-> kernel from M1 (money that refuses to be a float, a transactional outbox with
-> a `SKIP LOCKED` relay, idempotency keys proven under sixteen parallel
-> processes, a hash-chained audit log, RFC 9457 errors, traces that survive the
-> hop into a queue): organizations, projects and API keys whose secrets are
-> never stored, authentication with a bounded revocation window, and a Filament
-> panel at `/admin` where one tenant cannot see another's rows. The billing
-> domain itself arrives milestone by milestone
+> **Status: M4 complete — the catalog and subscriptions.** On top of the
+> shared kernel (money that refuses to be a float, a transactional outbox, a
+> hash-chained audit log), tenants with API keys and a Filament panel, and
+> usage ingestion through Redis Streams into partitioned PostgreSQL: plans
+> with immutable published versions, four pricing models computed by a pure
+> calculator, billing periods clamped to the end of a shorter month, and
+> subscriptions whose phases the database refuses to let overlap — managed from
+> the panel and a management API. Invoices arrive next
 > ([`docs/roadmap.md`](docs/roadmap.md)).
 
 Metered meters what customers consume, prices it, invoices it, books it into a
@@ -113,12 +113,12 @@ decision has an ADR in [`docs/adr/`](docs/adr/).
 
 ## What is interesting to read first
 
-Once the modules land, these three are the ones worth ten minutes:
+These three are the ones worth ten minutes:
 
 1. `src/Billing/Domain/Pricing/` — the pricing calculator. Pure domain, table-driven
-   tests on every tier boundary, no framework in sight. *(M4)*
+   tests on every tier boundary, no framework in sight.
 2. `src/Usage/Infrastructure/Stream/` — the consumer daemon: consumer groups,
-   `XAUTOCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown. *(M3)*
+   `XAUTOCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown.
 3. `src/Shared/Infrastructure/Outbox/` — transactional outbox with
    `SELECT ... FOR UPDATE SKIP LOCKED` relay and the inbox that makes consumers
    idempotent.

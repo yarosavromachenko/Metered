@@ -48,7 +48,7 @@ Commit:
 | 2026-07-11 | `ingest-steady` | 40.7 | 31.6 ms | 36.1 ms | 570 ms | 0 | 0 |
 
 `ingest-burst`, `mixed` and `close-periods` are not measured yet: the first two
-need the management API reads that arrive with M4, and the last needs invoicing.
+need the management API reads, which arrived with M4 and are not scripted yet, and the last needs invoicing.
 
 ### 1. `ingest-steady` — 2026-07-11
 
