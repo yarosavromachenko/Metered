@@ -14,8 +14,8 @@
     "require": {
         "php": "^8.4",
         "ext-intl": "*",
-        "brick/math": "^0.17",
-        "brick/money": "^0.13",
+        "brick/math": "^0.18",
+        "brick/money": "^0.14",
         "filament/filament": "^4.0",
         "guzzlehttp/guzzle": "^7.15",
         "laravel/framework": "^13.17",
