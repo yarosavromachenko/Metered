@@ -96,6 +96,42 @@ final readonly class Subscription
     }
 
     /**
+     * The periods that start at or after $from and have ended by $endedBy, in
+     * order — what is left to invoice once $from is where the last invoice
+     * stopped.
+     *
+     * Each is a period of the cycle, except the last one of a subscription
+     * that has ended, which stops at the end: a subscription canceled on the
+     * 10th is billed up to the 10th and not a day past it.
+     *
+     * @return list<BillingPeriod>
+     */
+    public function periodsEndedBy(DateTimeImmutable $from, DateTimeImmutable $endedBy): array
+    {
+        $periods = [];
+        $cursor = max($from, $this->anchorAt);
+
+        while (! $this->endsAt instanceof DateTimeImmutable || $cursor < $this->endsAt) {
+            $period = $this->periodAt($cursor);
+            $end = min($period->end, $this->endsAt ?? $period->end);
+
+            if ($end > $endedBy) {
+                break;
+            }
+
+            // A $from inside a period means that period was invoiced already,
+            // or began before the subscription did; either way not again.
+            if ($period->start >= $from) {
+                $periods[] = BillingPeriod::between($period->start, $end);
+            }
+
+            $cursor = $period->end;
+        }
+
+        return $periods;
+    }
+
+    /**
      * The plan version that prices $instant, or null outside the
      * subscription's life.
      */

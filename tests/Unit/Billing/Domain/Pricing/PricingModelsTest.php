@@ -127,3 +127,49 @@ it('charges tiered usage in the currency of its tiers', function (): void {
         ->and($volume->currency())->toBe('EUR')
         ->and($volume->isUsageBased())->toBeTrue();
 });
+
+it('shows the working behind a flat fee', function (): void {
+    expect(FlatFee::of(Money::ofMinorUnits(4900, 'EUR'))->calculation(Quantity::fromString('12')))
+        ->toBe(['49.00 EUR per period, whatever was used']);
+});
+
+it('shows the working behind a per-unit charge, without trailing zeros', function (): void {
+    expect(PerUnit::at(UnitPrice::fromString('0.00012', 'EUR'))->calculation(Quantity::fromString('104166.5')))
+        ->toBe(['104166.5 × 0.00012 EUR = 12.50 EUR']);
+});
+
+it('shows each tier a graduated charge reached, exactly, then the total rounded once', function (string $quantity, array $steps): void {
+    expect(Graduated::over(threeTiers())->calculation(Quantity::fromString($quantity)))->toBe($steps);
+})->with([
+    'inside the first tier' => ['250', ['up to 1000: 250 × 0.1 EUR = 25', 'total 25.00 EUR, rounded once']],
+    'exactly on the first boundary' => ['1000', ['up to 1000: 1000 × 0.1 EUR = 100', 'total 100.00 EUR, rounded once']],
+    'a millionth past it' => ['1000.000001', [
+        'up to 1000: 1000 × 0.1 EUR = 100',
+        'over 1000 up to 5000: 0.000001 × 0.08 EUR = 0.00000008',
+        'total 100.00 EUR, rounded once',
+    ]],
+    'into the last tier' => ['6000', [
+        'up to 1000: 1000 × 0.1 EUR = 100',
+        'over 1000 up to 5000: 4000 × 0.08 EUR = 320',
+        'over 5000: 1000 × 0.05 EUR = 50',
+        'total 470.00 EUR, rounded once',
+    ]],
+    'nothing used' => ['0', ['total 0.00 EUR, rounded once']],
+]);
+
+it('shows the one tier a volume charge reached pricing every unit', function (string $quantity, string $step): void {
+    expect(Volume::over(threeTiers())->calculation(Quantity::fromString($quantity)))->toBe([$step]);
+})->with([
+    ['1000', '1000 lies in the tier up to 1000, which prices every unit: 1000 × 0.1 EUR = 100.00 EUR'],
+    ['1000.000001', '1000.000001 lies in the tier over 1000 up to 5000, which prices every unit: 1000.000001 × 0.08 EUR = 80.00 EUR'],
+    ['5001', '5001 lies in the tier over 5000, which prices every unit: 5001 × 0.05 EUR = 250.05 EUR'],
+]);
+
+it('names a single unbounded tier as covering every unit', function (): void {
+    $tiers = Tiers::of([Tier::unbounded(UnitPrice::fromString('0.02', 'EUR'))]);
+
+    expect(Volume::over($tiers)->calculation(Quantity::fromString('10')))
+        ->toBe(['10 lies in the tier every unit, which prices every unit: 10 × 0.02 EUR = 0.20 EUR'])
+        ->and(Graduated::over($tiers)->calculation(Quantity::fromString('10')))
+        ->toBe(['every unit: 10 × 0.02 EUR = 0.2', 'total 0.20 EUR, rounded once']);
+});

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Metered\Billing\Domain\Exception\SubscriptionChangeRefused;
 use Metered\Billing\Domain\Period\BillingInterval;
+use Metered\Billing\Domain\Period\BillingPeriod;
 use Metered\Billing\Domain\Plan\PlanVersion;
 use Metered\Billing\Domain\Plan\Price;
 use Metered\Billing\Domain\Pricing\FlatFee;
@@ -228,4 +229,82 @@ it('names no version outside its lifetime', function (): void {
     expect($canceled->versionAt(new DateTimeImmutable('2026-01-31T13:59:59+00:00')))->toBeNull()
         ->and($canceled->versionAt(new DateTimeImmutable('2026-02-10T08:00:00+00:00')))->toBeNull()
         ->and($canceled->versionAt(new DateTimeImmutable('2026-02-10T07:59:59+00:00'))?->value)->toBe(STARTER);
+});
+
+/**
+ * @param list<BillingPeriod> $periods
+ *
+ * @return list<string>
+ */
+function periodsOf(array $periods): array
+{
+    return array_map(static fn(BillingPeriod $period): string => (string) $period, $periods);
+}
+
+it('lists the periods that have ended, walking the month-end clamp', function (): void {
+    $clock = new MockClock('2026-01-31 14:00:00', 'UTC');
+    $subscription = subscribe($clock);
+
+    expect(periodsOf($subscription->periodsEndedBy($subscription->anchorAt, new DateTimeImmutable('2026-05-01T00:00:00Z'))))->toBe([
+        '[2026-01-31T14:00:00Z, 2026-02-28T14:00:00Z)',
+        '[2026-02-28T14:00:00Z, 2026-03-31T14:00:00Z)',
+        '[2026-03-31T14:00:00Z, 2026-04-30T14:00:00Z)',
+    ]);
+});
+
+it('lists a period only once it has ended, to the microsecond', function (): void {
+    $subscription = subscribe(new MockClock('2026-01-31 14:00:00', 'UTC'));
+
+    expect($subscription->periodsEndedBy($subscription->anchorAt, new DateTimeImmutable('2026-02-28T13:59:59.999999Z')))->toBe([])
+        ->and(periodsOf($subscription->periodsEndedBy($subscription->anchorAt, new DateTimeImmutable('2026-02-28T14:00:00Z'))))
+        ->toBe(['[2026-01-31T14:00:00Z, 2026-02-28T14:00:00Z)']);
+});
+
+it('starts where the last invoice stopped, never before it', function (): void {
+    $subscription = subscribe(new MockClock('2026-01-31 14:00:00', 'UTC'));
+    $endedBy = new DateTimeImmutable('2026-05-01T00:00:00Z');
+
+    expect(periodsOf($subscription->periodsEndedBy(new DateTimeImmutable('2026-03-31T14:00:00Z'), $endedBy)))
+        ->toBe(['[2026-03-31T14:00:00Z, 2026-04-30T14:00:00Z)'])
+        ->and(periodsOf($subscription->periodsEndedBy(new DateTimeImmutable('2026-03-01T00:00:00Z'), $endedBy)))
+        ->toBe(['[2026-03-31T14:00:00Z, 2026-04-30T14:00:00Z)'])
+        ->and($subscription->periodsEndedBy(new DateTimeImmutable('2026-04-30T14:00:00Z'), $endedBy))->toBe([]);
+});
+
+it('bills the last period of a canceled subscription up to the cancellation', function (): void {
+    $clock = new MockClock('2026-01-31 14:00:00', 'UTC');
+    $subscription = subscribe($clock);
+    $clock->modify('+50 days');
+    $canceled = $subscription->cancelNow($clock->now());
+
+    expect(periodsOf($canceled->periodsEndedBy($canceled->anchorAt, new DateTimeImmutable('2027-01-01T00:00:00Z'))))->toBe([
+        '[2026-01-31T14:00:00Z, 2026-02-28T14:00:00Z)',
+        '[2026-02-28T14:00:00Z, 2026-03-22T14:00:00Z)',
+    ])
+        ->and(periodsOf($canceled->periodsEndedBy($canceled->anchorAt, new DateTimeImmutable('2026-03-22T13:00:00Z'))))
+        ->toBe(['[2026-01-31T14:00:00Z, 2026-02-28T14:00:00Z)']);
+});
+
+it('ends on a boundary when canceled at period end, adding no empty period', function (): void {
+    $clock = new MockClock('2026-01-31 14:00:00', 'UTC');
+    $subscription = subscribe($clock);
+    $clock->modify('+10 days');
+    $pending = $subscription->cancelAtPeriodEnd($clock->now());
+
+    expect(periodsOf($pending->periodsEndedBy($pending->anchorAt, new DateTimeImmutable('2027-01-01T00:00:00Z'))))
+        ->toBe(['[2026-01-31T14:00:00Z, 2026-02-28T14:00:00Z)']);
+});
+
+it('has nothing to bill when canceled the instant it started', function (): void {
+    $clock = new MockClock('2026-01-31 14:00:00', 'UTC');
+    $canceled = subscribe($clock)->cancelNow($clock->now());
+
+    expect($canceled->periodsEndedBy($canceled->anchorAt, new DateTimeImmutable('2027-01-01T00:00:00Z')))->toBe([]);
+});
+
+it('starts from the anchor when asked from before the subscription existed', function (): void {
+    $subscription = subscribe(new MockClock('2026-01-31 14:00:00', 'UTC'));
+
+    expect(periodsOf($subscription->periodsEndedBy(new DateTimeImmutable('2025-12-01T00:00:00Z'), new DateTimeImmutable('2026-03-01T00:00:00Z'))))
+        ->toBe(['[2026-01-31T14:00:00Z, 2026-02-28T14:00:00Z)']);
 });

@@ -23,6 +23,14 @@ interface PricingModel
      */
     public function charge(Quantity $quantity): Money;
 
+    /**
+     * The working behind charge($quantity), one step per line, in words a
+     * customer checking the invoice by hand can follow.
+     *
+     * @return list<string>
+     */
+    public function calculation(Quantity $quantity): array;
+
     public function currency(): string;
 
     /**

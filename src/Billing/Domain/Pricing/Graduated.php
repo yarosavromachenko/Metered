@@ -42,6 +42,35 @@ final readonly class Graduated implements PricingModel
         return Money::rounded($total, $this->currency());
     }
 
+    public function calculation(Quantity $quantity): array
+    {
+        $used = $quantity->toBigDecimal();
+        $floor = BigDecimal::zero();
+        $steps = [];
+        $labels = $this->tiers->labels();
+
+        foreach ($this->tiers->all() as $index => $tier) {
+            $ceiling = $tier->limit?->toBigDecimal() ?? $used;
+            $inTier = BigDecimal::min($used, $ceiling)->minus($floor);
+
+            if ($inTier->isPositive()) {
+                $steps[] = sprintf(
+                    '%s: %s × %s = %s',
+                    $labels[$index],
+                    Tiers::plain($inTier),
+                    Tiers::price($tier->unitPrice),
+                    Tiers::plain($tier->unitPrice->toBigDecimal()->multipliedBy($inTier)),
+                );
+            }
+
+            $floor = $ceiling;
+        }
+
+        $steps[] = sprintf('total %s, rounded once', $this->charge($quantity));
+
+        return $steps;
+    }
+
     public function currency(): string
     {
         return $this->tiers->currency();

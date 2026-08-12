@@ -38,6 +38,26 @@ final readonly class Volume implements PricingModel
         throw new LogicException('A tier table without an unbounded last tier reached pricing.');
     }
 
+    public function calculation(Quantity $quantity): array
+    {
+        $labels = $this->tiers->labels();
+
+        foreach ($this->tiers->all() as $index => $tier) {
+            if ($tier->reaches($quantity)) {
+                return [sprintf(
+                    '%s lies in the tier %s, which prices every unit: %s × %s = %s',
+                    Tiers::plain($quantity->toBigDecimal()),
+                    $labels[$index],
+                    Tiers::plain($quantity->toBigDecimal()),
+                    Tiers::price($tier->unitPrice),
+                    $this->charge($quantity),
+                )];
+            }
+        }
+
+        throw new LogicException('A tier table without an unbounded last tier reached pricing.');
+    }
+
     public function currency(): string
     {
         return $this->tiers->currency();

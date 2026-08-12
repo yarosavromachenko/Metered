@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Metered\Billing\Domain\Pricing;
 
+use Brick\Math\BigDecimal;
 use Metered\Billing\Domain\Exception\InvalidPricing;
+use Metered\Shared\Domain\Money\UnitPrice;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
@@ -69,5 +71,44 @@ final readonly class Tiers
     public function currency(): string
     {
         return $this->tiers[0]->unitPrice->currency();
+    }
+
+    /**
+     * How each tier reads on an invoice, in order: "up to 1000", "over 1000
+     * up to 5000", "over 5000".
+     *
+     * @return non-empty-list<string>
+     */
+    public function labels(): array
+    {
+        $labels = [];
+        $floor = null;
+
+        foreach ($this->tiers as $tier) {
+            $labels[] = match (true) {
+                $tier->limit instanceof Quantity => $floor instanceof Quantity
+                    ? sprintf('over %s up to %s', self::plain($floor->toBigDecimal()), self::plain($tier->limit->toBigDecimal()))
+                    : sprintf('up to %s', self::plain($tier->limit->toBigDecimal())),
+                $floor instanceof Quantity => sprintf('over %s', self::plain($floor->toBigDecimal())),
+                default => 'every unit',
+            };
+
+            $floor = $tier->limit;
+        }
+
+        return $labels;
+    }
+
+    /**
+     * A decimal as a person writes it: 1000, not 1000.000000.
+     */
+    public static function plain(BigDecimal $value): string
+    {
+        return (string) $value->strippedOfTrailingZeros();
+    }
+
+    public static function price(UnitPrice $price): string
+    {
+        return sprintf('%s %s', self::plain($price->toBigDecimal()), $price->currency());
     }
 }

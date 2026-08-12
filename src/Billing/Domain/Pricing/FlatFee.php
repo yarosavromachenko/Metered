@@ -32,6 +32,11 @@ final readonly class FlatFee implements PricingModel
         return $this->amount;
     }
 
+    public function calculation(Quantity $quantity): array
+    {
+        return [sprintf('%s per period, whatever was used', $this->amount)];
+    }
+
     public function currency(): string
     {
         return $this->amount->currency();

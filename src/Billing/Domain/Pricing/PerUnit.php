@@ -25,6 +25,11 @@ final readonly class PerUnit implements PricingModel
         return $this->unitPrice->multipliedBy($quantity);
     }
 
+    public function calculation(Quantity $quantity): array
+    {
+        return [sprintf('%s × %s = %s', Tiers::plain($quantity->toBigDecimal()), Tiers::price($this->unitPrice), $this->charge($quantity))];
+    }
+
     public function currency(): string
     {
         return $this->unitPrice->currency();
