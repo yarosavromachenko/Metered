@@ -14,6 +14,7 @@ use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Billing\Application\Contract\MeterCatalog;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Usage\Application\Command\IngestEventsHandler;
+use Metered\Usage\Application\Contract\UsageTotals;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\Deduplicator;
 use Metered\Usage\Application\Ingestion\EventWriter;
@@ -23,6 +24,7 @@ use Metered\Usage\Application\Stream\StreamDepth;
 use Metered\Usage\Domain\AcceptanceWindow;
 use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
 use Metered\Usage\Infrastructure\Persistence\DatabaseRejectionLog;
+use Metered\Usage\Infrastructure\Persistence\DatabaseUsageTotals;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
 use Metered\Usage\Infrastructure\Persistence\UsageSummaryReader;
@@ -71,6 +73,7 @@ final class UsageServiceProvider extends ServiceProvider
         );
         $this->app->singleton(EventStream::class, RedisEventStream::class);
         $this->app->singleton(StreamDepth::class, RedisEventStream::class);
+        $this->app->singleton(UsageTotals::class, DatabaseUsageTotals::class);
 
         $this->app->singleton(
             IngestEventsHandler::class,

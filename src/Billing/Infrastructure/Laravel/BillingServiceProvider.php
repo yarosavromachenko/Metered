@@ -8,11 +8,13 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Billing\Application\Contract\MeterCatalog;
+use Metered\Billing\Application\Contract\SubscriptionBilling;
 use Metered\Billing\Domain\CustomerRepository;
 use Metered\Billing\Domain\MeterRepository;
 use Metered\Billing\Domain\Plan\PlanRepository;
 use Metered\Billing\Domain\Plan\PlanVersionRepository;
 use Metered\Billing\Domain\Subscription\SubscriptionRepository;
+use Metered\Billing\Infrastructure\Catalog\CatalogSubscriptionBilling;
 use Metered\Billing\Infrastructure\Catalog\DatabaseCustomerDirectory;
 use Metered\Billing\Infrastructure\Catalog\DatabaseMeterCatalog;
 use Metered\Billing\Infrastructure\Persistence\DatabaseCustomerRepository;
@@ -47,6 +49,7 @@ final class BillingServiceProvider extends ServiceProvider
 
         $this->app->singleton(MeterCatalog::class, DatabaseMeterCatalog::class);
         $this->app->singleton(CustomerDirectory::class, DatabaseCustomerDirectory::class);
+        $this->app->singleton(SubscriptionBilling::class, CatalogSubscriptionBilling::class);
     }
 
     public function boot(): void
