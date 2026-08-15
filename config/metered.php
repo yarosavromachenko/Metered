@@ -162,6 +162,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Invoicing
+    |--------------------------------------------------------------------------
+    |
+    | A period is invoiced one grace window after it ends, so that events in
+    | flight at the boundary still make it onto its invoice (ADR-0010). Usage
+    | that reaches an earlier period after that is billed on the next invoice
+    | as a late line; how far back that can happen follows from how old an
+    | event may be when it is accepted.
+    |
+    */
+
+    'invoicing' => [
+        'grace_seconds' => (int) env('INVOICING_GRACE_SECONDS', 60 * 60),
+
+        // Also queues nothing for a subscription that ended longer ago than
+        // this: its last period was invoiced long since.
+        'ended_lookback_seconds' => (int) env('INVOICING_ENDED_LOOKBACK_SECONDS', 31 * 24 * 60 * 60),
+
+        'queue' => env('INVOICING_QUEUE', 'billing'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tracing
     |--------------------------------------------------------------------------
     |
