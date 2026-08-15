@@ -31,7 +31,7 @@ adversarial for any query that filters by meter while walking time backwards
 (see 7c below). Both get better with the `heavy` profile, and the plans
 will be captured again on it in M7.
 
-Environment: PostgreSQL 18.4 (Alpine image), `shared_buffers = 256MB`,
+Environment: PostgreSQL 18.6 (Alpine image), `shared_buffers = 256MB`,
 `work_mem = 16MB`, the stack's own container, on the same machine as
 [`benchmarks.md`](benchmarks.md). Captured 2026-07-12.
 

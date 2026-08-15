@@ -20,7 +20,7 @@
         "guzzlehttp/guzzle": "^7.15",
         "laravel/framework": "^13.17",
         "laravel/horizon": "^5.48",
-        "laravel/octane": "^2.18",
+        "laravel/octane": "^2.19",
         "laravel/tinker": "^3.0",
         "nyholm/psr7": "^1.8",
         "open-telemetry/api": "^1.10",
@@ -32,7 +32,7 @@
         "symfony/clock": "^7.3 || ^8.0"
     },
     "require-dev": {
-        "dedoc/scramble": "^0.13.35",
+        "dedoc/scramble": "^0.13.41",
         "deptrac/deptrac": "^4.7",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.10",
@@ -43,7 +43,7 @@
         "pestphp/pest": "^4.7",
         "pestphp/pest-plugin-laravel": "^4.1",
         "phpstan/phpstan-strict-rules": "^2.0",
-        "rector/rector": "^2.5",
+        "rector/rector": "^2.6",
         "spatie/fork": "^1.2"
     },
     "autoload": {
