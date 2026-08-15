@@ -9,5 +9,6 @@ return [
     Metered\Tenancy\Infrastructure\Laravel\TenancyServiceProvider::class,
     Metered\Usage\Infrastructure\Laravel\UsageServiceProvider::class,
     Metered\Billing\Infrastructure\Laravel\BillingServiceProvider::class,
+    Metered\Invoicing\Infrastructure\Laravel\InvoicingServiceProvider::class,
     Metered\Admin\Presentation\Filament\AdminPanelProvider::class,
 ];

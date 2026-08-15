@@ -20,4 +20,14 @@ enum Account: string
 
     /** What they have paid. */
     case Cash = 'cash';
+
+    /**
+     * Whether a debit increases the balance. Assets — what is owed to the
+     * business and what it holds — grow with debits; revenue grows with
+     * credits.
+     */
+    public function growsWithDebits(): bool
+    {
+        return $this !== self::Revenue;
+    }
 }

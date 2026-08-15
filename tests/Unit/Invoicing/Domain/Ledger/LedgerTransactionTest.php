@@ -145,3 +145,9 @@ it('balances a split across several entries', function (): void {
 it('refuses an entry that moves nothing, or a negative amount', function (int $minorUnits): void {
     LedgerEntry::debit(Account::Cash, Money::ofMinorUnits($minorUnits, 'EUR'));
 })->with([0, -100])->throws(UnbalancedLedger::class, 'moves a positive amount');
+
+it('grows receivables and cash with debits, and revenue with credits', function (): void {
+    expect(Account::AccountsReceivable->growsWithDebits())->toBeTrue()
+        ->and(Account::Cash->growsWithDebits())->toBeTrue()
+        ->and(Account::Revenue->growsWithDebits())->toBeFalse();
+});
