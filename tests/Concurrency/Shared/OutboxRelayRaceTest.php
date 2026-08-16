@@ -36,7 +36,7 @@ it('never lets two of three relays publish the same message', function () use ($
         ));
     }
 
-    $relay = static function (): array {
+    $relay = static function () use ($aggregateType): array {
         // Separate process, separate connection: with a shared one, SKIP
         // LOCKED would have nothing to skip.
         DB::purge(testConnection());
@@ -52,16 +52,18 @@ it('never lets two of three relays publish the same message', function () use ($
             10,
         );
 
-        // Several passes each, so the three relays genuinely interleave
-        // rather than one finishing before the others start.
-        foreach (range(1, 5) as $ignored) {
-            $relay->relayBatch(10);
+        // Small batches until nothing is left, so the three relays genuinely
+        // interleave rather than one finishing before the others start.
+        while ($relay->relayBatch(10) > 0) {
         }
 
-        return array_map(
+        // Only this test's messages are counted. Under --parallel the other
+        // concurrency tests share this database and their events may be
+        // relayed here too; they are not what this test is about.
+        return array_values(array_map(
             static fn(OutboxMessage $m): string => $m->id->value,
-            $publisher->published,
-        );
+            array_filter($publisher->published, static fn(OutboxMessage $m): bool => $m->aggregateType === $aggregateType),
+        ));
     };
 
     /** @var list<list<string>> $results */
