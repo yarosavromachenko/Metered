@@ -9,11 +9,13 @@ use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\SubscriptionBilling;
 use Metered\Invoicing\Application\Command\CloseSubscriptionPeriodsHandler;
 use Metered\Invoicing\Application\Command\FinalizeInvoiceHandler;
+use Metered\Invoicing\Application\Payment\PaymentGateway;
 use Metered\Invoicing\Domain\CreditNote\CreditNoteRepository;
 use Metered\Invoicing\Domain\Invoice\BillingHistory;
 use Metered\Invoicing\Domain\Invoice\DocumentNumbering;
 use Metered\Invoicing\Domain\Invoice\InvoiceRepository;
 use Metered\Invoicing\Domain\Ledger\Ledger;
+use Metered\Invoicing\Infrastructure\Payment\FakePaymentGateway;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseBillingHistory;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseCreditNoteRepository;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseDocumentNumbering;
@@ -25,8 +27,8 @@ use Metered\Usage\Application\Contract\UsageTotals;
 use Psr\Clock\ClockInterface;
 
 /**
- * Wires invoicing: its repositories, the ledger, the gapless counters, and
- * the two windows the period close runs on.
+ * Wires invoicing: its repositories, the ledger, the gapless counters, the
+ * fake payment provider, and the two windows the period close runs on.
  */
 final class InvoicingServiceProvider extends ServiceProvider
 {
@@ -37,6 +39,7 @@ final class InvoicingServiceProvider extends ServiceProvider
         $this->app->singleton(DocumentNumbering::class, DatabaseDocumentNumbering::class);
         $this->app->singleton(CreditNoteRepository::class, DatabaseCreditNoteRepository::class);
         $this->app->singleton(Ledger::class, DatabaseLedger::class);
+        $this->app->singleton(PaymentGateway::class, FakePaymentGateway::class);
 
         $this->app->bind(
             CloseSubscriptionPeriodsHandler::class,
