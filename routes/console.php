@@ -29,3 +29,19 @@ Schedule::command('usage:partitions:ensure')
     ->dailyAt('03:10')
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Period close
+|--------------------------------------------------------------------------
+|
+| Every five minutes, so an invoice is built within minutes of its period's
+| grace window passing. The command only queues; the work runs on the billing
+| queue, one job per subscription (ADR-0010).
+|
+*/
+
+Schedule::command('billing:close-periods')
+    ->everyFiveMinutes()
+    ->withoutOverlapping()
+    ->onOneServer();

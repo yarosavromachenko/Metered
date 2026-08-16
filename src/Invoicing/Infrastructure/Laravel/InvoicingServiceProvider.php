@@ -21,6 +21,7 @@ use Metered\Invoicing\Infrastructure\Persistence\DatabaseCreditNoteRepository;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseDocumentNumbering;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseInvoiceRepository;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseLedger;
+use Metered\Invoicing\Presentation\Console\ClosePeriodsCommand;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Usage\Application\Contract\UsageTotals;
@@ -59,6 +60,13 @@ final class InvoicingServiceProvider extends ServiceProvider
                     + self::configInt($app, 'metered.invoicing.grace_seconds', 3600),
             ),
         );
+    }
+
+    public function boot(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([ClosePeriodsCommand::class]);
+        }
     }
 
     private static function configInt(Application $app, string $key, int $default): int
