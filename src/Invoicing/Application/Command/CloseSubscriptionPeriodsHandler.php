@@ -9,6 +9,7 @@ use Metered\Billing\Application\Contract\BillableSubscription;
 use Metered\Billing\Application\Contract\Charge;
 use Metered\Billing\Application\Contract\SubscriptionBilling;
 use Metered\Invoicing\Domain\Invoice\BillingHistory;
+use Metered\Invoicing\Domain\Invoice\BillTo;
 use Metered\Invoicing\Domain\Invoice\Invoice;
 use Metered\Invoicing\Domain\Invoice\InvoiceLine;
 use Metered\Invoicing\Domain\Invoice\InvoicePeriod;
@@ -99,6 +100,7 @@ final readonly class CloseSubscriptionPeriodsHandler
             $this->ids->generate(),
             $subscription->tenant,
             $subscription->customerId,
+            new BillTo($subscription->customerReference, $subscription->customerName),
             $subscription->id,
             $subscription->currency,
             $period,

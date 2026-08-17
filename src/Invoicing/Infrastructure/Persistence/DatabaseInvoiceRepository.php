@@ -6,6 +6,7 @@ namespace Metered\Invoicing\Infrastructure\Persistence;
 
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Query\Builder;
+use Metered\Invoicing\Domain\Invoice\BillTo;
 use Metered\Invoicing\Domain\Invoice\DocumentNumber;
 use Metered\Invoicing\Domain\Invoice\Invoice;
 use Metered\Invoicing\Domain\Invoice\InvoiceLine;
@@ -42,6 +43,8 @@ final readonly class DatabaseInvoiceRepository implements InvoiceRepository
             'organization_id' => $invoice->tenant->organizationId->value,
             'project_id' => $invoice->tenant->projectId->value,
             'customer_id' => $invoice->customerId->value,
+            'customer_ref' => $invoice->billTo->reference,
+            'customer_name' => $invoice->billTo->name,
             'subscription_id' => $invoice->subscriptionId->value,
             'currency' => $invoice->currency,
             'period_start' => $invoice->period->start->format(self::INSTANT),
@@ -159,6 +162,10 @@ final readonly class DatabaseInvoiceRepository implements InvoiceRepository
                 Uuid::fromString(RowReader::string($values['project_id'] ?? null, 'project_id')),
             ),
             Uuid::fromString(RowReader::string($values['customer_id'] ?? null, 'customer_id')),
+            new BillTo(
+                RowReader::string($values['customer_ref'] ?? null, 'customer_ref'),
+                RowReader::string($values['customer_name'] ?? null, 'customer_name'),
+            ),
             Uuid::fromString(RowReader::string($values['subscription_id'] ?? null, 'subscription_id')),
             $currency,
             InvoicePeriod::between(

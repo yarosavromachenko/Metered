@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Support;
 
 use DateTimeImmutable;
+use Metered\Invoicing\Domain\Invoice\BillTo;
 use Metered\Invoicing\Domain\Invoice\Invoice;
 use Metered\Invoicing\Domain\Invoice\InvoiceLine;
 use Metered\Invoicing\Domain\Invoice\InvoicePeriod;
@@ -67,6 +68,7 @@ final class InvoiceFixtures
             Uuid::fromString('01924b7c-0000-7000-8000-000000000e70'),
             self::tenant(),
             Uuid::fromString('01924b7c-0000-7000-8000-000000000e71'),
+            new BillTo('cus_4471', 'North Wind Ltd'),
             Uuid::fromString('01924b7c-0000-7000-8000-000000000e72'),
             'EUR',
             self::february(),

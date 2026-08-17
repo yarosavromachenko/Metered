@@ -23,6 +23,8 @@ it('is built as a draft, without a number, totalling its lines', function (): vo
         ->and($invoice->finalizedAt)->toBeNull()
         ->and((string) $invoice->total())->toBe('41.50 EUR')
         ->and($invoice->builtAt->format(DATE_ATOM))->toBe('2026-03-01T01:00:00+00:00')
+        ->and($invoice->billTo->reference)->toBe('cus_4471')
+        ->and($invoice->billTo->name)->toBe('North Wind Ltd')
         ->and($invoice->lines[1]->kind)->toBe(LineKind::Usage)
         ->and($invoice->lines[1]->description)->toBe('Usage of api.calls')
         ->and((string) $invoice->lines[1]->quantity)->toBe('1250.000000')
@@ -132,6 +134,7 @@ it('restores exactly what was stored', function (): void {
         $finalized->id,
         $finalized->tenant,
         $finalized->customerId,
+        $finalized->billTo,
         $finalized->subscriptionId,
         $finalized->currency,
         $finalized->period,

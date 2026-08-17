@@ -72,6 +72,8 @@ it('describes a subscription for its own tenant only', function (): void {
     $found = app(SubscriptionBilling::class)->find($tenant, $subscription->id);
 
     expect($found?->customerId->value)->toBe($subscription->customerId->value)
+        ->and($found?->customerReference)->toBe('cus_4471')
+        ->and($found?->customerName)->toBe('Customer cus_4471')
         ->and($found?->currency)->toBe('EUR')
         ->and($found?->tenant->equals($tenant))->toBeTrue()
         ->and($found?->anchorAt->format(DATE_ATOM))->toBe('2026-01-31T14:00:00+00:00')

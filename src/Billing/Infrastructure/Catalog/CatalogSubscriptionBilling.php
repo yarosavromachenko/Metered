@@ -11,6 +11,8 @@ use Metered\Billing\Application\Contract\BillablePeriod;
 use Metered\Billing\Application\Contract\BillableSubscription;
 use Metered\Billing\Application\Contract\Charge;
 use Metered\Billing\Application\Contract\SubscriptionBilling;
+use Metered\Billing\Domain\Customer;
+use Metered\Billing\Domain\CustomerRepository;
 use Metered\Billing\Domain\Meter;
 use Metered\Billing\Domain\MeterRepository;
 use Metered\Billing\Domain\Period\BillingPeriod;
@@ -32,6 +34,7 @@ final readonly class CatalogSubscriptionBilling implements SubscriptionBilling
         private SubscriptionRepository $subscriptions,
         private PlanVersionRepository $versions,
         private MeterRepository $meters,
+        private CustomerRepository $customers,
         private DatabaseManager $db,
     ) {}
 
@@ -40,12 +43,13 @@ final readonly class CatalogSubscriptionBilling implements SubscriptionBilling
         // Across tenants, on purpose: this is the scheduler asking what exists,
         // not a tenant asking what is theirs. Each answer carries its tenant,
         // and everything after this call is scoped by it.
-        $rows = $this->db->connection()->table('subscriptions')
+        $rows = $this->db->connection()->table('subscriptions as s')
+            ->join('customers as c', 'c.id', '=', 's.customer_id')
             ->where(static function (Builder $query) use ($endedAfter): void {
-                $query->whereNull('ends_at')->orWhere('ends_at', '>', $endedAfter->format('Y-m-d H:i:s.uP'));
+                $query->whereNull('s.ends_at')->orWhere('s.ends_at', '>', $endedAfter->format('Y-m-d H:i:s.uP'));
             })
-            ->orderBy('id')
-            ->get(['id', 'organization_id', 'project_id', 'customer_id', 'currency', 'anchor_at']);
+            ->orderBy('s.id')
+            ->get(['s.id', 's.organization_id', 's.project_id', 's.customer_id', 'c.reference', 'c.name', 's.currency', 's.anchor_at']);
 
         $billable = [];
 
@@ -59,6 +63,8 @@ final readonly class CatalogSubscriptionBilling implements SubscriptionBilling
                         Uuid::fromString(RowReader::string($values['project_id'] ?? null, 'project_id')),
                     ),
                     Uuid::fromString(RowReader::string($values['customer_id'] ?? null, 'customer_id')),
+                    RowReader::string($values['reference'] ?? null, 'reference'),
+                    RowReader::string($values['name'] ?? null, 'name'),
                     RowReader::string($values['currency'] ?? null, 'currency'),
                     RowReader::instant($values['anchor_at'] ?? null, 'anchor_at'),
                 );
@@ -71,10 +77,21 @@ final readonly class CatalogSubscriptionBilling implements SubscriptionBilling
     public function find(TenantContext $tenant, Uuid $subscriptionId): ?BillableSubscription
     {
         $subscription = $this->subscriptions->find($tenant, $subscriptionId);
+        $customer = $subscription instanceof Subscription ? $this->customers->find($tenant, $subscription->customerId) : null;
 
-        return $subscription instanceof Subscription
-            ? new BillableSubscription($subscription->id, $subscription->tenant, $subscription->customerId, $subscription->currency, $subscription->anchorAt)
-            : null;
+        if (! $subscription instanceof Subscription || ! $customer instanceof Customer) {
+            return null;
+        }
+
+        return new BillableSubscription(
+            $subscription->id,
+            $subscription->tenant,
+            $customer->id,
+            $customer->reference->value,
+            $customer->name,
+            $subscription->currency,
+            $subscription->anchorAt,
+        );
     }
 
     public function periodsEndedBy(TenantContext $tenant, Uuid $subscriptionId, DateTimeImmutable $from, DateTimeImmutable $endedBy): array

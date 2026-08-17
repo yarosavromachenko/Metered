@@ -8,6 +8,7 @@ use Metered\Invoicing\Application\Command\CloseSubscriptionPeriodsHandler;
 use Metered\Invoicing\Application\Command\FinalizeInvoice;
 use Metered\Invoicing\Application\Command\FinalizeInvoiceHandler;
 use Metered\Invoicing\Domain\Exception\InvoiceTransitionRefused;
+use Metered\Invoicing\Domain\Invoice\BillTo;
 use Metered\Invoicing\Domain\Invoice\Invoice;
 use Metered\Invoicing\Domain\Invoice\InvoiceLine;
 use Metered\Invoicing\Domain\Invoice\InvoicePeriod;
@@ -97,7 +98,7 @@ it('numbers fifty invoices finalized at once without a gap or a duplicate, even 
     foreach (range(0, 49) as $month) {
         $start = new DateTimeImmutable(sprintf('2026-01-31T14:00:00Z +%d months', $month));
         $period = InvoicePeriod::between($start, $start->modify('+1 month'));
-        $draft = Invoice::draft($ids->generate(), $scenario->tenant, $scenario->customer->id, $scenario->subscription->id, 'EUR', $period, [
+        $draft = Invoice::draft($ids->generate(), $scenario->tenant, $scenario->customer->id, new BillTo('cus_4471', 'Race Ltd'), $scenario->subscription->id, 'EUR', $period, [
             InvoiceLine::fixed($ids->generate(), 'Flat fee', Money::ofMinorUnits(2900, 'EUR'), $period, []),
         ], $scenario->clock->now());
 

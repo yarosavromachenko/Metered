@@ -102,6 +102,7 @@ it('keeps one invoice per subscription and period, answering a second attempt wi
         Uuid::fromString('01924b7c-0000-7000-8000-00000000f0ab'),
         $invoice->tenant,
         $invoice->customerId,
+        $invoice->billTo,
         $invoice->subscriptionId,
         'EUR',
         $invoice->period,

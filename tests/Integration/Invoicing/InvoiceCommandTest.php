@@ -18,6 +18,7 @@ use Metered\Invoicing\Application\Payment\PaymentRequest;
 use Metered\Invoicing\Application\Payment\PaymentResult;
 use Metered\Invoicing\Domain\CreditNote\CreditNoteRepository;
 use Metered\Invoicing\Domain\Exception\InvoiceTransitionRefused;
+use Metered\Invoicing\Domain\Invoice\BillTo;
 use Metered\Invoicing\Domain\Invoice\Invoice;
 use Metered\Invoicing\Domain\Invoice\InvoiceLine;
 use Metered\Invoicing\Domain\Invoice\InvoicePeriod;
@@ -54,6 +55,7 @@ function draftFirstPeriod(InvoicingScenario $scenario): Invoice
         app(IdentifierGenerator::class)->generate(),
         $scenario->tenant,
         $scenario->customer->id,
+        new BillTo('cus_4471', 'North Wind Ltd'),
         $scenario->subscription->id,
         'EUR',
         $period,

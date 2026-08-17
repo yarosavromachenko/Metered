@@ -18,6 +18,11 @@ return new class extends Migration {
             $table->uuid('customer_id');
             $table->uuid('subscription_id');
 
+            // Who the invoice is addressed to, copied when it is built: a
+            // customer renamed later must not change what it says.
+            $table->string('customer_ref', 128);
+            $table->string('customer_name', 255);
+
             $table->char('currency', 3);
             $table->timestampTz('period_start', 6);
             $table->timestampTz('period_end', 6);
@@ -97,11 +102,11 @@ return new class extends Migration {
                     OR (OLD.status = 'finalized' AND NEW.status NOT IN ('finalized', 'paid', 'void'))
                     OR (OLD.number IS NOT NULL AND NEW.number IS DISTINCT FROM OLD.number)
                     OR (OLD.finalized_at IS NOT NULL AND NEW.finalized_at IS DISTINCT FROM OLD.finalized_at)
-                    OR (NEW.organization_id, NEW.project_id, NEW.customer_id, NEW.subscription_id, NEW.currency,
-                        NEW.period_start, NEW.period_end, NEW.total_minor, NEW.built_at)
+                    OR (NEW.organization_id, NEW.project_id, NEW.customer_id, NEW.customer_ref, NEW.customer_name,
+                        NEW.subscription_id, NEW.currency, NEW.period_start, NEW.period_end, NEW.total_minor, NEW.built_at)
                        IS DISTINCT FROM
-                       (OLD.organization_id, OLD.project_id, OLD.customer_id, OLD.subscription_id, OLD.currency,
-                        OLD.period_start, OLD.period_end, OLD.total_minor, OLD.built_at)
+                       (OLD.organization_id, OLD.project_id, OLD.customer_id, OLD.customer_ref, OLD.customer_name,
+                        OLD.subscription_id, OLD.currency, OLD.period_start, OLD.period_end, OLD.total_minor, OLD.built_at)
                 THEN
                     RAISE EXCEPTION 'invoice % is % and cannot change that way', OLD.id, OLD.status
                         USING ERRCODE = 'integrity_constraint_violation';
