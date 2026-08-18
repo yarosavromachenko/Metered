@@ -15,6 +15,7 @@ use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Money\UnitPrice;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Role;
 use Psr\Clock\ClockInterface;
 use Symfony\Component\Clock\MockClock;
@@ -40,10 +41,20 @@ final readonly class InvoicingScenario
         $clock = new MockClock($anchor, 'UTC');
         app()->instance(ClockInterface::class, $clock);
 
-        $project = TenantFactory::tenant($slug);
+        return self::in(TenantFactory::tenant($slug), $clock);
+    }
+
+    /**
+     * The same, in a project that already exists — the one a panel test has
+     * signed in to.
+     */
+    public static function in(Project $project, MockClock $clock, string $customerReference = 'cus_4471'): self
+    {
+        app()->instance(ClockInterface::class, $clock);
+
         $tenant = $project->tenant();
         $meter = CatalogFactory::meter($tenant, 'api.requests');
-        $customer = CatalogFactory::customer($tenant, 'cus_4471');
+        $customer = CatalogFactory::customer($tenant, $customerReference);
         $ids = app(IdentifierGenerator::class);
 
         $version = CatalogFactory::version(CatalogFactory::plan($tenant), [
@@ -57,7 +68,7 @@ final readonly class InvoicingScenario
             $meter,
             $customer,
             CatalogFactory::subscription($customer, $version, $clock->now()),
-            TenantFactory::member($project->organizationId, Role::BillingOperator, sprintf('billing@%s.test', $slug)),
+            TenantFactory::member($project->organizationId, Role::BillingOperator, sprintf('billing-%s@metered.test', substr($project->organizationId->value, -12))),
         );
     }
 
