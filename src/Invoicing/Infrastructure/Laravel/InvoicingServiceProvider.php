@@ -64,6 +64,8 @@ final class InvoicingServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        $this->loadViewsFrom(base_path('src/Invoicing/Presentation/views'), 'invoicing');
+
         if ($this->app->runningInConsole()) {
             $this->commands([ClosePeriodsCommand::class]);
         }
