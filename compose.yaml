@@ -161,6 +161,40 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Runs routes/console.php once a minute: the period close every five
+  # minutes, the partition check once a day. It only decides what is due;
+  # the work runs on Horizon's queues.
+  scheduler:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: development
+    command: ["php", "artisan", "schedule:work"]
+    healthcheck: *no-inherited-healthcheck
+    volumes:
+      - .:/app
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    environment:
+      HOME: /tmp
+      XDG_CONFIG_HOME: /tmp/.config
+      XDG_DATA_HOME: /tmp/.local/share
+      APP_ENV: local
+      DB_HOST: pgbouncer
+      DB_PORT: "6432"
+      DB_DIRECT_HOST: postgres
+      DB_DIRECT_PORT: "5432"
+      DB_DATABASE: metered
+      DB_USERNAME: metered
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
   # Load profile only: `make load`. Not part of `make up`.
   k6:
     image: grafana/k6:0.54.0
