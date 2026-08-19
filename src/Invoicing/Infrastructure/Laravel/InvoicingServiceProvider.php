@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Invoicing\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\SubscriptionBilling;
 use Metered\Invoicing\Application\Command\CloseSubscriptionPeriodsHandler;
@@ -22,6 +23,11 @@ use Metered\Invoicing\Infrastructure\Persistence\DatabaseDocumentNumbering;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseInvoiceRepository;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseLedger;
 use Metered\Invoicing\Presentation\Console\ClosePeriodsCommand;
+use Metered\Invoicing\Presentation\Http\InvoicePdfController;
+use Metered\Invoicing\Presentation\Http\ListInvoicesController;
+use Metered\Invoicing\Presentation\Http\PayInvoiceController;
+use Metered\Invoicing\Presentation\Http\ShowInvoiceController;
+use Metered\Invoicing\Presentation\Http\VoidInvoiceController;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Usage\Application\Contract\UsageTotals;
@@ -69,6 +75,19 @@ final class InvoicingServiceProvider extends ServiceProvider
         if ($this->app->runningInConsole()) {
             $this->commands([ClosePeriodsCommand::class]);
         }
+
+        // Invoices are read and settled with an admin key, like the catalog.
+        // Paying and voiding take an Idempotency-Key, so a retried request
+        // cannot collect twice or issue a second credit note.
+        Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
+            ->prefix('api/v1')
+            ->group(static function (): void {
+                Route::get('invoices', ListInvoicesController::class)->name('invoicing.invoices.list');
+                Route::get('invoices/{invoice}', ShowInvoiceController::class)->name('invoicing.invoices.show');
+                Route::get('invoices/{invoice}/pdf', InvoicePdfController::class)->name('invoicing.invoices.pdf');
+                Route::post('invoices/{invoice}/pay', PayInvoiceController::class)->middleware('idempotent')->name('invoicing.invoices.pay');
+                Route::post('invoices/{invoice}/void', VoidInvoiceController::class)->middleware('idempotent')->name('invoicing.invoices.void');
+            });
     }
 
     private static function configInt(Application $app, string $key, int $default): int

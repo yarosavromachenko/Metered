@@ -23,4 +23,13 @@ final class InvoiceNotFound extends RuntimeException implements NotFound
     {
         return new self(sprintf('No subscription %s in this project.', $id->value));
     }
+
+    /**
+     * For an id that is not even a UUID: the same answer as for one that
+     * does not exist, rather than a validation error that tells them apart.
+     */
+    public static function reference(string $given): self
+    {
+        return new self(sprintf('No invoice %s in this project.', $given));
+    }
 }
