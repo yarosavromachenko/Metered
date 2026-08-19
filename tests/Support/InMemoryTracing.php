@@ -54,4 +54,14 @@ final class InMemoryTracing
 
         return null;
     }
+
+    /**
+     * Every finished span called $name, in the order they ended.
+     *
+     * @return list<ImmutableSpan>
+     */
+    public function allNamed(string $name): array
+    {
+        return array_values(array_filter($this->finished(), static fn(ImmutableSpan $span): bool => $span->getName() === $name));
+    }
 }

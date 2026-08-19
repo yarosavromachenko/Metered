@@ -2,7 +2,12 @@
 
 declare(strict_types=1);
 
+use Illuminate\Events\Dispatcher;
 use Illuminate\Http\JsonResponse;
+use Illuminate\Queue\Events\JobExceptionOccurred;
+use Illuminate\Queue\Events\JobProcessed;
+use Illuminate\Queue\Events\JobProcessing;
+use Illuminate\Queue\Jobs\SyncJob;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
@@ -124,6 +129,27 @@ it('marks a failed job as an error', function (): void {
 
     expect($span?->getStatus()->getCode())->toBe('Error')
         ->and($span?->getStatus()->getDescription())->toBe('the receiver refused the delivery');
+});
+
+it('closes an attempt that threw, so the retry starts cleanly', function (): void {
+    // A dispatcher of its own, holding this one listener: the application's
+    // listener would open scopes of its own and interleave with these.
+    $recorder = new InMemoryTracing();
+    $events = new Dispatcher(app());
+    new QueueTracing($recorder->tracing)->register($events);
+    $job = new SyncJob(app(), (string) json_encode(['displayName' => TracedTestJob::class, 'job' => 'x', 'data' => []]), 'redis', 'billing');
+
+    $events->dispatch(new JobProcessing('redis', $job));
+    $events->dispatch(new JobExceptionOccurred('redis', $job, new RuntimeException('first attempt failed')));
+    $events->dispatch(new JobProcessing('redis', $job));
+    $events->dispatch(new JobProcessed('redis', $job));
+
+    $attempts = $recorder->allNamed(TracedTestJob::class);
+
+    expect($attempts)->toHaveCount(2)
+        ->and($attempts[0]->getStatus()->getCode())->toBe('Error')
+        ->and($attempts[0]->getStatus()->getDescription())->toBe('first attempt failed')
+        ->and($attempts[1]->getStatus()->getCode())->toBe('Unset');
 });
 
 it('joins a trace the caller already started', function (): void {

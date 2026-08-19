@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Shared\Infrastructure\Tracing;
 
 use Illuminate\Contracts\Events\Dispatcher;
+use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Queue\Events\JobProcessed;
 use Illuminate\Queue\Events\JobProcessing;
@@ -51,6 +52,17 @@ final class QueueTracing
             $this->finish();
         });
 
+        // An attempt that throws and will be retried raises neither of the
+        // events above: it ends here. Left open, its scope would still be
+        // active when the retry starts, and OpenTelemetry's complaint about
+        // that would fail the retry and bury the exception that caused it.
+        $events->listen(JobExceptionOccurred::class, function (JobExceptionOccurred $event): void {
+            $this->finish($event->exception->getMessage());
+        });
+
+        // A job can fail without an attempt throwing — too many attempts, a
+        // timeout. When an attempt did throw, the span is already closed and
+        // this does nothing.
         $events->listen(JobFailed::class, function (JobFailed $event): void {
             $this->finish($event->exception->getMessage());
         });
