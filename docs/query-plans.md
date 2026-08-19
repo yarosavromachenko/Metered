@@ -42,7 +42,7 @@ Environment: PostgreSQL 18.6 (Alpine image), `shared_buffers = 256MB`,
 | 1 | Consumer bulk insert, 500 events, `ON CONFLICT DO NOTHING RETURNING` | Primary key is the conflict arbiter; cost grows with the batch, not the table | ✅ 27ms new, 11ms redelivered |
 | 2 | Aggregate upsert of the returned rows | Conflict resolved on the aggregate primary key | ✅ 12ms for 320 buckets |
 | 3 | Usage for one customer over a period, `GET /customers/{ref}/usage` | Index range over one customer's buckets | ✅ after `b43f5d1`, was a sequential scan |
-| 4 | Invoice line build: a subscription's aggregates for its period | Index scan on `(project_id, customer_id, meter_id, bucket_start)` | ✅ provisional, the query arrives in M5 |
+| 4 | Invoice line build: a subscription's aggregates for its period, and what was billed for it | Index range on the aggregate key per meter; billed lines read by subscription | ✅ 0.36ms and 0.16ms |
 | 5 | Outbox poll, `FOR UPDATE SKIP LOCKED` | Partial index used; published rows never read | ✅ 0.07ms under a million published rows |
 | 6 | Webhook deliveries for one endpoint, newest first | Index scan, no sort node | ⬜ the table arrives in M6 |
 | 7 | Usage explorer and ingestion widget | Rows read bounded by the page, not by the table | ✅ after `3960979`, with one known worst case (7c) |
@@ -213,38 +213,75 @@ Execution Time: 16.442 ms
 
 </details>
 
-### 4. Invoice line build (provisional)
+### 4. Invoice line build
 
-Invoicing is M5, so this is the query M5 is expected to issue against the
-current schema, captured now to check that the aggregate key was chosen well
-(ADR-0004).
+What `DatabaseUsageTotals` issues once per period it invoices — and again for
+each earlier period a late line may reach. The period's bounds are the
+subscription's own instants, microseconds and all; a bucket belongs to the
+period its start falls in (assumptions, 24).
 
 ```sql
-select meter_id, sum(quantity), max(quantity), sum(event_count)
-from usage_aggregates
-where project_id = $1 and customer_id = $2
-  and bucket_start >= $3 and bucket_start < $4             -- the subscription's period
+select a.meter_id::text AS meter_id,
+       CASE m.aggregation WHEN 'max' THEN max(a.quantity) ELSE sum(a.quantity) END::numeric(38, 6) AS quantity
+from usage_aggregates as a
+inner join meters as m on m.id = a.meter_id
+where a.project_id = $1 and a.organization_id = $2
+  and a.customer_id = $3
+  and a.bucket_start >= $4 and a.bucket_start < $5      -- the period, [start, end)
+group by a.meter_id, m.aggregation
+```
+
+```
+HashAggregate  (cost=420.13..420.46 rows=15 width=82) (actual time=0.258..0.260 rows=4.00 loops=1)
+  Group Key: a.meter_id, m.aggregation
+  Buffers: shared hit=12 read=13
+  ->  Nested Loop  (cost=0.42..417.89 rows=224 width=25) (actual time=0.088..0.206 rows=228.00 loops=1)
+        ->  Seq Scan on meters m  (cost=0.00..1.05 rows=5 width=20) (actual time=0.017..0.017 rows=5.00 loops=1)
+        ->  Index Scan using usage_aggregates_pkey on usage_aggregates a  (cost=0.42..82.92 rows=45 width=21) (actual time=0.022..0.033 rows=45.60 loops=5)
+              Index Cond: ((project_id = '01a0ca27-…'::uuid) AND (customer_id = '01a0cb55-…'::uuid) AND (meter_id = m.id)
+                           AND (bucket_start >= '2026-08-18 09:00:00+00') AND (bucket_start < '2026-09-18 09:00:00+00'))
+              Filter: (organization_id = '01a0ca27-…'::uuid)
+              Index Searches: 5
+Planning Time: 5.463 ms
+Execution Time: 0.360 ms
+```
+
+Captured: 2026-08-19 · Rows in `usage_aggregates`: 115,204 · Commit: `4dcfdf6`
+
+**Reading:** healthy. The planner walks the project's five meters and, for
+each, takes one range of the primary key — the full key, down to the bucket —
+so every row it reads is one it returns: 228 buckets, 25 buffers, a third of a
+millisecond. The provisional capture grouped by `meter_id` over the key's
+first three columns; joining the meters for the aggregation mode turned it
+into five tighter ranges rather than one wider one.
+
+The late sweep's other half reads what has already been billed for a period,
+from the invoice lines:
+
+```sql
+select meter_id::text, sum(quantity)::numeric(38, 6)
+from invoice_lines
+where project_id = $1 and subscription_id = $2 and meter_id is not null
+  and covers_start = $3 and covers_end = $4
 group by meter_id
 ```
 
 ```
-GroupAggregate  (cost=8.93..935.96 rows=5 width=112) (actual time=0.763..0.985 rows=4.00 loops=1)
-  Group Key: usage_aggregates.meter_id
-  Buffers: shared hit=15 read=14
-  InitPlan 1
-    ->  Seq Scan on customers  (actual time=0.148..0.158 rows=1.00 loops=1)
-  ->  Index Scan using usage_aggregates_pkey on usage_aggregates  (cost=0.42..921.73 rows=564 width=29) (actual time=0.632..0.858 rows=576.00 loops=1)
-        Index Cond: ((project_id = '01a0ca27-…'::uuid) AND (customer_id = (InitPlan 1).col1)
-                     AND (bucket_start >= '2026-09-16 00:00:00+00') AND (bucket_start < '2026-09-22 00:00:00+00'))
-        Buffers: shared hit=15 read=14
-Execution Time: 1.020 ms
+GroupAggregate  (cost=0.14..8.19 rows=1 width=78) (actual time=0.065..0.071 rows=4.00 loops=1)
+  Group Key: meter_id
+  Buffers: shared hit=5
+  ->  Index Scan using invoice_lines_subscription_id_meter_id_covers_start_index on invoice_lines
+        Index Cond: ((subscription_id = '01a0d974-…'::uuid) AND (meter_id IS NOT NULL) AND (covers_start = '2026-08-18 09:00:00+00'))
+        Filter: ((project_id = '01a0ca27-…'::uuid) AND (covers_end = '2026-09-18 09:00:00+00'))
+Execution Time: 0.155 ms
 ```
 
-Captured: 2026-07-12 · Rows in `usage_aggregates`: 115,203 · Commit: `c6573c9`
-
-**Reading:** healthy. Six days of one customer's usage across four meters come
-back as an index range in key order, with no sort node, in 29 buffers. The
-invoice line builder will be captured again once it exists.
+**Reading:** healthy, and it stays so: the index leads with the subscription,
+so the rows read are that subscription's lines for that period and meter —
+the usage line and any late lines since — however many invoices the project
+has. Both were captured on invoices built for two customers of the spread
+in the appendix, on a plan pricing all four of its meters; the `heavy`
+profile in M7 is the real test of both.
 
 ### 5. Outbox poll
 

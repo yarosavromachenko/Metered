@@ -5,15 +5,16 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: M4 complete — the catalog and subscriptions.** On top of the
-> shared kernel (money that refuses to be a float, a transactional outbox, a
-> hash-chained audit log), tenants with API keys and a Filament panel, and
-> usage ingestion through Redis Streams into partitioned PostgreSQL: plans
-> with immutable published versions, four pricing models computed by a pure
-> calculator, billing periods clamped to the end of a shorter month, and
-> subscriptions whose phases the database refuses to let overlap — managed from
-> the panel and a management API. Invoices arrive next
-> ([`docs/roadmap.md`](docs/roadmap.md)).
+> **Status: M5 complete — invoicing and the ledger.** On top of the shared
+> kernel (money that refuses to be a float, a transactional outbox, a
+> hash-chained audit log), tenants with API keys and a Filament panel, usage
+> ingestion through Redis Streams into partitioned PostgreSQL, and a catalog of
+> versioned plans and subscriptions: every period is invoiced an hour after it
+> ends, once however many workers try, with gapless numbering, lines that show
+> the working that priced them, late usage billed on the next invoice, and
+> every movement booked to an append-only double-entry ledger — paid or voided
+> by credit note from the panel or the API, downloadable as a PDF. Webhooks
+> arrive next ([`docs/roadmap.md`](docs/roadmap.md)).
 
 Metered meters what customers consume, prices it, invoices it, books it into a
 double-entry ledger, and notifies the customer's systems over signed webhooks —
@@ -156,6 +157,14 @@ Honesty section; it will grow as the code lands.
   `(project_id, event_id, occurred_at)` match in PostgreSQL. A duplicate sent
   with a different `occurred_at` is not caught by the database — ADR-0002.
 - No real payment provider: `FakePaymentGateway` behind a port.
+- No proration. A plan change takes effect at the end of the current period, so
+  every period is billed on one version; an immediate change with prorated fees
+  was M5's stretch goal and the first thing the roadmap cuts.
+- No prepaid credit and no write-offs: the ledger has receivables, revenue and
+  cash, and an invoice is paid or voided by a credit note (assumptions 27–28).
+- Usage that reaches a subscription's final period after its last invoice is
+  kept and reconciled, but not billed: there is no next invoice to carry it
+  (assumptions, 26).
 - No tax calculation, no currency conversion, no dunning, no SSO.
 - The demo is local only. There is no hosted instance to abuse or to pay for.
 - No PostgreSQL row-level security. Tenant isolation is row scoping in the

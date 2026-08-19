@@ -56,9 +56,11 @@ sequence exists.
 | Admin | Dashboard: ingestion rate, events today, revenue this period, open invoices, failing endpoints |
 
 The invoice detail page is the one worth building carefully. It shows the period,
-the aggregates it read, the price that applied, the tier breakdown, and the
-rounding step — the whole path from raw events to an amount owed. That page is
-the best argument the repository makes about the correctness of its pricing.
+the quantity each meter's aggregates held, the tiers that quantity passed through
+with each tier's exact amount, the rounding, the credit note if there is one, and
+every ledger transaction the invoice caused — the whole path from usage to an
+amount owed and booked. That page is the best argument the repository makes
+about the correctness of its pricing.
 
 ## Tenancy
 

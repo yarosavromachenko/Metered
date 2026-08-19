@@ -57,6 +57,26 @@ payload the consumer cannot parse — fix the cause first, then replay.
 3. The relay uses `FOR UPDATE SKIP LOCKED`, so multiple relays are safe: scale it.
 4. Never delete an unpublished outbox row to clear a backlog. That drops an event whose state change already committed.
 
+## Invoices are not being built
+
+A period is invoiced one grace window (an hour) after it ends, by
+`billing:close-periods`, which the `scheduler` service runs every five minutes.
+
+1. Is `scheduler` running? `docker compose ps scheduler`.
+2. Run it by hand: `php artisan billing:close-periods`. It prints how many closes
+   it queued; zero means no subscription has a period past its grace window.
+3. Are the `billing` jobs failing? Check Horizon's failed jobs. A worker started
+   before a deploy runs the old code: `php artisan horizon:terminate` restarts it.
+4. Running the command or a job twice is safe. The unique key on
+   `(subscription, period)` lets one invoice in; a second close finds it there.
+
+## An invoice is stuck as a draft
+
+The close finalizes what it builds. A draft left behind means the finalization
+failed after the draft was committed. Open it in the panel and finalize or
+discard it. Never edit an invoice or a ledger row by hand: the schema refuses,
+and a correction is a credit note.
+
 ## A webhook endpoint is failing
 
 1. Admin panel → Webhooks → the endpoint. The breaker state and recent attempts, with response codes and bodies, are there.

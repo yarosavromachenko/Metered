@@ -13,8 +13,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M2 | Tenancy and the admin shell | M | ✅ done |
 | M3 | Usage ingestion | L | ✅ done |
 | M4 | Billing catalog and subscriptions | M | ✅ done |
-| M5 | Invoicing and ledger | L | 🔜 next |
-| M6 | Webhooks | M | ⬜ |
+| M5 | Invoicing and ledger | L | ✅ done |
+| M6 | Webhooks | M | 🔜 next |
 | M7 | Simulation, seed profiles and chaos | M | ⬜ |
 | M8 | Observability polish | S–M | ⬜ |
 | M9 | Release polish | S | ⬜ |
@@ -113,12 +113,19 @@ computed, PDF, void and pay actions, ledger view.
 
 Stretch: immediate plan change with proration of fixed fees.
 
-- [ ] Concurrency test: two parallel closes of one subscription → exactly one invoice
-- [ ] Concurrency test: 50 parallel finalizations → numbering with no gaps and no duplicates
-- [ ] Ledger invariant: debits equal credits; `UPDATE`/`DELETE` rejected by the database
-- [ ] Time-travel tests across period edges and the grace window; a late event lands on the next invoice
-- [ ] Mutation score ≥ 85 on `Invoicing/Domain`
-- [ ] ADR-0008, ADR-0010 accepted
+- [x] Concurrency test: two parallel closes of one subscription → exactly one invoice — run with eight workers in real processes
+- [x] Concurrency test: 50 parallel finalizations → numbering with no gaps and no duplicates — ten of them rolling back after taking a number, which must come back
+- [x] Ledger invariant: debits equal credits; `UPDATE`/`DELETE` rejected by the database — in the domain type, and again by a deferred constraint trigger at commit; `UPDATE`, `DELETE` and `TRUNCATE` refused by triggers
+- [x] Time-travel tests across period edges and the grace window; a late event lands on the next invoice — a microsecond before the window closes, usage inside the window, a late event six days after its period's invoice, and a scheduler that was down for three periods
+- [x] Mutation score ≥ 85 on `Invoicing/Domain` — 100% (89 of 89), measured with `make mutation-module MODULE=Invoicing`
+- [x] ADR-0008, ADR-0010 accepted
+
+Invoices carry who they were addressed to, as they were, and every line keeps
+the steps that priced it — the invoice's page, its PDF and the API all show
+them. The management API reads, pays and voids invoices under an admin key
+([`api.md`](api.md)). The stretch goal, proration, did not land and is the
+first cut the plan names; plan changes still take effect at period end. A
+`scheduler` service now runs `routes/console.php`, which nothing did before.
 
 ## M6 — Webhooks
 

@@ -1,6 +1,6 @@
 # 0010. Period close, late events and invoice numbering
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -76,3 +76,52 @@ number. Rejected as more confusing than the contention it avoids.
 
 **Advisory locks instead of a row lock.** They do not survive PgBouncer's
 transaction pooling on the web tier, and the row lock is already transactional.
+
+## Accepted in M5
+
+Built as decided. `billing:close-periods` runs every five minutes from the
+scheduler and queues one `CloseSubscriptionPeriodsJob` per subscription with a
+period past its grace window, on the `billing` queue. The job builds a draft
+from the aggregates and finalizes it; `UNIQUE (subscription_id, period_start,
+period_end)` keeps it to one invoice per period, and `WithoutOverlapping` on the
+subscription only saves the wasted build. Two concurrency tests hold the result
+in real processes: eight workers closing one period build one invoice, and fifty
+finalizations at once — ten of which roll back after taking a number — leave
+numbers 1 to 40 with no gap and no duplicate.
+
+What the building changed:
+
+**A losing close is a quiet no-op, not a caught violation.** The draft is
+inserted with `ON CONFLICT DO NOTHING`. Catching a unique violation inside the
+transaction would abort everything after it; the second close is the expected
+case, and it simply finds the invoice there.
+
+**One counter table for every kind of document.** `document_sequences` holds a
+row per organization and kind — invoices and credit notes — advanced by one
+upsert that creates the row at one or increments it and holds its lock until
+the transaction ends. The counter refuses to run outside a transaction, where a
+number could be used without being rolled back with its invoice.
+
+**How far back a late line can reach.** A late line is found by pricing an
+earlier period again at what it now holds and billing the difference from what
+was billed — under tiers, the late units cannot be priced on their own. The
+periods looked at are those that ended within the ingestion acceptance window
+plus the grace before the new period starts: an event older than that is
+rejected at the door, so nothing later can reach them. A volume discount can
+make more usage cost less; the late line then bills zero rather than paying
+money back ([`assumptions.md`](../assumptions.md), 25).
+
+**Hourly buckets decide which period usage belongs to.** Invoices read the
+hourly aggregates, and a bucket belongs to the period its start falls in —
+exactly what `bucket_start >= start AND bucket_start < end` says, whatever
+instant the subscription was anchored at (assumptions, 24).
+
+**An invoice for nothing is settled at once.** A zero total is finalized and
+paid in one step and books no ledger entries: there is nothing to collect, and a
+transaction of zero entries is not a transaction.
+
+**Nothing was running the scheduler.** `routes/console.php` had its first entry
+in M2 and no process to run it; the stack now has a `scheduler` service. The
+first run through Horizon also found that a job which throws and will be retried
+left its trace scope open, and the retry then failed on that instead of on the
+real error. Fixed in `QueueTracing`.

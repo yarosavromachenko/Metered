@@ -103,10 +103,63 @@ surface, including what does not exist yet, so a client knows what to expect.
 | Plans | `POST /plans` · `GET /plans` · `POST /plans/{id}/versions` | ✅ M4 |
 | Customers | `POST /customers` · `GET /customers` | ✅ M4 |
 | Subscriptions | `POST /subscriptions` · `POST /subscriptions/{id}/cancel` · `POST /subscriptions/{id}/change-plan` | ✅ M4 |
-| Invoices | `GET /invoices` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | M5 |
-| Payments | `POST /invoices/{id}/pay` | M5 |
+| Invoices | `GET /invoices?status&customer_ref&limit` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | ✅ M5 |
+| Payments | `POST /invoices/{id}/pay` | ✅ M5 |
 | Webhooks | `POST/GET/PATCH/DELETE /webhook-endpoints` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries` · `POST /webhook-deliveries/{id}/replay` | M6 |
 | Ops | `GET /health/live` · `GET /health/ready` | M8 |
+
+## Invoices, in detail
+
+Invoices are built by the system, one per subscription and period, an hour
+after the period ends; the API reads and settles them. Everything here needs an
+`admin` key — a `usage:write` key reads no invoice — and both writes take an
+`Idempotency-Key`, so a retried `pay` cannot collect twice and a retried `void`
+cannot issue a second credit note.
+
+```http
+GET /api/v1/invoices/01a0d974-2c1e-7f0a-9d3b-6a2e8c4f1b77
+```
+
+```json
+{
+  "id": "01a0d974-2c1e-7f0a-9d3b-6a2e8c4f1b77",
+  "number": "INV-000042",
+  "status": "finalized",
+  "bill_to": {"reference": "acme-corp", "name": "Acme Corp"},
+  "period_start": "2026-08-18T09:00:00+00:00",
+  "period_end": "2026-09-18T09:00:00+00:00",
+  "lines": [
+    {
+      "kind": "usage",
+      "description": "Usage of api.requests",
+      "meter_code": "api.requests",
+      "quantity": "70058.000000",
+      "amount": {"amount": 35529, "currency": "EUR"},
+      "covers_start": "2026-08-18T09:00:00+00:00",
+      "covers_end": "2026-09-18T09:00:00+00:00",
+      "calculation": [
+        "up to 1000: 1000 × 0.01 EUR = 10",
+        "over 1000: 69058 × 0.005 EUR = 345.29",
+        "total 355.29 EUR, rounded once"
+      ]
+    }
+  ],
+  "total": {"amount": 35529, "currency": "EUR"},
+  "credit_note": null
+}
+```
+
+A line's `kind` is `fixed`, `usage` or `late`. A late line bills usage that
+reached an earlier period after its invoice was built: `covers_start` and
+`covers_end` name that period, not the invoice's own.
+
+`POST /invoices/{id}/pay` collects a finalized invoice through the payment
+gateway (a fake one in this system) and answers with the paid invoice. `POST
+/invoices/{id}/void` takes `{"reason": "…"}`: a finalized invoice is voided with a
+credit note carrying the reason, a draft is discarded. A move the invoice's state
+does not allow — paying a paid invoice, voiding a paid one — is a `422` whose
+`detail` says so. Another project's invoice is a `404`, the same as one that does
+not exist.
 
 ## Ingestion, in detail
 

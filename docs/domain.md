@@ -46,9 +46,12 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | **Billing cycle** | The sequence of billing periods following from an anchor and an interval (`month` or `year`). Each boundary is the anchor moved on by whole intervals, its time of day kept and its day clamped to the month it lands in — so a cycle anchored on 31 January runs 28 February, then 31 March. All in UTC; daylight saving never moves a boundary. |
 | **Grace window** | The delay between a period ending and its invoice being built, so that events arriving late still land in the right invoice. Default one hour. |
 | **Late event** | An event whose `occurred_at` falls inside an already finalized period. It appears on the *next* invoice as a separate line flagged `late`. |
-| **Invoice / InvoiceLine** | The document owed by a customer. Numbered gaplessly per organization. |
+| **Late line** | The line that bills late events: the earlier period priced again at what it holds now, minus what was already billed for it. Never negative (assumptions, 25). |
+| **Invoice / InvoiceLine** | The document owed by a customer. Numbered gaplessly per organization. Each line carries its **calculation**, the steps that priced it. |
+| **Bill to** | Who an invoice is addressed to — the customer's reference and name, copied when the invoice is built, so a later rename does not rewrite it. |
+| **Document number** | `INV-000042` or `CN-000007`: a per-organization, per-kind sequence starting at one, advanced inside the transaction that prints it. |
 | **Ledger** | An append-only double-entry journal. A balance is always derived from entries, never stored as a mutable number. |
-| **Credit note** | A reversal document reducing what is owed; books `Dr Revenue / Cr AR`. |
+| **Credit note** | A reversal document reducing what is owed; books `Dr Revenue / Cr AR`. In v1 a credit note reverses the whole of a voided invoice, and carries the reason given. |
 | **Outbox / Inbox** | Tables guaranteeing that an event is published exactly as often as its state change committed, and processed at most once in effect. |
 | **Webhook endpoint** | A customer URL plus up to two active signing secrets and a delivery state (`closed`, `open`, `half_open`). |
 | **Webhook delivery** | One attempt to deliver one event, with its status, response code, duration and truncated response body. |
@@ -103,17 +106,18 @@ These are the statements the test suite exists to defend.
 stateDiagram-v2
     [*] --> draft: period closed, lines built
     draft --> finalized: finalize (number assigned, Dr AR / Cr Revenue)
+    draft --> paid: finalize an invoice for nothing (number assigned, nothing booked)
     draft --> void: discard before finalize
     finalized --> paid: payment succeeds (Dr Cash / Cr AR)
-    finalized --> void: void (credit note issued)
-    finalized --> uncollectible: written off
+    finalized --> void: void (credit note issued, Dr Revenue / Cr AR)
     paid --> [*]
     void --> [*]
-    uncollectible --> [*]
 ```
 
 A finalized invoice never goes back to draft. That is what makes gapless
-numbering and the ledger trustworthy.
+numbering and the ledger trustworthy. The schema holds it too: a trigger lets
+an invoice's status only move forward and freezes everything else about it.
+Writing an invoice off as uncollectible is not in v1 (assumptions, 28).
 
 ### Subscription
 

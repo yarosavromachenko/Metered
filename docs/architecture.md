@@ -136,10 +136,12 @@ aggregates nothing ([ADR-0004](adr/0004-aggregation-exactly-once-effect.md)).
 
 The scheduler finds subscriptions whose period ended more than the grace window
 ago (default one hour, so that late events still land in the right invoice) and
-queues one job per subscription. The job builds invoice lines from the
-pre-aggregates, prices them through the pure domain calculator, and writes —
-in one transaction — the invoice, its lines, the ledger transaction, and the
-outbox message.
+queues one job per subscription. The job reads the period's usage from the
+pre-aggregates through Usage's contract, has Billing price it through the pure
+domain calculator, and writes the draft with its lines — plus a late line for
+any earlier period that grew since it was billed. A second transaction then
+finalizes it: the number from the organization's counter, the ledger
+transaction, and the outbox message commit together.
 
 Two concurrent closes of the same subscription produce exactly one invoice
 because of `UNIQUE (subscription_id, period_start, period_end)`. The lock is an

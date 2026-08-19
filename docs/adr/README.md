@@ -17,9 +17,9 @@ that links back, so the reasoning at the time stays readable.
 | [0005](0005-transactional-outbox-inbox.md) | Transactional outbox and inbox | **Accepted** |
 | [0006](0006-api-idempotency.md) | Idempotency keys for mutating endpoints | **Accepted** |
 | [0007](0007-money-and-decimals.md) | Money and decimal arithmetic | **Accepted** |
-| [0008](0008-double-entry-ledger.md) | Append-only double-entry ledger | Proposed |
+| [0008](0008-double-entry-ledger.md) | Append-only double-entry ledger | Accepted |
 | [0009](0009-clock-injection.md) | Time through an injected clock | **Accepted** |
-| [0010](0010-period-close-and-invoice-numbering.md) | Period close, late events, invoice numbering | Proposed |
+| [0010](0010-period-close-and-invoice-numbering.md) | Period close, late events, invoice numbering | Accepted |
 | [0011](0011-webhook-delivery.md) | Webhook signing, retries, breaker, SSRF guard | Proposed |
 | [0012](0012-trace-context-propagation.md) | Trace context across async hops | Proposed |
 | [0013](0013-multi-tenancy.md) | Multi-tenancy by row scoping | **Accepted** |

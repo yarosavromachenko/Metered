@@ -42,6 +42,17 @@ data, and a race that would fail in production passes in CI. These tests use
 `spatie/fork` to run each actor in its own process with its own connection, and
 they clean up explicitly.
 
+Three things about them are not obvious. What they commit may be append-only by
+design — invoices, the ledger, the audit chain — so
+`Tests\Support\CommittedRows` removes one organization's rows with triggers
+switched off for that one transaction; each test works in an organization of its
+own. Under `--parallel` they all share the base test database, because Laravel
+moves a process to a database of its own only for tests that use a database
+trait, and these use none: a concurrency test counts its own rows, never a
+table's. And forked children inherit the UUIDv7 generator's in-memory
+sequence: on a frozen mock clock they generate the same ids, so each child moves
+its clock on by its own millisecond.
+
 **Time is injected, never waited for.** Domain and application code depends on
 `Psr\Clock\ClockInterface`; tests supply a mock clock and move it. There is no
 `sleep()` anywhere in the suite, and no test that only passes on a day that is
@@ -94,10 +105,12 @@ expensive to miss.
 
 - N parallel requests carrying one `Idempotency-Key`: one execution, the others
   replayed or rejected with `409`.
-- Two parallel closes of the same subscription period: exactly one invoice, and
-  the second failure is the unique constraint, not a lock timeout.
-- Fifty parallel finalizations: numbering with no gaps and no duplicates.
-- Parallel credit application against one balance: never spends more than exists.
+- Parallel closes of the same subscription period: exactly one invoice, because
+  the unique key lets one draft in — not because a lock timed the others out.
+- Fifty parallel finalizations, some of which roll back after taking a number:
+  numbering with no gaps and no duplicates.
+- Parallel credit application against one balance: never spends more than
+  exists. Waits for prepaid credit, which is not in v1 (assumptions, 27).
 
 **Security and isolation**
 
