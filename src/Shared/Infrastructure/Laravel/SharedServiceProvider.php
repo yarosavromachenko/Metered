@@ -119,15 +119,23 @@ final class SharedServiceProvider extends ServiceProvider
     }
 
     /**
-     * @return iterable<IntegrationEventHandler>
+     * A list, not a generator. The dispatcher is a singleton that a worker
+     * keeps for its whole life, and a generator can be walked once: the
+     * second event a worker handled would find no handlers left to run.
+     *
+     * @return list<IntegrationEventHandler>
      */
-    private static function taggedHandlers(Application $app): iterable
+    private static function taggedHandlers(Application $app): array
     {
+        $handlers = [];
+
         foreach ($app->tagged(self::HANDLER_TAG) as $handler) {
             if ($handler instanceof IntegrationEventHandler) {
-                yield $handler;
+                $handlers[] = $handler;
             }
         }
+
+        return $handlers;
     }
 
     private static function configString(Application $app, string $key, string $default): string

@@ -6,6 +6,7 @@ use Metered\Shared\Application\Inbox\InboxGuard;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Infrastructure\Inbox\IntegrationEventDispatcher;
+use Metered\Shared\Infrastructure\Laravel\SharedServiceProvider;
 use Psr\Clock\ClockInterface;
 use Tests\Support\CallLog;
 use Tests\Support\RecordingEventHandler;
@@ -70,4 +71,16 @@ it('runs each handler once however often the message arrives', function (): void
         // Two handlers, three deliveries, two executions: the inbox claim is
         // keyed by handler, so neither steals the other's turn.
         ->and($log->entries)->toBe(['billing', 'webhooks']);
+});
+
+it('reaches the tagged handlers for every message a long-lived worker handles, not just the first', function (): void {
+    $log = new CallLog();
+    app()->instance('test.recording-handler', new RecordingEventHandler('tagged-listener', ['test.pinged'], $log));
+    app()->tag(['test.recording-handler'], SharedServiceProvider::HANDLER_TAG);
+
+    $dispatcher = app(IntegrationEventDispatcher::class);
+
+    expect($dispatcher->dispatch(anyMessage('test.pinged')))->toBe(1)
+        ->and($dispatcher->dispatch(anyMessage('test.pinged')))->toBe(1)
+        ->and($log->entries)->toBe(['tagged-listener', 'tagged-listener']);
 });
