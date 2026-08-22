@@ -7,8 +7,11 @@ namespace Metered\Billing\Application\Command;
 use Metered\Billing\Domain\Subscription\Subscription;
 use Metered\Billing\Domain\Subscription\SubscriptionRepository;
 use Metered\Shared\Application\Audit\AuditLogger;
+use Metered\Shared\Application\Outbox\OutboxWriter;
+use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Audit\AuditEntry;
+use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Psr\Clock\ClockInterface;
 
@@ -19,6 +22,9 @@ final readonly class CancelSubscriptionHandler
         private Authorizer $authorizer,
         private ClockInterface $clock,
         private AuditLogger $audit,
+        private OutboxWriter $outbox,
+        private Transactions $transactions,
+        private IdentifierGenerator $ids,
     ) {}
 
     public function handle(CancelSubscription $command): Subscription
@@ -33,7 +39,10 @@ final readonly class CancelSubscriptionHandler
 
         $now = $this->clock->now();
         $canceled = $command->immediately ? $subscription->cancelNow($now) : $subscription->cancelAtPeriodEnd($now);
-        $this->subscriptions->save($canceled);
+        $this->transactions->run(function () use ($canceled, $now): void {
+            $this->subscriptions->save($canceled);
+            $this->outbox->append(SubscriptionMessages::about($this->ids->generate(), $canceled, 'subscription.canceled', $now));
+        });
 
         $this->audit->record(new AuditEntry(
             actor: $command->actor->label,

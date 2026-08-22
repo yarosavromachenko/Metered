@@ -107,3 +107,33 @@ it('lets a viewer change no subscription', function (): void {
         ->and(static fn() => app(StartSubscriptionHandler::class)->handle(new StartSubscription($tenant, $subscription->customerId, $subscription->phases[0]->planVersionId, $viewer)))
         ->toThrow(PermissionDenied::class);
 });
+
+it('announces a subscription starting and ending through the outbox', function (): void {
+    $clock = new MockClock('2026-01-31 14:00:00', 'UTC');
+    app()->instance(ClockInterface::class, $clock);
+    $project = TenantFactory::tenant();
+    $tenant = $project->tenant();
+    $actor = TenantFactory::member($project->organizationId, Role::Admin);
+    $customer = CatalogFactory::customer($tenant);
+    $version = CatalogFactory::version(CatalogFactory::plan($tenant));
+
+    $started = app(StartSubscriptionHandler::class)->handle(new StartSubscription($tenant, $customer->id, $version->id, $actor));
+    $clock->modify('2026-02-10 09:00:00');
+    app(CancelSubscriptionHandler::class)->handle(new CancelSubscription($tenant, $started->id, false, $actor));
+
+    $types = DB::table('outbox_messages')->where('aggregate_id', $started->id->value)->orderBy('occurred_at')->pluck('type')->all();
+    $payload = DB::table('outbox_messages')->where('aggregate_id', $started->id->value)->where('type', 'subscription.canceled')->value('payload');
+    $canceled = json_decode(is_string($payload) ? $payload : '{}', true);
+
+    expect($types)->toBe(['subscription.created', 'subscription.canceled'])
+        ->and(DB::table('outbox_messages')->where('aggregate_id', $started->id->value)->value('aggregate_type'))->toBe('subscription')
+        ->and($canceled)->toMatchArray([
+            'subscription_id' => $started->id->value,
+            'project_id' => $tenant->projectId->value,
+            'organization_id' => $tenant->organizationId->value,
+            'customer_id' => $customer->id->value,
+            'status' => 'pending_cancellation',
+            'plan_version_id' => $version->id->value,
+            'ends_at' => '2026-02-28T14:00:00+00:00',
+        ]);
+});

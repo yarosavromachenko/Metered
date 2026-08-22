@@ -11,6 +11,8 @@ use Metered\Billing\Domain\Plan\PlanVersionRepository;
 use Metered\Billing\Domain\Subscription\Subscription;
 use Metered\Billing\Domain\Subscription\SubscriptionRepository;
 use Metered\Shared\Application\Audit\AuditLogger;
+use Metered\Shared\Application\Outbox\OutboxWriter;
+use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Audit\AuditEntry;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
@@ -27,6 +29,8 @@ final readonly class StartSubscriptionHandler
         private IdentifierGenerator $ids,
         private ClockInterface $clock,
         private AuditLogger $audit,
+        private OutboxWriter $outbox,
+        private Transactions $transactions,
     ) {}
 
     public function handle(StartSubscription $command): Subscription
@@ -51,7 +55,13 @@ final readonly class StartSubscriptionHandler
             $this->clock->now(),
         );
 
-        $this->subscriptions->save($subscription);
+        // The subscription and the event announcing it commit together
+        // (ADR-0005): a webhook about a subscription that rolled back, or a
+        // subscription nobody hears about, are both worse than neither.
+        $this->transactions->run(function () use ($subscription): void {
+            $this->subscriptions->save($subscription);
+            $this->outbox->append(SubscriptionMessages::about($this->ids->generate(), $subscription, 'subscription.created', $subscription->anchorAt));
+        });
 
         $this->audit->record(new AuditEntry(
             actor: $command->actor->label,
