@@ -28,6 +28,15 @@ final readonly class SecretKey
         return new self($value);
     }
 
+    /**
+     * A new secret from 32 random bytes the caller drew. The domain does not
+     * draw them itself: where randomness comes from is not its business.
+     */
+    public static function fromBytes(string $bytes): self
+    {
+        return self::fromString('whsec_' . rtrim(strtr(base64_encode($bytes), '+/', '-_'), '='));
+    }
+
     public function reveal(): string
     {
         return $this->value;

@@ -27,4 +27,12 @@ final class InvalidEndpoint extends DomainException
     {
         return new self(sprintf('A webhook description is at most %d characters.', $limit));
     }
+
+    /**
+     * @param list<string> $known
+     */
+    public static function unknownEvent(string $given, array $known): self
+    {
+        return new self(sprintf('"%s" is not an event an endpoint can listen to; the events are %s.', $given, implode(', ', $known)));
+    }
 }

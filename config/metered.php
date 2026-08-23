@@ -185,6 +185,33 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Webhooks
+    |--------------------------------------------------------------------------
+    |
+    | Deliveries are rows; the dispatcher queues whatever is due every ten
+    | seconds, and a worker makes one attempt (ADR-0011). Five failures in a
+    | row open an endpoint's breaker for five minutes. A new secret signs
+    | alongside the old one for a day.
+    |
+    */
+
+    'webhooks' => [
+        'queue' => env('WEBHOOKS_QUEUE', 'webhooks'),
+        'breaker_threshold' => (int) env('WEBHOOKS_BREAKER_THRESHOLD', 5),
+        'breaker_cooldown_seconds' => (int) env('WEBHOOKS_BREAKER_COOLDOWN_SECONDS', 300),
+        'rotation_grace_seconds' => (int) env('WEBHOOKS_ROTATION_GRACE_SECONDS', 24 * 60 * 60),
+
+        // Longer than an attempt can take (10s total), so a delivery is not
+        // handed to a second worker while the first is still waiting on it.
+        'lease_seconds' => (int) env('WEBHOOKS_LEASE_SECONDS', 60),
+
+        // Plain http, for a receiver on a developer's machine. Never outside
+        // a local environment: the endpoint URL check refuses it otherwise.
+        'allow_http' => env('APP_ENV') === 'local',
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tracing
     |--------------------------------------------------------------------------
     |
