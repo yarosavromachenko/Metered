@@ -45,3 +45,19 @@ Schedule::command('billing:close-periods')
     ->everyFiveMinutes()
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Webhook dispatch
+|--------------------------------------------------------------------------
+|
+| Every ten seconds, so a webhook leaves within seconds of the event that
+| caused it, and a retry within seconds of falling due. The command only
+| queues; the webhooks queue sends (ADR-0011).
+|
+*/
+
+Schedule::command('webhooks:dispatch')
+    ->everyTenSeconds()
+    ->withoutOverlapping()
+    ->onOneServer();
