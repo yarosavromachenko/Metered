@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Metered\Billing\Application\Command\DefineMeter;
 use Metered\Billing\Application\Command\DefineMeterHandler;
 use Metered\Shared\Domain\Metering\Aggregation;
+use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
 final readonly class DefineMeterController

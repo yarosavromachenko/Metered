@@ -9,6 +9,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Metered\Billing\Application\Command\RegisterCustomer;
 use Metered\Billing\Application\Command\RegisterCustomerHandler;
+use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
 final readonly class RegisterCustomerController

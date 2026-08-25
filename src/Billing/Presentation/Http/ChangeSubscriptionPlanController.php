@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 use Metered\Billing\Application\Command\ChangeSubscriptionPlan;
 use Metered\Billing\Application\Command\ChangeSubscriptionPlanHandler;
 use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
 /**

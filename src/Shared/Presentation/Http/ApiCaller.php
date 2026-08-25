@@ -2,11 +2,10 @@
 
 declare(strict_types=1);
 
-namespace Metered\Billing\Presentation\Http;
+namespace Metered\Shared\Presentation\Http;
 
 use Illuminate\Http\Request;
 use Metered\Shared\Domain\Access\Actor;
-use Metered\Shared\Presentation\Http\TenantRequest;
 
 /**
  * Who an API request acts as. An admin key is not a person: its authority

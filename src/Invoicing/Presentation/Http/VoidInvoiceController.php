@@ -12,6 +12,7 @@ use Metered\Invoicing\Application\Command\VoidInvoice;
 use Metered\Invoicing\Application\Command\VoidInvoiceHandler;
 use Metered\Invoicing\Domain\CreditNote\CreditNoteRepository;
 use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
 /**

@@ -13,6 +13,7 @@ use Metered\Billing\Domain\Customer;
 use Metered\Billing\Domain\CustomerReference;
 use Metered\Billing\Domain\CustomerRepository;
 use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\Problem;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
