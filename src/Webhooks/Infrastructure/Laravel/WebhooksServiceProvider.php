@@ -6,6 +6,7 @@ namespace Metered\Webhooks\Infrastructure\Laravel;
 
 use GuzzleHttp\Client;
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
@@ -30,6 +31,14 @@ use Metered\Webhooks\Infrastructure\Persistence\DatabaseAttemptLog;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseDeliveryRepository;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseEndpointRepository;
 use Metered\Webhooks\Presentation\Console\DispatchDeliveriesCommand;
+use Metered\Webhooks\Presentation\Console\ReplayDeliveryCommand;
+use Metered\Webhooks\Presentation\Http\DeleteEndpointController;
+use Metered\Webhooks\Presentation\Http\ListDeliveriesController;
+use Metered\Webhooks\Presentation\Http\ListEndpointsController;
+use Metered\Webhooks\Presentation\Http\RegisterEndpointController;
+use Metered\Webhooks\Presentation\Http\ReplayDeliveryController;
+use Metered\Webhooks\Presentation\Http\RotateSecretController;
+use Metered\Webhooks\Presentation\Http\UpdateEndpointController;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -97,8 +106,24 @@ final class WebhooksServiceProvider extends ServiceProvider
     public function boot(): void
     {
         if ($this->app->runningInConsole()) {
-            $this->commands([DispatchDeliveriesCommand::class]);
+            $this->commands([DispatchDeliveriesCommand::class, ReplayDeliveryCommand::class]);
         }
+
+        // An admin key's, like the catalog: a key embedded in a client's
+        // product reports usage and can reconfigure nothing. Writes take an
+        // Idempotency-Key, so a retried request cannot register an endpoint
+        // twice or rotate a secret twice.
+        Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
+            ->prefix('api/v1')
+            ->group(static function (): void {
+                Route::get('webhook-endpoints', ListEndpointsController::class)->name('webhooks.endpoints.list');
+                Route::post('webhook-endpoints', RegisterEndpointController::class)->middleware('idempotent')->name('webhooks.endpoints.register');
+                Route::patch('webhook-endpoints/{endpoint}', UpdateEndpointController::class)->middleware('idempotent')->name('webhooks.endpoints.update');
+                Route::delete('webhook-endpoints/{endpoint}', DeleteEndpointController::class)->middleware('idempotent')->name('webhooks.endpoints.delete');
+                Route::post('webhook-endpoints/{endpoint}/rotate-secret', RotateSecretController::class)->middleware('idempotent')->name('webhooks.endpoints.rotate');
+                Route::get('webhook-deliveries', ListDeliveriesController::class)->name('webhooks.deliveries.list');
+                Route::post('webhook-deliveries/{delivery}/replay', ReplayDeliveryController::class)->middleware('idempotent')->name('webhooks.deliveries.replay');
+            });
     }
 
     private static function configInt(Application $app, string $key, int $default): int

@@ -16,6 +16,11 @@ final class WebhookNotFound extends RuntimeException implements NotFound
 {
     public static function of(string $what, Uuid $id): self
     {
-        return new self(sprintf('No webhook %s %s in this project.', $what, $id->value));
+        return self::reference($what, $id->value);
+    }
+
+    public static function reference(string $what, string $given): self
+    {
+        return new self(sprintf('No webhook %s %s in this project.', $what, $given));
     }
 }
