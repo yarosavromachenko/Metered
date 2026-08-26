@@ -41,7 +41,7 @@ function guardedTransport(ScriptedResolver $resolver, array $responses, ArrayObj
     $stack = HandlerStack::create(new MockHandler($responses));
     $stack->push(Middleware::history($history));
 
-    return new GuardedTransport(new Client(['handler' => $stack]), $resolver);
+    return new GuardedTransport($resolver, new Client(['handler' => $stack]));
 }
 
 /**
@@ -176,4 +176,19 @@ it('reports a receiver it could not reach, and a host that does not resolve, as 
         ->and($timedOut->verdict())->toBe(Verdict::Retry)
         ->and($unresolved->error)->toBe('nowhere.example.com does not resolve')
         ->and($unresolved->verdict())->toBe(Verdict::Retry);
+});
+
+it('sends through cURL, with options cURL accepts, when no handler is given', function (): void {
+    // The real handler, pointed at a public address with a timeout too short
+    // to reach it: whatever the network, the attempt fails on the clock and
+    // not because Guzzle refused an option or chose a handler that cannot pin
+    // the address. Both happened, and a mocked handler hid both.
+    $transport = new GuardedTransport(new ScriptedResolver([["93.184.216.34"]]), connectTimeout: 0.001, timeout: 0.001);
+
+    $result = $transport->send(EndpointUrl::fromString('https://hooks.example.com/in'), [], '{}');
+
+    expect($result->statusCode)->toBeNull()
+        ->and($result->error)->not->toContain('not supported')
+        ->and($result->error)->not->toContain('stream handler')
+        ->and($result->verdict())->toBe(Verdict::Retry);
 });

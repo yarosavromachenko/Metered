@@ -6,29 +6,49 @@ payload carries an `id` a receiver can deduplicate on.
 
 ## Payload
 
+```http
+POST /metered HTTP/1.1
+Host: hooks.example.com
+Content-Type: application/json
+User-Agent: Metered-Webhooks/1
+X-Metered-Event-Id: 01a0d974-2c1e-7f0a-9d3b-6a2e8c4f1b77
+X-Metered-Event-Type: invoice.paid
+X-Metered-Signature: t=1790337600,v1=b8bca8b24ab0180f1a9bf6ef35319860ab14523cf6ea8c662728ddc0fe87779c
+```
+
 ```json
 {
-  "id": "01J9X2H8M4QK3S0T7V2B9C1D5E",
-  "type": "invoice.finalized",
-  "created_at": "2026-08-23T09:00:00Z",
+  "id": "01a0d974-2c1e-7f0a-9d3b-6a2e8c4f1b77",
+  "type": "invoice.paid",
+  "created_at": "2026-09-25T12:00:00+00:00",
   "data": {
-    "invoice_id": "01J9X2...",
-    "number": "ACME-2026-000117",
-    "customer": "acme-corp",
-    "total": {"amount": 184200, "currency": "EUR"},
-    "period": {"start": "2026-07-01T00:00:00Z", "end": "2026-08-01T00:00:00Z"}
+    "invoice_id": "01a0d974-100d-717b-bc85-99ff33e83a11",
+    "customer_id": "01a0cb55-ec0f-70a2-a9e6-0135826fbf8a",
+    "subscription_id": "01a0d974-0f9a-7c2e-8e44-5b1d0c2a7e31",
+    "number": "INV-000042",
+    "status": "paid",
+    "total_minor": 45630,
+    "currency": "EUR",
+    "period_start": "2026-08-18T09:00:00+00:00",
+    "period_end": "2026-09-18T09:00:00+00:00",
+    "payment_reference": "fake_4150235cb85babe3b6f3d9c9"
   }
 }
 ```
 
-| Event | When |
-|---|---|
-| `subscription.created` | A subscription starts |
-| `subscription.canceled` | A subscription ends, immediately or at period end |
-| `invoice.finalized` | An invoice gets its number and enters the ledger |
-| `invoice.paid` | A payment succeeds |
-| `invoice.voided` | An invoice is voided and a credit note issued |
-| `usage.threshold_reached` | Usage crosses a configured threshold |
+`id` is the event's id, the same on every attempt and every replay, and in the
+`X-Metered-Event-Id` header: it is what a receiver deduplicates on. The body is
+fixed when the delivery is created, so every attempt sends the same bytes.
+
+| Event | When | `data` carries |
+|---|---|---|
+| `subscription.created` | A subscription starts | the subscription, its customer, plan version, phases and anchor |
+| `subscription.canceled` | A subscription is canceled, immediately or at period end | the same, with `status` and `ends_at` — for a cancellation at period end, still ahead |
+| `invoice.finalized` | An invoice gets its number and enters the ledger | the invoice's number, customer, period and total |
+| `invoice.paid` | A payment succeeds | the same, and the payment reference |
+| `invoice.voided` | An invoice is voided and a credit note issued | the same, and the credit note's number and reason |
+
+A usage threshold event was planned and is not in v1 (assumptions, 32).
 
 ## Signature
 
@@ -102,40 +122,114 @@ Two things that look optional and are not: compare in constant time, and check
 the timestamp. Without the timestamp check a captured delivery can be replayed
 forever.
 
-Test vectors live next to the signer's unit tests, so an implementation in any
-language can be checked against them.
+### Test vectors
+
+A verifier in any language can be checked against these. The signer's own
+tests assert the same values (`tests/Unit/Webhooks/Domain/SignatureTest.php`),
+so the documentation and the code cannot drift apart.
+
+| | |
+|---|---|
+| secret | `whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw` |
+| previous secret, during a rotation | `whsec_ZB4oqhnYVwJv0g7xjrCnHgT2cQ6N7KeL` |
+| `t` | `1790337600` (2026-09-25T12:00:00Z) |
+| raw body | `{"id":"01a0d974-2c1e-7f0a-9d3b-6a2e8c4f1b77","type":"invoice.paid","created_at":"2026-09-25T12:00:00+00:00","data":{"number":"INV-000042"}}` |
+| signed string | `1790337600.` followed by the raw body |
+| header, one secret | `t=1790337600,v1=b8bca8b24ab0180f1a9bf6ef35319860ab14523cf6ea8c662728ddc0fe87779c` |
+| header, both secrets | `t=1790337600,v1=b8bca8b24ab0180f1a9bf6ef35319860ab14523cf6ea8c662728ddc0fe87779c,v1=aea34003af96e8cc915f95d6ff893a0c876b873146fe4c942bc16bcde5675d83` |
+| empty body, first secret | `v1=37e300d82f207cbd32a2212ca7f2a0056ed6b0209810ee386153246393b4c39f` |
+
+To check a verifier with them, set its tolerance aside (or its clock to `t`):
+the vectors are from a fixed past moment, and a correct verifier rejects them
+as too old otherwise.
+
+## Secrets
+
+A secret is `whsec_` and 43 URL-safe characters, drawn from 32 random bytes when
+an endpoint is registered. It is shown once — in the answer to the request that
+registered the endpoint, or in the panel's notification — and masked everywhere
+after. It is stored encrypted with the application key, because unlike an API
+key it has to be recovered to sign with.
+
+Rotating gives the endpoint a new secret and keeps the old one signing alongside
+it for a day (`WEBHOOKS_ROTATION_GRACE_SECONDS`), which is the window to switch
+the receiver over.
 
 ## Retries
 
-Ten attempts, exponential backoff with jitter. Default schedule: 1m, 5m, 30m,
-1h, 2h, 4h, 8h, 12h, 24h, 24h. Jitter prevents every endpoint that failed during
-one incident from retrying in the same second.
+Ten attempts and nine waits between them: 1m, 5m, 30m, 1h, 2h, 4h, 8h, 12h,
+24h — about two and a half days in all. Each wait moves by up to a fifth either
+way, so endpoints that failed during one incident do not all retry in the same
+second.
 
-A delivery is a success on any `2xx`. `4xx` other than `408` and `429` is treated
-as permanent and stops the retries — a receiver that says "I will never accept
-this" is believed. After the last attempt the delivery is `dead` and can be
-replayed from the API or the admin panel.
+A delivery is a success on any `2xx`. `408`, `429`, any `5xx`, a timeout and a
+refused connection are retried. Any other status — a `3xx` included, since
+redirects are never followed — is permanent: a receiver that says "I will never
+accept this" is believed, and the delivery is `failed` at once. After the tenth
+failed attempt it is `dead`. Either can be replayed from the API
+(`POST /webhook-deliveries/{id}/replay`), the admin panel, or
+`php artisan webhooks:replay <id>`; a replay starts again from the first attempt,
+with the same body.
+
+Every attempt, successful or not, is logged with its status code, its duration,
+its error if there was no answer, and the first kilobyte of what the receiver
+said. The delivery's page in the panel shows them.
 
 ## Circuit breaker
 
-Consecutive failures against one endpoint open its breaker: deliveries stop and
-queue up instead of hammering a service that is already down. After a cooldown
-the breaker is half-open and lets exactly one probe through; success closes it,
-failure opens it again. The state is visible in the admin panel and in the
-`webhook_endpoints` row.
+Five failures in a row against one endpoint open its breaker: deliveries stop
+and wait instead of hammering a service that is already down, and waiting does
+not spend their attempts. After five minutes the breaker is half-open and lets
+exactly one delivery through as a probe; success closes it, failure opens it
+again. A probe that never reports back — a worker killed mid-request — is
+replaced after another five minutes, so a breaker cannot stay half-open for
+good.
+
+What counts as a failure is what says the receiver is down: a timeout, a
+refused connection, a `5xx`, `408` or `429`. A receiver that answered `400` is
+up, even though it refused that delivery.
+
+The threshold and the cooldown are `WEBHOOKS_BREAKER_THRESHOLD` and
+`WEBHOOKS_BREAKER_COOLDOWN_SECONDS`. The state is on the endpoint in the panel
+and in the API's `breaker` field. Pointing an endpoint at a new URL resets it.
+
+## How a delivery travels
+
+An event is written to the outbox in the same transaction as the change it
+announces. The relay publishes it; the fan-out, behind the inbox so a
+redelivered event does nothing, writes one delivery per endpoint listening to
+it. `webhooks:dispatch` runs every ten seconds and queues an attempt for each
+delivery that is due, new or retried, on the `webhooks` queue.
+
+An attempt leases its delivery — moves its next attempt a minute ahead — before
+the request goes out, and the request is made outside any database transaction.
+A worker that dies mid-request leaves the lease to run out, and the delivery is
+tried again: the receiver may see an event twice, which is what at-least-once
+means and why the event id is there.
 
 ## SSRF guard
 
 A webhook URL is supplied by a tenant, which makes it a request from inside the
 network to an address an attacker chooses. The guard therefore:
 
-- requires HTTPS (HTTP is allowed only in `local`);
-- resolves the hostname and rejects private, loopback, link-local, multicast and
-  cloud metadata ranges;
-- **connects to the address it validated**, defeating a DNS rebind between the
-  check and the connection;
+- requires HTTPS (HTTP is allowed only in `local`), and refuses URLs carrying
+  credentials;
+- resolves the hostname once and refuses the delivery if **any** address is
+  private, loopback, link-local (where cloud metadata answers), carrier-grade
+  NAT, multicast, documentation, benchmarking or reserved — IPv4-mapped and
+  NAT64 IPv6 addresses are judged by the IPv4 address inside them;
+- **connects to the address it validated** (curl's `CURLOPT_RESOLVE`), so a DNS
+  server answering "public" to the check and `169.254.169.254` to the
+  connection gets nowhere;
 - refuses redirects entirely;
-- caps the response body it reads, and applies 5s connect and 10s total timeouts.
+- keeps a kilobyte of the answer and stops reading it after a megabyte, and
+  applies 5s connect and 10s total timeouts;
+- sends through cURL, the one handler that can be told which address to
+  connect to.
+
+A refused address is a `failed` delivery with the reason in its attempt log,
+not an exception: nothing was sent. `tests/Integration/Webhooks/GuardedTransportTest.php`
+holds each of these against a scripted DNS server and a mocked network.
 
 No other code path may call a tenant-supplied URL. This is the one rule in the
 codebase where a shortcut turns a billing system into a proxy for the internal

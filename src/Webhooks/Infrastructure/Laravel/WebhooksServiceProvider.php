@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Metered\Webhooks\Infrastructure\Laravel;
 
-use GuzzleHttp\Client;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
@@ -59,7 +58,6 @@ final class WebhooksServiceProvider extends ServiceProvider
         // A client of its own, with nothing inherited: no base URI, no
         // default retries, no middleware that might follow a redirect.
         $this->app->singleton(WebhookTransport::class, static fn(Application $app): GuardedTransport => new GuardedTransport(
-            new Client(),
             $app->make(Resolver::class),
         ));
 
