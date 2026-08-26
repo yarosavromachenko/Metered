@@ -14,6 +14,7 @@ use Metered\Billing\Presentation\Filament\PriceSummary;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 final class RemovePriceAction
@@ -42,7 +43,7 @@ final class RemovePriceAction
      */
     public static function run(string $versionId, array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($versionId, $data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($versionId, $data): string {
             app(RemovePriceHandler::class)->handle(new RemovePrice(
                 $tenant,
                 Uuid::fromString($versionId),

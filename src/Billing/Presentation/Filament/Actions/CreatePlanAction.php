@@ -10,6 +10,7 @@ use Metered\Billing\Application\Command\CreatePlan;
 use Metered\Billing\Application\Command\CreatePlanHandler;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 final class CreatePlanAction
@@ -35,7 +36,7 @@ final class CreatePlanAction
      */
     public static function run(array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($data): string {
             $plan = app(CreatePlanHandler::class)->handle(new CreatePlan(
                 $tenant,
                 Form::text($data['code'] ?? null),

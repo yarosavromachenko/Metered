@@ -11,6 +11,7 @@ use Metered\Billing\Application\Command\StartSubscriptionHandler;
 use Metered\Billing\Domain\CustomerRepository;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 final class StartSubscriptionAction
@@ -40,7 +41,7 @@ final class StartSubscriptionAction
      */
     public static function run(array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($data): string {
             $subscription = app(StartSubscriptionHandler::class)->handle(new StartSubscription(
                 $tenant,
                 Form::id($data['customer'] ?? null),

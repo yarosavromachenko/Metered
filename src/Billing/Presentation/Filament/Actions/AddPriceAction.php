@@ -21,6 +21,7 @@ use Metered\Billing\Presentation\Http\PriceInput;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
@@ -78,7 +79,7 @@ final class AddPriceAction
      */
     public static function run(string $versionId, string $currency, array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($versionId, $currency, $data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($versionId, $currency, $data): string {
             $model = Form::text($data['model'] ?? null);
 
             app(AddPriceHandler::class)->handle(new AddPrice(

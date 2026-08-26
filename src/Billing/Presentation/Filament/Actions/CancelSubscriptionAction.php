@@ -13,6 +13,7 @@ use Metered\Billing\Infrastructure\Eloquent\Subscription;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 final class CancelSubscriptionAction
@@ -37,7 +38,7 @@ final class CancelSubscriptionAction
      */
     public static function run(string $subscriptionId, array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($subscriptionId, $data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($subscriptionId, $data): string {
             $canceled = app(CancelSubscriptionHandler::class)->handle(new CancelSubscription(
                 $tenant,
                 Uuid::fromString($subscriptionId),

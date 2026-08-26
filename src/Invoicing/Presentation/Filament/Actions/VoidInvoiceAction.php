@@ -13,6 +13,7 @@ use Metered\Invoicing\Infrastructure\Eloquent\Invoice;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
@@ -44,7 +45,7 @@ final class VoidInvoiceAction
      */
     public static function run(string $invoiceId, array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($invoiceId, $data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($invoiceId, $data): string {
             $reason = $data['reason'] ?? '';
 
             $invoice = app(VoidInvoiceHandler::class)->handle(new VoidInvoice(

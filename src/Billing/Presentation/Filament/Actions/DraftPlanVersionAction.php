@@ -13,6 +13,7 @@ use Metered\Billing\Infrastructure\Eloquent\Plan;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 final class DraftPlanVersionAction
@@ -38,7 +39,7 @@ final class DraftPlanVersionAction
      */
     public static function run(string $planId, array $data): null
     {
-        return Attempt::change(static function (TenantContext $tenant) use ($planId, $data): string {
+        return Attempt::change(app(PanelScope::class)->tenant(), static function (TenantContext $tenant) use ($planId, $data): string {
             $version = app(DraftPlanVersionHandler::class)->handle(new DraftPlanVersion(
                 $tenant,
                 Uuid::fromString($planId),
