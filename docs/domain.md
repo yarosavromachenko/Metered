@@ -53,8 +53,9 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | **Ledger** | An append-only double-entry journal. A balance is always derived from entries, never stored as a mutable number. |
 | **Credit note** | A reversal document reducing what is owed; books `Dr Revenue / Cr AR`. In v1 a credit note reverses the whole of a voided invoice, and carries the reason given. |
 | **Outbox / Inbox** | Tables guaranteeing that an event is published exactly as often as its state change committed, and processed at most once in effect. |
-| **Webhook endpoint** | A customer URL plus up to two active signing secrets and a delivery state (`closed`, `open`, `half_open`). |
-| **Webhook delivery** | One attempt to deliver one event, with its status, response code, duration and truncated response body. |
+| **Webhook endpoint** | A customer URL, the events it listens to, a signing secret — two for a day after a rotation — and a circuit breaker (`closed`, `open`, `half_open`). |
+| **Webhook delivery** | One event on its way to one endpoint: its body, fixed when it is created, its status and how many attempts it has made. |
+| **Attempt** | One try at a delivery, logged with its status code, duration, error and the first kilobyte of the answer. |
 | **Audit log** | An append-only, hash-chained record of who did what. Verified by `audit:verify`. |
 
 ## Invariants
@@ -144,19 +145,25 @@ stateDiagram-v2
     state "endpoint: open" as open
     state "endpoint: half_open" as half
 
-    closed --> open: N consecutive failures
-    open --> half: cooldown elapsed
-    half --> closed: probe delivery succeeds
-    half --> open: probe delivery fails
+    closed --> open: 5 failures in a row
+    open --> half: 5 minutes passed, one delivery goes as the probe
+    half --> closed: the probe got an answer
+    half --> open: the probe failed
+    half --> half: the probe never reported, another one cooldown later
 ```
+
+A failure is what says the receiver is down: a timeout, a refused connection,
+`5xx`, `408`, `429`. A receiver that answered with a `4xx` is up.
 
 ```mermaid
 stateDiagram-v2
     [*] --> pending
     pending --> succeeded: 2xx
-    pending --> pending: retry (backoff with jitter)
-    pending --> dead: attempts exhausted
-    dead --> pending: manual replay
+    pending --> pending: retry after a wait with jitter, or held by an open breaker
+    pending --> failed: refused for good (other 4xx, 3xx, a private address)
+    pending --> dead: the tenth attempt failed
+    failed --> pending: replay
+    dead --> pending: replay
     succeeded --> [*]
 ```
 

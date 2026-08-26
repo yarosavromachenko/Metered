@@ -1,6 +1,6 @@
 # 0011. Webhook signing, retries, breaker and SSRF guard
 
-- **Status:** Proposed
+- **Status:** Accepted
 - **Date:** 2026-05-30
 
 ## Context
@@ -77,3 +77,55 @@ it does nothing about a thousand deliveries queued for the same dead endpoint.
 
 **Allow-list of receiver domains instead of an SSRF guard.** Safer in theory,
 unusable in practice for a self-service product.
+
+## Accepted in M6
+
+Built as decided: the signature and dual signing during rotation, ten
+attempts with jittered waits and a dead state with replay, a breaker per
+endpoint, and a guard that resolves once, refuses anything not public and
+connects to the address it checked. Test vectors for the signature are pinned
+in the signer's tests and published in [`webhooks.md`](../webhooks.md).
+
+What the building changed:
+
+**Nine waits, not ten.** Ten attempts have nine waits between them: 1m, 5m,
+30m, 1h, 2h, 4h, 8h, 12h, 24h, each moved by up to a fifth either way. The
+second 24h of the original list had no attempt after it.
+
+**Deliveries are rows, and the queue only carries them.** An integration event
+becomes one delivery per listening endpoint, unique on (endpoint, event), and
+`webhooks:dispatch` queues whatever is due every ten seconds — new deliveries
+and retries by the same path. Retries are not delayed queue jobs: a lost job
+loses nothing, because the row is still due.
+
+**The request is made outside any transaction.** An attempt leases its delivery
+in one transaction, sends, and records in a second. A database transaction held
+open across somebody else's server would be a lock held at their mercy. A
+worker that dies mid-request leaves a lease that runs out; the receiver may see
+the event twice, which at-least-once delivery allows and the event id is for.
+
+**What counts against the breaker.** Timeouts, refused connections, `5xx`, `408`
+and `429` — what says the receiver is down. A `4xx` means it is up and resets
+the count. Five in a row open it for five minutes; a probe that never reports is
+replaced one cooldown later. Waiting on an open breaker spends no attempt.
+
+**A permanent refusal is `failed`, not `dead`.** Any `4xx` other than 408 and
+429, any `3xx` — redirects are never followed — and an address the guard
+refused end the delivery at once. Both can be replayed.
+
+**cURL, chosen explicitly.** Pinning the address is `CURLOPT_RESOLVE`, which
+only the cURL handler honours. Guzzle picked PHP's stream handler for a
+streamed request and refused the option, and a mocked handler in the tests
+hid it; the first delivery on the running stack found it. The transport builds
+its own client over cURL, reads the answer through a progress callback that
+stops after a megabyte, and a test sends through the real handler.
+
+**Secrets are encrypted, and a rotation ends by itself.** A signing secret must
+be recovered to sign with, so it is encrypted with the application key rather
+than hashed like an API key, and shown once. The old secret keeps signing for a
+day after a rotation and then stops; no second call finishes the rotation.
+
+**One event was cut.** `usage.threshold_reached` needs thresholds configured
+per customer and meter, and the roadmap names it the second cut; five events
+are delivered ([`assumptions.md`](../assumptions.md), 32).
+

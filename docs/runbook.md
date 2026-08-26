@@ -79,19 +79,34 @@ and a correction is a credit note.
 
 ## A webhook endpoint is failing
 
-1. Admin panel → Webhooks → the endpoint. The breaker state and recent attempts, with response codes and bodies, are there.
-2. Open breaker means deliveries are queued, not lost.
-3. After the receiver is fixed, either wait for the cooldown probe or force a replay: `php artisan webhooks:replay --endpoint=<id> --status=dead`.
-4. Sustained `4xx` other than 408/429 means the receiver is rejecting the payload — that is an integration problem, not a delivery problem.
+1. Admin panel → Webhooks → Endpoints shows the breaker; Deliveries, filtered
+   by status, shows what failed, and each delivery's page every attempt with its
+   answer, duration, error and the first kilobyte of what the receiver said.
+2. An open breaker means deliveries are waiting, not lost, and not spending
+   their attempts. It lets one probe through five minutes after it opened.
+3. A `failed` delivery with an error such as "resolves to 10.0.0.5, which
+   webhooks may not reach" was refused by the SSRF guard: the URL points
+   somewhere private. Nothing was sent.
+4. Sustained `4xx` other than 408/429 means the receiver is rejecting the
+   payload — an integration problem, not a delivery problem. Those deliveries
+   are `failed` at once.
+5. After the receiver is fixed, replay what died, from the panel, from the API,
+   or by id: `php artisan webhooks:replay <delivery-id>`.
+6. Nothing is being attempted at all? `webhooks:dispatch` runs every ten seconds
+   from the `scheduler` service, and the `webhooks` queue runs on Horizon —
+   check both are up, and restart Horizon after a deploy.
 
 ## Rotating a webhook secret
 
-1. `POST /webhook-endpoints/{id}/rotate-secret` adds a second active secret; both now sign every delivery.
-2. The receiver adds the new secret to its verification.
-3. `POST /webhook-endpoints/{id}/rotate-secret?finalize=true` drops the old one.
+1. `POST /webhook-endpoints/{id}/rotate-secret`, or Rotate secret in the panel.
+   The answer shows the new secret once. From now on both secrets sign every
+   delivery.
+2. The receiver adds the new secret to its verification, within a day.
+3. The old secret stops signing by itself when the day is over.
 
-Never skip step two. Both signatures are sent precisely so there is no window
-where a correct receiver rejects a valid delivery.
+Do not leave step two for later. Both signatures are sent precisely so there is
+no window in which a correct receiver rejects a valid delivery, and the window
+closes after a day (`WEBHOOKS_ROTATION_GRACE_SECONDS`).
 
 ## Revoking an API key
 

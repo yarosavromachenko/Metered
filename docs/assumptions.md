@@ -38,6 +38,11 @@ code.
 | 28 | Uncollectible invoices | **Not in v1.** Writing an invoice off needs a bad-debt account and a policy for when to do it; a finalized invoice is paid or voided | [`domain.md`](domain.md) |
 | 29 | Who may move money | **An owner or a billing operator in the panel, and an admin key through the API.** An API key acts as a system caller; the key's `admin` scope is what admits it to invoices at all, and a key that reports usage reads no invoice | [`api.md`](api.md) |
 | 30 | Draft invoices | **Finalized straight away by the period close.** A draft persists only if its finalization failed, and then waits in the panel to be finalized or discarded by hand | [ADR-0010](adr/0010-period-close-and-invoice-numbering.md) |
+| 31 | Ending a secret rotation | **The old secret expires by itself after a day.** No second call finishes a rotation: the new secret signs from the moment it is issued, the old one alongside it until the grace period ends. A receiver that has not switched within a day starts rejecting deliveries, which the attempt log shows | [`webhooks.md`](webhooks.md) |
+| 32 | `usage.threshold_reached` | **Not in v1.** It needs thresholds configured per customer and meter, and the roadmap names it the second thing to cut; five events are delivered | [`webhooks.md`](webhooks.md) |
+| 33 | What opens a breaker | **Five failures in a row that say the receiver is down, for five minutes.** Timeouts, refused connections, `5xx`, `408` and `429` count; a `4xx` refusal means the receiver is up and resets the count. A delivery waiting on an open breaker does not spend an attempt | [ADR-0011](adr/0011-webhook-delivery.md) |
+| 34 | Removing an endpoint | **Takes its deliveries and their log with it.** Switching it off keeps both, and its deliveries wait until it is switched back on | [`api.md`](api.md) |
+| 35 | Who may manage webhooks | **Admins and owners**, who hold the authority to operate webhooks; a billing operator does not. Through the API, an admin key | [ADR-0017](adr/0017-admin-authentication.md) |
 
 ## Consequences worth remembering
 

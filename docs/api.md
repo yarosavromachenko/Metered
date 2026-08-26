@@ -105,8 +105,45 @@ surface, including what does not exist yet, so a client knows what to expect.
 | Subscriptions | `POST /subscriptions` · `POST /subscriptions/{id}/cancel` · `POST /subscriptions/{id}/change-plan` | ✅ M4 |
 | Invoices | `GET /invoices?status&customer_ref&limit` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | ✅ M5 |
 | Payments | `POST /invoices/{id}/pay` | ✅ M5 |
-| Webhooks | `POST/GET/PATCH/DELETE /webhook-endpoints` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries` · `POST /webhook-deliveries/{id}/replay` | M6 |
+| Webhooks | `POST/GET /webhook-endpoints` · `PATCH/DELETE /webhook-endpoints/{id}` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries?status&endpoint_id&limit` · `POST /webhook-deliveries/{id}/replay` | ✅ M6 |
 | Ops | `GET /health/live` · `GET /health/ready` | M8 |
+
+## Webhook endpoints, in detail
+
+What is delivered, how it is signed and retried, and how to verify it is in
+[`webhooks.md`](webhooks.md). Managing endpoints needs an `admin` key, and every
+write takes an `Idempotency-Key`.
+
+```http
+POST /api/v1/webhook-endpoints
+
+{"url": "https://hooks.example.com/metered", "events": ["invoice.paid", "invoice.voided"], "description": "Billing sync"}
+```
+
+```json
+{
+  "id": "01a0d9b2-5c1e-7a0b-8d3b-6a2e8c4f1b10",
+  "url": "https://hooks.example.com/metered",
+  "description": "Billing sync",
+  "events": ["invoice.paid", "invoice.voided"],
+  "enabled": true,
+  "secret": "whsec_…LaSw",
+  "breaker": {"state": "closed", "consecutive_failures": 0},
+  "created_at": "2026-09-25T12:00:00+00:00",
+  "signing_secret": "whsec_MfKQ9r8GKYqrTwjUPD8ILPZIo2LaLaSw"
+}
+```
+
+`signing_secret` appears in this answer and in the answer to `rotate-secret`,
+and nowhere else, ever. Store it then. `PATCH` changes only the fields it names
+(`url`, `description`, `events`, `enabled`). `DELETE` removes the endpoint and
+its delivery log; `"enabled": false` keeps both, and holds its deliveries until
+it is enabled again.
+
+`GET /webhook-deliveries` lists deliveries newest first; `?status=dead` is the
+usual question. `POST /webhook-deliveries/{id}/replay` sends a `dead` or
+`failed` delivery again from its first attempt, with the same body; replaying
+anything else is a `422`.
 
 ## Invoices, in detail
 

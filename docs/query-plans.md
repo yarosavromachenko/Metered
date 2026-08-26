@@ -44,7 +44,7 @@ Environment: PostgreSQL 18.6 (Alpine image), `shared_buffers = 256MB`,
 | 3 | Usage for one customer over a period, `GET /customers/{ref}/usage` | Index range over one customer's buckets | ✅ after `b43f5d1`, was a sequential scan |
 | 4 | Invoice line build: a subscription's aggregates for its period, and what was billed for it | Index range on the aggregate key per meter; billed lines read by subscription | ✅ 0.36ms and 0.16ms |
 | 5 | Outbox poll, `FOR UPDATE SKIP LOCKED` | Partial index used; published rows never read | ✅ 0.07ms under a million published rows |
-| 6 | Webhook deliveries for one endpoint, newest first | Index scan, no sort node | ⬜ the table arrives in M6 |
+| 6 | Webhook deliveries for one endpoint, newest first; the dispatcher's due deliveries | Index scan bounded by the page; partial index over pending rows | ✅ 0.2ms and 2.1ms over 200,000 deliveries |
 | 7 | Usage explorer and ingestion widget | Rows read bounded by the page, not by the table | ✅ after `3960979`, with one known worst case (7c) |
 
 Found along the way, and fixed before any of the plans above were captured:
@@ -315,9 +315,62 @@ Captured: 2026-07-12 · Rows in `outbox_messages`: 1,000,050 (rolled back) · Co
 reads three index pages and none of the million published rows. It already
 comes out in `occurred_at` order, so there is no sort.
 
-### 6. Webhook deliveries for one endpoint
+### 6. Webhook deliveries for one endpoint, and what is due
 
-Not yet: the deliveries table arrives with M6.
+The delivery log of one endpoint, newest first — what the panel and
+`GET /webhook-deliveries?endpoint_id=` read:
+
+```sql
+select * from webhook_deliveries
+where project_id = $1 and organization_id = $2 and endpoint_id = $3
+order by created_at desc, id desc
+limit 50
+```
+
+```
+Limit  (cost=16.85..24.37 rows=50 width=142) (actual time=0.172..0.196 rows=50.00 loops=1)
+  Buffers: shared hit=17 read=2
+  ->  Incremental Sort  (cost=0.54..30093.87 rows=200002 width=142) (actual time=0.172..0.192 rows=50.00 loops=1)
+        Sort Key: webhook_deliveries.created_at DESC, webhook_deliveries.id DESC
+        Presorted Key: webhook_deliveries.created_at
+        ->  Index Scan Backward using webhook_deliveries_endpoint_id_created_at_index on webhook_deliveries
+              (actual time=0.070..0.097 rows=51.00 loops=1)
+              Index Cond: (endpoint_id = '01a0d9b7-…'::uuid)
+              Filter: ((project_id = …) AND (organization_id = …))
+              Buffers: shared hit=8 read=2
+Execution Time: 0.2 ms
+```
+
+**Reading:** healthy. The index on `(endpoint_id, created_at)` is walked
+backwards and stops after 51 rows; the incremental sort only breaks ties on
+`id` within one instant. The endpoint had 200,000 deliveries.
+
+What `webhooks:dispatch` asks every ten seconds:
+
+```sql
+select * from webhook_deliveries
+where status = 'pending' and next_attempt_at <= now()
+order by next_attempt_at
+limit 500
+```
+
+```
+Limit  (cost=0.28..35.99 rows=10 width=142) (actual time=0.038..2.043 rows=500.00 loops=1)
+  Buffers: shared hit=502
+  ->  Index Scan using webhook_deliveries_due_index on webhook_deliveries
+        (actual time=0.037..2.007 rows=500.00 loops=1)
+        Index Cond: (next_attempt_at <= now())
+Execution Time: 2.1 ms
+```
+
+**Reading:** healthy. The partial index holds pending deliveries only, so the
+succeeded and dead ones — nearly all of the table — are never read, and the
+scan is already in the order the query asks for. Its cost is the batch, not
+the table.
+
+Captured: 2026-08-26 · 200,002 rows in `webhook_deliveries`, of which 2,000
+pending, 1,000 due — synthetic rows written for the capture and removed after ·
+Commit: `ea620b8`
 
 ### 7. Usage explorer and ingestion widget
 

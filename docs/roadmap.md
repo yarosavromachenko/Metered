@@ -14,8 +14,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M3 | Usage ingestion | L | ✅ done |
 | M4 | Billing catalog and subscriptions | M | ✅ done |
 | M5 | Invoicing and ledger | L | ✅ done |
-| M6 | Webhooks | M | 🔜 next |
-| M7 | Simulation, seed profiles and chaos | M | ⬜ |
+| M6 | Webhooks | M | ✅ done |
+| M7 | Simulation, seed profiles and chaos | M | 🔜 next |
 | M8 | Observability polish | S–M | ⬜ |
 | M9 | Release polish | S | ⬜ |
 
@@ -134,11 +134,19 @@ backoff and jitter, dead-letter queue with replay, circuit breaker, SSRF guard,
 inbox-based consumption of integration events. Admin: endpoints, delivery log,
 manual replay, breaker state.
 
-- [ ] Signature test vectors plus a verification example in [`webhooks.md`](webhooks.md)
-- [ ] SSRF tests: private address, redirect, DNS rebinding
-- [ ] Circuit breaker state machine test: closed → open → half-open → closed
-- [ ] After ten failures the event is dead-lettered and can be replayed
-- [ ] ADR-0011 accepted
+- [x] Signature test vectors plus a verification example in [`webhooks.md`](webhooks.md) — PHP and Node, with vectors for one secret, two during a rotation and an empty body, pinned by the signer's tests
+- [x] SSRF tests: private address, redirect, DNS rebinding — plus the metadata address, IPv6 loopback, a host with one public and one private record, IPv4-mapped and NAT64 forms, and every range's edge
+- [x] Circuit breaker state machine test: closed → open → half-open → closed — in the domain, and again through the delivery pipeline, with a probe that fails and one that never reports
+- [x] After ten failures the event is dead-lettered and can be replayed — from the API, the panel or `webhooks:replay`, starting again from the first attempt with the same body
+- [x] ADR-0011 accepted
+
+Subscriptions now announce `subscription.created` and `subscription.canceled`
+through the outbox, so five events are delivered; `usage.threshold_reached` was
+cut, as the scope order allows. The management API covers endpoints, rotation,
+deliveries and replay ([`api.md`](api.md)). Two bugs outside the module turned
+up on the way: the event dispatcher could run its handlers for one message per
+worker, and the first delivery on the running stack could not pin its address;
+both are fixed and tested.
 
 ## M7 — Simulation, seed profiles and chaos
 

@@ -5,16 +5,16 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: M5 complete — invoicing and the ledger.** On top of the shared
-> kernel (money that refuses to be a float, a transactional outbox, a
-> hash-chained audit log), tenants with API keys and a Filament panel, usage
-> ingestion through Redis Streams into partitioned PostgreSQL, and a catalog of
-> versioned plans and subscriptions: every period is invoiced an hour after it
-> ends, once however many workers try, with gapless numbering, lines that show
-> the working that priced them, late usage billed on the next invoice, and
-> every movement booked to an append-only double-entry ledger — paid or voided
-> by credit note from the panel or the API, downloadable as a PDF. Webhooks
-> arrive next ([`docs/roadmap.md`](docs/roadmap.md)).
+> **Status: M6 complete — webhooks.** On top of the shared kernel (money that
+> refuses to be a float, a transactional outbox, a hash-chained audit log),
+> tenants with API keys and a Filament panel, usage ingestion through Redis
+> Streams into partitioned PostgreSQL, a catalog of versioned plans and
+> subscriptions, and invoicing with gapless numbering and an append-only
+> double-entry ledger: subscription and invoice events reach tenants' systems
+> as signed webhooks — retried with jitter, held back by a circuit breaker,
+> dead-lettered and replayable, and sent only to addresses on the public
+> internet, pinned against DNS rebinding. Simulation and seed profiles arrive
+> next ([`docs/roadmap.md`](docs/roadmap.md)).
 
 Metered meters what customers consume, prices it, invoices it, books it into a
 double-entry ledger, and notifies the customer's systems over signed webhooks —
@@ -157,6 +157,9 @@ Honesty section; it will grow as the code lands.
   `(project_id, event_id, occurred_at)` match in PostgreSQL. A duplicate sent
   with a different `occurred_at` is not caught by the database — ADR-0002.
 - No real payment provider: `FakePaymentGateway` behind a port.
+- No usage-threshold webhook. Five events are delivered — subscriptions starting
+  and ending, invoices finalized, paid and voided; thresholds per customer and
+  meter were cut as the roadmap allows (assumptions, 32).
 - No proration. A plan change takes effect at the end of the current period, so
   every period is billed on one version; an immediate change with prorated fees
   was M5's stretch goal and the first thing the roadmap cuts.
