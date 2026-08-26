@@ -66,6 +66,10 @@ final class AdminPanelProvider extends PanelProvider
                 in: base_path('src/Invoicing/Presentation/Filament/Resources'),
                 for: 'Metered\\Invoicing\\Presentation\\Filament\\Resources',
             )
+            ->discoverResources(
+                in: base_path('src/Webhooks/Presentation/Filament/Resources'),
+                for: 'Metered\\Webhooks\\Presentation\\Filament\\Resources',
+            )
             ->discoverWidgets(
                 in: base_path('src/Usage/Presentation/Filament/Widgets'),
                 for: 'Metered\\Usage\\Presentation\\Filament\\Widgets',
