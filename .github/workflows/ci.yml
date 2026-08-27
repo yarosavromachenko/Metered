@@ -281,7 +281,7 @@ jobs:
       - name: Mutation testing on the domain layers
         run: |
           vendor/bin/pest --mutate --parallel \
-            --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' \
+            --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain,Metered\Webhooks\Domain' \
             --min=85 \
             --ignore-min-score-on-zero-mutations
 

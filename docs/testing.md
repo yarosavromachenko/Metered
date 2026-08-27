@@ -21,11 +21,11 @@ make test-unit          # fast loop while writing domain logic
 make test-integration   # needs the containers up
 make test-concurrency   # slow; run before pushing
 make test-arch          # cheap; run constantly
-make mutation           # mutation testing on the four domain layers
+make mutation           # mutation testing on the five domain layers
 make mutation-module MODULE=Billing   # one module's domain layer, on its own
 ```
 
-`make mutation` reports a single score over all four domain layers, which lets
+`make mutation` reports a single score over all five domain layers, which lets
 a weak module pass behind strong ones. A milestone criterion that names a
 module is checked with `make mutation-module`, which also takes well under a
 minute against several for the whole set. Read its score together with the
@@ -124,7 +124,14 @@ expensive to miss.
 ## Thresholds
 
 Line coverage ≥ 85% over `src/`, ≥ 90% over `Domain`. Mutation score ≥ 85 on
-`Shared/Domain`, `Usage/Domain`, `Billing/Domain` and `Invoicing/Domain`.
+`Shared/Domain`, `Usage/Domain`, `Billing/Domain`, `Invoicing/Domain` and
+`Webhooks/Domain`.
+
+A list of values the domain decides with — the retry waits, the address ranges
+the SSRF guard refuses — is written as code that runs rather than as a class
+constant: Pest cannot run a mutated constant declaration, so a constant list
+would sit in the "uncovered" column however well it is tested. The waits are
+computed from minutes, the ranges read from a table in a heredoc.
 
 Mutation testing runs through Pest rather than Infection. Infection drives
 PHPUnit directly, and Pest's tests are not PHPUnit classes — it cannot even

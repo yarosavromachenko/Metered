@@ -97,11 +97,11 @@ test-arch: ## Architecture tests (Pest Arch)
 	$(EXEC) vendor/bin/pest --testsuite=Architecture
 
 .PHONY: mutation
-mutation: ## Mutation testing on the four Domain layers (score >= 85)
-	$(EXEC) vendor/bin/pest --mutate --parallel --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain' --min=85 --ignore-min-score-on-zero-mutations
+mutation: ## Mutation testing on the five Domain layers (score >= 85)
+	$(EXEC) vendor/bin/pest --mutate --parallel --class='Metered\Shared\Domain,Metered\Usage\Domain,Metered\Billing\Domain,Metered\Invoicing\Domain,Metered\Webhooks\Domain' --min=85 --ignore-min-score-on-zero-mutations
 
 .PHONY: mutation-module
-# `make mutation` reports one score over all four domain layers, so a module
+# `make mutation` reports one score over all five domain layers, so a module
 # that is weak on its own can pass behind the others. Milestone criteria name a
 # module; this is how they are checked. Usage: make mutation-module MODULE=Billing
 mutation-module: ## Mutation testing on one module's Domain layer (score >= 85)
