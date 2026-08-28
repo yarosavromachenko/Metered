@@ -26,6 +26,7 @@ use Metered\Webhooks\Infrastructure\Http\GuardedTransport;
 use Metered\Webhooks\Infrastructure\Http\RandomJitter;
 use Metered\Webhooks\Infrastructure\Http\Resolver;
 use Metered\Webhooks\Infrastructure\Http\SystemResolver;
+use Metered\Webhooks\Infrastructure\Http\TrustedDestination;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseAttemptLog;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseDeliveryRepository;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseEndpointRepository;
@@ -59,6 +60,7 @@ final class WebhooksServiceProvider extends ServiceProvider
         // default retries, no middleware that might follow a redirect.
         $this->app->singleton(WebhookTransport::class, static fn(Application $app): GuardedTransport => new GuardedTransport(
             $app->make(Resolver::class),
+            trusted: self::trustedDestination($app),
         ));
 
         $this->app->bind(RegisterEndpointHandler::class, static fn(Application $app): RegisterEndpointHandler => new RegisterEndpointHandler(
@@ -103,6 +105,10 @@ final class WebhooksServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Read now rather than at the first delivery: a trusted destination
+        // outside local and demo stops the application from starting at all.
+        self::trustedDestination($this->app);
+
         if ($this->app->runningInConsole()) {
             $this->commands([DispatchDeliveriesCommand::class, ReplayDeliveryCommand::class]);
         }
@@ -129,6 +135,13 @@ final class WebhooksServiceProvider extends ServiceProvider
         $value = $app->make('config')->get($key);
 
         return is_int($value) ? $value : $default;
+    }
+
+    private static function trustedDestination(Application $app): ?TrustedDestination
+    {
+        $value = $app->make('config')->get('metered.webhooks.trusted_destination');
+
+        return TrustedDestination::fromConfig(is_string($value) ? $value : null, $app->environment());
     }
 
     private static function configBool(Application $app, string $key): bool

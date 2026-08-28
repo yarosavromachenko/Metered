@@ -14,7 +14,9 @@ use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Metered\Tenancy\Application\Contract\PanelScope;
 use Metered\Webhooks\Domain\Endpoint\BreakerState;
+use Metered\Webhooks\Domain\Endpoint\EndpointUrl;
 use Metered\Webhooks\Infrastructure\Eloquent\WebhookEndpoint;
+use Metered\Webhooks\Infrastructure\Http\TrustedDestination;
 use Metered\Webhooks\Presentation\Filament\Actions\EditEndpointAction;
 use Metered\Webhooks\Presentation\Filament\Actions\RemoveEndpointAction;
 use Metered\Webhooks\Presentation\Filament\Actions\RotateSecretAction;
@@ -49,7 +51,9 @@ final class WebhookEndpointResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('url')->label('URL')->fontFamily('mono')->searchable()
-                    ->description(static fn(WebhookEndpoint $record): string => $record->description),
+                    ->description(static fn(WebhookEndpoint $record): string => self::trusts($record)
+                        ? trim($record->description . ' · the demo receiver, let through the SSRF guard by configuration', ' ·')
+                        : $record->description),
                 TextColumn::make('event_types')->label('Events')->badge()->separator(','),
                 IconColumn::make('enabled')->boolean(),
                 TextColumn::make('breaker_state')
@@ -78,5 +82,22 @@ final class WebhookEndpointResource extends Resource
     public static function getPages(): array
     {
         return ['index' => ListWebhookEndpoints::route('/')];
+    }
+
+    /**
+     * Whether this endpoint is the one private destination the guard lets
+     * through — said on screen, so the exception is never invisible.
+     */
+    private static function trusts(WebhookEndpoint $record): bool
+    {
+        $configured = config('metered.webhooks.trusted_destination');
+        $trusted = TrustedDestination::fromConfig(is_string($configured) ? $configured : null, (string) app()->environment());
+        if (! $trusted instanceof TrustedDestination) {
+            return false;
+        }
+
+        $url = EndpointUrl::fromString($record->url, allowHttp: true);
+
+        return $trusted->matches($url->host, $url->port);
     }
 }

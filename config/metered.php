@@ -205,9 +205,15 @@ return [
         // handed to a second worker while the first is still waiting on it.
         'lease_seconds' => (int) env('WEBHOOKS_LEASE_SECONDS', 60),
 
-        // Plain http, for a receiver on a developer's machine. Never outside
-        // a local environment: the endpoint URL check refuses it otherwise.
-        'allow_http' => env('APP_ENV') === 'local',
+        // Plain http, for a receiver on a developer's machine or the demo's
+        // own. Never outside local and demo: the URL check refuses it there.
+        'allow_http' => in_array(env('APP_ENV'), ['local', 'demo'], true),
+
+        // The demo's own webhook receiver, as host:port, which the SSRF guard
+        // lets through although it is on the private network. Exactly one
+        // host and port; honoured only in local and demo, and anywhere else
+        // the application refuses to boot (ADR-0011).
+        'trusted_destination' => env('WEBHOOKS_TRUSTED_DESTINATION'),
     ],
 
     /*

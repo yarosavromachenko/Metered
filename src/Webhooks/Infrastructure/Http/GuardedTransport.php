@@ -47,6 +47,7 @@ final readonly class GuardedTransport implements WebhookTransport
     public function __construct(
         private Resolver $resolver,
         ?ClientInterface $client = null,
+        private ?TrustedDestination $trusted = null,
         private float $connectTimeout = 5.0,
         private float $timeout = 10.0,
     ) {
@@ -55,7 +56,7 @@ final readonly class GuardedTransport implements WebhookTransport
 
     public function send(EndpointUrl $url, array $headers, string $body): AttemptResult
     {
-        $address = $this->checkedAddress($url->host);
+        $address = $this->checkedAddress($url->host, $url->port);
 
         if ($address instanceof AttemptResult) {
             return $address;
@@ -93,12 +94,18 @@ final readonly class GuardedTransport implements WebhookTransport
     /**
      * The one address the request may go to, or the refusal to send it.
      */
-    private function checkedAddress(string $host): string|AttemptResult
+    private function checkedAddress(string $host, int $port): string|AttemptResult
     {
         $addresses = filter_var($host, FILTER_VALIDATE_IP) !== false ? [$host] : $this->resolver->resolve($host);
 
         if ($addresses === []) {
             return AttemptResult::unreachable(sprintf('%s does not resolve', $host), 0);
+        }
+
+        // The local demo receiver, named exactly in configuration: resolved
+        // and pinned like any other host, just not asked to be public.
+        if ($this->trusted instanceof TrustedDestination && $this->trusted->matches($host, $port)) {
+            return $addresses[0];
         }
 
         // Every address, not just the first: a host with one public and one

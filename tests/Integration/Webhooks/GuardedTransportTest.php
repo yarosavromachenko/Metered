@@ -12,6 +12,7 @@ use GuzzleHttp\Psr7\Response;
 use Metered\Webhooks\Domain\Delivery\Verdict;
 use Metered\Webhooks\Domain\Endpoint\EndpointUrl;
 use Metered\Webhooks\Infrastructure\Http\GuardedTransport;
+use Metered\Webhooks\Infrastructure\Http\TrustedDestination;
 use Psr\Http\Message\RequestInterface;
 use Psr\Http\Message\ResponseInterface;
 use Tests\Support\ScriptedResolver;
@@ -36,12 +37,12 @@ function requestLog(): ArrayObject
  * @param list<Response|Throwable> $responses
  * @param ArrayObject<int, array{request: RequestInterface, response: ResponseInterface|null, error: mixed, options: array<array-key, mixed>}> $history
  */
-function guardedTransport(ScriptedResolver $resolver, array $responses, ArrayObject $history): GuardedTransport
+function guardedTransport(ScriptedResolver $resolver, array $responses, ArrayObject $history, ?TrustedDestination $trusted = null): GuardedTransport
 {
     $stack = HandlerStack::create(new MockHandler($responses));
     $stack->push(Middleware::history($history));
 
-    return new GuardedTransport($resolver, new Client(['handler' => $stack]));
+    return new GuardedTransport($resolver, new Client(['handler' => $stack]), $trusted);
 }
 
 /**
@@ -192,3 +193,30 @@ it('sends through cURL, with options cURL accepts, when no handler is given', fu
         ->and($result->error)->not->toContain('stream handler')
         ->and($result->verdict())->toBe(Verdict::Retry);
 });
+
+it('lets the configured demo receiver through, still resolved once and pinned', function (): void {
+    $history = requestLog();
+    $resolver = new ScriptedResolver([['172.18.0.9'], ['169.254.169.254']]);
+    $transport = guardedTransport($resolver, [new Response(204)], $history, TrustedDestination::fromConfig('webhook-receiver:8080', 'local'));
+
+    $result = $transport->send(EndpointUrl::fromString('http://webhook-receiver:8080/ok', true), [], '{}');
+
+    expect($result->statusCode)->toBe(204)
+        ->and($resolver->asked)->toBe(['webhook-receiver'])
+        ->and(pinnedAddresses($history))->toBe(['webhook-receiver:8080:172.18.0.9']);
+});
+
+it('still refuses every other private destination while a receiver is trusted', function (string $url, string $address): void {
+    $history = requestLog();
+    $transport = guardedTransport(new ScriptedResolver([[$address]]), [new Response(204)], $history, TrustedDestination::fromConfig('webhook-receiver:8080', 'local'));
+
+    $result = $transport->send(EndpointUrl::fromString($url, true), [], '{}');
+
+    expect($result->refusedDestination)->toBeTrue()
+        ->and($history)->toHaveCount(0);
+})->with([
+    'the receiver on another port' => ['http://webhook-receiver:9000/', '172.18.0.9'],
+    'the database next to it' => ['http://postgres:5432/', '172.18.0.3'],
+    'a lookalike name' => ['http://webhook-receiver.example.com:8080/', '10.0.0.1'],
+    'the metadata service' => ['http://169.254.169.254:8080/', '169.254.169.254'],
+]);

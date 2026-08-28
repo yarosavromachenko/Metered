@@ -85,6 +85,10 @@
         <env name="DB_CONNECTION" value="pgsql_testing" force="true"/>
         <env name="OUTBOX_CONNECTION" value="pgsql_testing" force="true"/>
         <env name="USAGE_CONNECTION" value="pgsql_testing" force="true"/>
+        <!-- The local .env names the demo's webhook receiver; the suite names
+             its own trusted destination where a test needs one, and outside
+             local and demo the application would refuse to boot with it. -->
+        <env name="WEBHOOKS_TRUSTED_DESTINATION" value="" force="true"/>
         <!--
             Ingestion's own Redis database, and not the one the development
             stack uses. The consumer daemon in docker compose reads the same
