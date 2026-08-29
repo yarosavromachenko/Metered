@@ -49,6 +49,7 @@ open:
 | API | <http://localhost:8080/api/v1> — key is printed by `sim:seed` (M3) |
 | Horizon | <http://localhost:8080/horizon> — queue throughput, failed jobs, retries |
 | Mailpit | <http://localhost:8025> — every message the application sends, caught locally |
+| Webhook receiver | <http://localhost:8089> — a stand-in for a tenant's system: what the webhooks delivered, and whether each signature checks out (M6) |
 | Grafana | <http://localhost:3000> — ingestion rate, stream lag, outbox lag, webhook success (M8) |
 
 Everything runs on the machine in front of you. Nothing is hosted, no message

@@ -11,6 +11,7 @@ parameters:
         - tests
         - database
         - config
+        - docker/webhook-receiver
 
     # No baseline. A baseline is a list of problems nobody will ever fix.
     # If something cannot pass, it gets an ADR, not an ignore line.

@@ -43,6 +43,7 @@ code.
 | 33 | What opens a breaker | **Five failures in a row that say the receiver is down, for five minutes.** Timeouts, refused connections, `5xx`, `408` and `429` count; a `4xx` refusal means the receiver is up and resets the count. A delivery waiting on an open breaker does not spend an attempt | [ADR-0011](adr/0011-webhook-delivery.md) |
 | 34 | Removing an endpoint | **Takes its deliveries and their log with it.** Switching it off keeps both, and its deliveries wait until it is switched back on | [`api.md`](api.md) |
 | 35 | Who may manage webhooks | **Admins and owners**, who hold the authority to operate webhooks; a billing operator does not. Through the API, an admin key | [ADR-0017](adr/0017-admin-authentication.md) |
+| 36 | Webhooks in the demo | **One trusted destination, the demo's own receiver.** `WEBHOOKS_TRUSTED_DESTINATION` names exactly one `host:port` the SSRF guard lets through on the private network; local and demo only, and the application refuses to boot with it anywhere else. Plain http is accepted in the same two environments | [ADR-0011](adr/0011-webhook-delivery.md) |
 
 ## Consequences worth remembering
 

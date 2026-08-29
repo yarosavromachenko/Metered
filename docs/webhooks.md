@@ -74,16 +74,16 @@ ready, remove the old one.
 ### Verifying
 
 ```php
-function verify(string $body, string $header, string $secret, int $tolerance = 300): bool
+function verify(string $body, string $header, string $secret, int $tolerance = 300, ?int $now = null): bool
 {
     $parts = [];
     foreach (explode(',', $header) as $piece) {
-        [$k, $v] = explode('=', trim($piece), 2);
+        [$k, $v] = array_pad(explode('=', trim($piece), 2), 2, '');
         $parts[$k][] = $v;
     }
 
     $timestamp = (int) ($parts['t'][0] ?? 0);
-    if (abs(time() - $timestamp) > $tolerance) {
+    if (abs(($now ?? time()) - $timestamp) > $tolerance) {
         return false; // too old, or the clock is wrong: reject either way
     }
 
@@ -98,6 +98,10 @@ function verify(string $body, string $header, string $secret, int $tolerance = 3
     return false;
 }
 ```
+
+This is `docker/webhook-receiver/verify.php`, the function the demo's receiver
+runs; the suite checks it against the vectors below. Leave `$now` out: it is
+there so the vectors, which are from a fixed moment, can be checked.
 
 ```js
 import { createHmac, timingSafeEqual } from 'node:crypto';
@@ -230,6 +234,26 @@ network to an address an attacker chooses. The guard therefore:
 A refused address is a `failed` delivery with the reason in its attempt log,
 not an exception: nothing was sent. `tests/Integration/Webhooks/GuardedTransportTest.php`
 holds each of these against a scripted DNS server and a mocked network.
+
+### The demo receiver
+
+A local stack has one exception, and only one. `WEBHOOKS_TRUSTED_DESTINATION`
+names a single `host:port` — in the shipped `.env.example`,
+`webhook-receiver:8080`, the receiver in `compose.yaml` — that the guard lets
+through although it is on the private network. Everything else still applies
+to it: it is resolved once, the connection is pinned, redirects are refused.
+The same host on another port, the database next to it, or any other private
+address is refused as before, and the tests hold each of these.
+
+The setting is honoured in the `local` and `demo` environments only. Set
+anywhere else, the application refuses to boot. The panel marks the endpoint
+that uses it.
+
+The receiver is a stand-in for a tenant's system. Its path decides how it
+answers — `/ok` (204), `/flaky` (503 twice, then 204), `/down` (always 503),
+`/slow` (past the sender's timeout), `/gone` (410) — and
+`http://localhost:8089` lists what arrived and whether each signature checks
+out against the secrets pasted into it.
 
 No other code path may call a tenant-supplied URL. This is the one rule in the
 codebase where a shortcut turns a billing system into a proxy for the internal

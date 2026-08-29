@@ -195,6 +195,28 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # A stand-in for a tenant's system, for the demo's webhooks: it answers by
+  # path (/ok, /flaky, /down, /slow, /gone), checks signatures against the
+  # secrets pasted into it, and lists what arrived at http://localhost:8089.
+  # The SSRF guard refuses private addresses, and lets this one through only
+  # because WEBHOOKS_TRUSTED_DESTINATION names it exactly (ADR-0011).
+  webhook-receiver:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: development
+    command: ["php", "-S", "0.0.0.0:8080", "docker/webhook-receiver/index.php"]
+    healthcheck: *no-inherited-healthcheck
+    volumes:
+      - .:/app
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    environment:
+      # Several workers, so a /slow delivery does not hold up the others.
+      PHP_CLI_SERVER_WORKERS: "4"
+    ports:
+      - "127.0.0.1:8089:8080"
+    restart: unless-stopped
+
   # Load profile only: `make load`. Not part of `make up`.
   k6:
     image: grafana/k6:0.54.0

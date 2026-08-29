@@ -129,3 +129,13 @@ day after a rotation and then stops; no second call finishes the rotation.
 per customer and meter, and the roadmap names it the second cut; five events
 are delivered ([`assumptions.md`](../assumptions.md), 32).
 
+**One trusted destination, for the demo.** The demo needs a receiver on the
+compose network, and the guard refuses every private address. Rather than a
+bypass, a mode, or a proxy that would have to make the same decision,
+`WEBHOOKS_TRUSTED_DESTINATION` names exactly one `host:port` that skips the
+public-address check and nothing else — resolved once, pinned, no redirects.
+It is honoured in `local` and `demo` only; set in any other environment, the
+application does not boot. A tunnel to a public URL was rejected because
+`make demo` has to work offline, and ranges of private addresses because
+`172.16.0.0/12` is the whole compose network, database included.
+
