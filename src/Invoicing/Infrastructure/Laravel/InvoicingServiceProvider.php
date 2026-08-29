@@ -21,6 +21,7 @@ use Metered\Invoicing\Infrastructure\Persistence\DatabaseBillingHistory;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseCreditNoteRepository;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseDocumentNumbering;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseInvoiceRepository;
+use Metered\Invoicing\Infrastructure\Persistence\DatabaseInvoicingPurger;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseLedger;
 use Metered\Invoicing\Presentation\Console\ClosePeriodsCommand;
 use Metered\Invoicing\Presentation\Http\InvoicePdfController;
@@ -30,6 +31,7 @@ use Metered\Invoicing\Presentation\Http\ShowInvoiceController;
 use Metered\Invoicing\Presentation\Http\VoidInvoiceController;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Contract\UsageTotals;
 use Psr\Clock\ClockInterface;
 
@@ -66,6 +68,9 @@ final class InvoicingServiceProvider extends ServiceProvider
                     + self::configInt($app, 'metered.invoicing.grace_seconds', 3600),
             ),
         );
+
+        // Removed with a purged demo tenant, by the module that owns the rows.
+        $this->app->tag([DatabaseInvoicingPurger::class], TenantDataPurger::TAG);
     }
 
     public function boot(): void

@@ -11,6 +11,7 @@ use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Laravel\SharedServiceProvider;
 use Metered\Tenancy\Application\Contract\Authorizer;
+use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Webhooks\Application\Command\EndpointAudit;
 use Metered\Webhooks\Application\Command\ReconfigureEndpointHandler;
 use Metered\Webhooks\Application\Command\RegisterEndpointHandler;
@@ -30,6 +31,7 @@ use Metered\Webhooks\Infrastructure\Http\TrustedDestination;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseAttemptLog;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseDeliveryRepository;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseEndpointRepository;
+use Metered\Webhooks\Infrastructure\Persistence\DatabaseWebhooksPurger;
 use Metered\Webhooks\Presentation\Console\DispatchDeliveriesCommand;
 use Metered\Webhooks\Presentation\Console\ReplayDeliveryCommand;
 use Metered\Webhooks\Presentation\Http\DeleteEndpointController;
@@ -101,6 +103,8 @@ final class WebhooksServiceProvider extends ServiceProvider
         ));
 
         $this->app->tag([FanOutWebhookEvent::class], SharedServiceProvider::HANDLER_TAG);
+        // Removed with a purged demo tenant, by the module that owns the rows.
+        $this->app->tag([DatabaseWebhooksPurger::class], TenantDataPurger::TAG);
     }
 
     public function boot(): void

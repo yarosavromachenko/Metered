@@ -13,6 +13,7 @@ use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Billing\Application\Contract\MeterCatalog;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Command\IngestEventsHandler;
 use Metered\Usage\Application\Contract\UsageTotals;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
@@ -24,6 +25,7 @@ use Metered\Usage\Application\Stream\StreamDepth;
 use Metered\Usage\Domain\AcceptanceWindow;
 use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
 use Metered\Usage\Infrastructure\Persistence\DatabaseRejectionLog;
+use Metered\Usage\Infrastructure\Persistence\DatabaseUsagePurger;
 use Metered\Usage\Infrastructure\Persistence\DatabaseUsageTotals;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
@@ -175,6 +177,9 @@ final class UsageServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.usage.batch_limit', 100),
             ),
         );
+
+        // Removed with a purged demo tenant, by the module that owns the rows.
+        $this->app->tag([DatabaseUsagePurger::class], TenantDataPurger::TAG);
     }
 
     public function boot(): void

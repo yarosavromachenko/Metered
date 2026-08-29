@@ -17,6 +17,7 @@ use Metered\Billing\Domain\Subscription\SubscriptionRepository;
 use Metered\Billing\Infrastructure\Catalog\CatalogSubscriptionBilling;
 use Metered\Billing\Infrastructure\Catalog\DatabaseCustomerDirectory;
 use Metered\Billing\Infrastructure\Catalog\DatabaseMeterCatalog;
+use Metered\Billing\Infrastructure\Persistence\DatabaseBillingPurger;
 use Metered\Billing\Infrastructure\Persistence\DatabaseCustomerRepository;
 use Metered\Billing\Infrastructure\Persistence\DatabaseMeterRepository;
 use Metered\Billing\Infrastructure\Persistence\DatabasePlanRepository;
@@ -32,6 +33,7 @@ use Metered\Billing\Presentation\Http\ListMetersController;
 use Metered\Billing\Presentation\Http\ListPlansController;
 use Metered\Billing\Presentation\Http\RegisterCustomerController;
 use Metered\Billing\Presentation\Http\StartSubscriptionController;
+use Metered\Tenancy\Application\Contract\TenantDataPurger;
 
 /**
  * Wires the catalog: the repositories Billing uses itself, and the two
@@ -50,6 +52,9 @@ final class BillingServiceProvider extends ServiceProvider
         $this->app->singleton(MeterCatalog::class, DatabaseMeterCatalog::class);
         $this->app->singleton(CustomerDirectory::class, DatabaseCustomerDirectory::class);
         $this->app->singleton(SubscriptionBilling::class, CatalogSubscriptionBilling::class);
+
+        // Removed with a purged demo tenant, by the module that owns the rows.
+        $this->app->tag([DatabaseBillingPurger::class], TenantDataPurger::TAG);
     }
 
     public function boot(): void
