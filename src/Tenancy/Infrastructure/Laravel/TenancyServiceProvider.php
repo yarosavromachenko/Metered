@@ -90,6 +90,13 @@ final class TenancyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Before anything else is wired: demo mode outside local and demo
+        // stops the application from starting at all.
+        DemoMode::assertAllowed(
+            $this->app->make('config')->get('metered.demo.enabled') === true,
+            (string) $this->app->environment(),
+        );
+
         if ($this->app->runningInConsole()) {
             $this->commands([CreateOrganizationCommand::class]);
         }
