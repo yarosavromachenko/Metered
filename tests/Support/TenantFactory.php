@@ -33,13 +33,14 @@ use RuntimeException;
  */
 final class TenantFactory
 {
-    public static function organization(string $slug = 'acme'): Organization
+    public static function organization(string $slug = 'acme', bool $demo = false): Organization
     {
         $organization = Organization::register(
             app(IdentifierGenerator::class)->generate(),
             ucfirst($slug),
             Slug::fromString($slug),
             app(ClockInterface::class)->now(),
+            $demo,
         );
 
         app(OrganizationRepository::class)->save($organization);

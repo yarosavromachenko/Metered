@@ -51,6 +51,7 @@ final readonly class RegisterDemoTenantHandler
                 organizationName: $command->organizationName,
                 actor: $actor,
                 ownerUserId: $userId,
+                demo: true,
             ));
 
             $this->audit->record(new AuditEntry(

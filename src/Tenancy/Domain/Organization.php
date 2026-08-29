@@ -16,6 +16,11 @@ use Metered\Shared\Domain\Text\Name;
  * project. That indirection is what lets a tenant keep a `test` environment
  * whose data can be wiped without touching anything a customer was charged
  * for.
+ *
+ * `demo` is decided when the organization is created and never afterwards: a
+ * demo tenant is deleted, money history and all, a week after its people stop
+ * coming back (ADR-0016), and nothing else ever may be. The database holds the
+ * flag fixed, because the invoicing triggers trust it.
  */
 final readonly class Organization
 {
@@ -26,6 +31,7 @@ final readonly class Organization
         public string $name,
         public Slug $slug,
         public DateTimeImmutable $createdAt,
+        public bool $demo,
     ) {}
 
     public static function register(
@@ -33,7 +39,8 @@ final readonly class Organization
         string $name,
         Slug $slug,
         DateTimeImmutable $at,
+        bool $demo = false,
     ): self {
-        return new self($id, Name::of($name, 'organization', self::NAME_LIMIT), $slug, $at);
+        return new self($id, Name::of($name, 'organization', self::NAME_LIMIT), $slug, $at, $demo);
     }
 }

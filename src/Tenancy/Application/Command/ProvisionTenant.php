@@ -17,6 +17,7 @@ use Metered\Tenancy\Domain\Environment;
  *
  * `ownerUserId` is the person who ends up owning it, when there is one. The
  * console has nobody; a sign-up has exactly the person who filled in the form.
+ * `demo` marks a tenant that demo mode may delete once nobody uses it.
  */
 final readonly class ProvisionTenant
 {
@@ -27,5 +28,6 @@ final readonly class ProvisionTenant
         public string $projectName = 'Production',
         public Environment $environment = Environment::Test,
         public string $currency = 'EUR',
+        public bool $demo = false,
     ) {}
 }

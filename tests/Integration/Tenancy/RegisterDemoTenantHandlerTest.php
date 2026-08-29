@@ -33,6 +33,13 @@ it('turns one form into a person who owns a working tenant', function (): void {
         ->and($registered->tenant->secret->reveal())->toStartWith('mk_test_');
 });
 
+it('creates the tenant as a demo, which is what lets it expire', function (): void {
+    $registered = register();
+
+    expect($registered->tenant->organization->demo)->toBeTrue()
+        ->and(DB::table('organizations')->where('id', $registered->tenant->organization->id->value)->value('demo'))->toBeTrue();
+});
+
 it('stores the password only as a hash', function (): void {
     $registered = register();
 

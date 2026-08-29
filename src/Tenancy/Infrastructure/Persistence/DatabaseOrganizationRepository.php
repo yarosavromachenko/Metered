@@ -23,6 +23,7 @@ final readonly class DatabaseOrganizationRepository implements OrganizationRepos
             'name' => $organization->name,
             'slug' => $organization->slug->value,
             'created_at' => $organization->createdAt,
+            'demo' => $organization->demo,
         ], ['id'], ['name', 'slug']);
     }
 
@@ -55,6 +56,7 @@ final readonly class DatabaseOrganizationRepository implements OrganizationRepos
             RowReader::string($values['name'] ?? null, 'name'),
             Slug::fromString(RowReader::string($values['slug'] ?? null, 'slug')),
             RowReader::instant($values['created_at'] ?? null, 'created_at'),
+            ($values['demo'] ?? false) === true,
         );
     }
 }

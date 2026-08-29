@@ -61,6 +61,7 @@ final readonly class ProvisionTenantHandler
                 $command->organizationName,
                 $this->availableSlug($command->organizationName),
                 $now,
+                $command->demo,
             );
 
             $this->organizations->save($organization);
@@ -108,6 +109,7 @@ final readonly class ProvisionTenantHandler
                     'environment' => $project->environment->value,
                     'currency' => $project->currency,
                     'owner_user_id' => $command->ownerUserId?->value,
+                    'demo' => $command->demo,
                 ],
                 occurredAt: $now,
             ));
