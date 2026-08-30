@@ -20,6 +20,7 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | Term | Definition |
 |---|---|
 | **Organization** | A tenant of the platform: the company that bills its own customers. |
+| **Demo organization** | An organization created by self-service sign-up in demo mode. Whether it is a demo is fixed when it is created. A demo nobody has signed in to for seven days is **purged**: every row it owns, invoices and ledger included, is deleted — the one way money history is ever removed, and refused by the database for any organization that is not a demo. |
 | **Project** | An isolated environment inside an organization, typically `live` and `test`. Keys, meters, plans and customers belong to a project, never to an organization directly. A project declares its **currency** at creation, and everything priced beneath it uses that currency. |
 | **API key** | A secret granting access to one project's API, carrying scopes (`usage:write`, `admin`). Format `mk_<env>_<prefix>_<secret>`, e.g. `mk_test_7f3a1b2c_…`; only the eight character prefix and a SHA-256 hash of the whole token are stored. |
 | **User** | A person who signs into the admin panel. Separate from an API key: a key authenticates a machine to a project, a user authenticates a person to an organization, and neither is derived from the other. |

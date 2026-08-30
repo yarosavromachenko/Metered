@@ -116,5 +116,10 @@ allowed.
 
 **Deleting a tenant with money history needs a path of its own.** Every
 invoicing table restricts deletion of its project. Demo tenants are deleted
-after a week (ADR-0016), so M7 needs a purge that is explicit about what it
-removes rather than a cascade that the triggers would refuse.
+after a week (ADR-0016), so the purge is explicit about what it removes rather
+than a cascade the triggers would refuse: each module deletes its own rows,
+and the append-only triggers admit a delete only from a transaction that has
+declared, with `set_config('metered.purging_organization', …, true)`, the
+organization it is purging — and only when that organization was created as a
+demo, a flag the database holds fixed. A real tenant's history cannot be
+purged at all ([`assumptions.md`](../assumptions.md), 38).
