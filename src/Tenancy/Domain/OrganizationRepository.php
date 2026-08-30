@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Domain;
 
+use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
@@ -25,4 +26,11 @@ interface OrganizationRepository
      */
     public function remove(Uuid $id): void;
 
+    /**
+     * Demo organizations nobody has signed in to since the cutoff, oldest
+     * first. A member who never signed in counts from when they registered.
+     *
+     * @return list<Uuid>
+     */
+    public function demosIdleSince(DateTimeImmutable $cutoff): array;
 }

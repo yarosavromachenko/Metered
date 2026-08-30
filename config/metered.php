@@ -21,6 +21,10 @@ return [
 
     'demo' => [
         'enabled' => filter_var(env('APP_DEMO', false), FILTER_VALIDATE_BOOL),
+
+        // A demo tenant nobody has signed in to for this long is deleted by
+        // the daily tenancy:purge-idle-demos, invoices and all.
+        'idle_days' => (int) env('DEMO_IDLE_DAYS', 7),
     ],
 
     'admin' => [

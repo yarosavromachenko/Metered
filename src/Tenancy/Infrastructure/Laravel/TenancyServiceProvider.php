@@ -17,6 +17,7 @@ use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authorization\PermissionGuard;
 use Metered\Tenancy\Application\Command\PurgeDemoOrganizationHandler;
+use Metered\Tenancy\Application\Command\PurgeIdleDemosHandler;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Application\Contract\PanelScope as PanelScopeContract;
 use Metered\Tenancy\Application\Contract\ProjectDirectory;
@@ -34,6 +35,7 @@ use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectDirectory;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
 use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
+use Metered\Tenancy\Presentation\Console\PurgeIdleDemosCommand;
 use Metered\Tenancy\Presentation\Filament\Components\ProjectSwitcher;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
@@ -100,6 +102,16 @@ final class TenancyServiceProvider extends ServiceProvider
             ),
         );
 
+        $this->app->bind(
+            PurgeIdleDemosHandler::class,
+            static fn(Application $app): PurgeIdleDemosHandler => new PurgeIdleDemosHandler(
+                $app->make(OrganizationRepository::class),
+                $app->make(PurgeDemoOrganizationHandler::class),
+                $app->make(ClockInterface::class),
+                self::configInt($app, 'metered.demo.idle_days', 7) * 86_400,
+            ),
+        );
+
         $this->app->singleton(
             ThrottleApiKey::class,
             static fn(Application $app): ThrottleApiKey => new ThrottleApiKey(
@@ -119,7 +131,7 @@ final class TenancyServiceProvider extends ServiceProvider
         );
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreateOrganizationCommand::class]);
+            $this->commands([CreateOrganizationCommand::class, PurgeIdleDemosCommand::class]);
         }
 
         // The module carries its own views and its own piece of the panel

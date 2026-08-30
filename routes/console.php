@@ -61,3 +61,20 @@ Schedule::command('webhooks:dispatch')
     ->everyTenSeconds()
     ->withoutOverlapping()
     ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Demo tenants
+|--------------------------------------------------------------------------
+|
+| A demo tenant nobody has signed in to for a week is deleted, so an instance
+| that strangers sign up to does not grow without end (ADR-0016). Nothing
+| created with org:create is a demo, so on any other installation this finds
+| nothing to do.
+|
+*/
+
+Schedule::command('tenancy:purge-idle-demos')
+    ->dailyAt('03:40')
+    ->withoutOverlapping()
+    ->onOneServer();
