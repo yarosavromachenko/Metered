@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Metered\Billing\Application\Command;
 
+use DateInterval;
+use DateTimeImmutable;
 use Metered\Billing\Domain\Customer;
 use Metered\Billing\Domain\CustomerRepository;
+use Metered\Billing\Domain\Exception\SubscriptionChangeRefused;
 use Metered\Billing\Domain\Plan\PlanVersion;
 use Metered\Billing\Domain\Plan\PlanVersionRepository;
 use Metered\Billing\Domain\Subscription\Subscription;
@@ -21,6 +24,13 @@ use Psr\Clock\ClockInterface;
 
 final readonly class StartSubscriptionHandler
 {
+    /**
+     * How far back a subscription may start. A year covers moving a customer
+     * over from another system with their anchor intact; anything older would
+     * invoice history nobody can check any more in one period close.
+     */
+    public const int MAX_BACKDATE_DAYS = 366;
+
     public function __construct(
         private SubscriptionRepository $subscriptions,
         private CustomerRepository $customers,
@@ -47,12 +57,14 @@ final readonly class StartSubscriptionHandler
             throw CatalogNotFound::of('plan version', $command->versionId);
         }
 
+        $now = $this->clock->now();
+
         $subscription = Subscription::start(
             $this->ids->generate(),
             $command->tenant,
             $command->customerId,
             $version,
-            $this->clock->now(),
+            $this->startAt($command->startsAt, $now),
         );
 
         // The subscription and the event announcing it commit together
@@ -68,10 +80,32 @@ final readonly class StartSubscriptionHandler
             action: 'subscription.started',
             subjectType: 'subscription',
             subjectId: $subscription->id->value,
-            payload: ['customer_id' => $command->customerId->value, 'plan_version_id' => $version->id->value],
-            occurredAt: $subscription->anchorAt,
+            payload: [
+                'customer_id' => $command->customerId->value,
+                'plan_version_id' => $version->id->value,
+                'anchor_at' => $subscription->anchorAt->format(DATE_ATOM),
+            ],
+            // When it was done, which for a backdated start is not the anchor.
+            occurredAt: $now,
         ));
 
         return $subscription;
+    }
+
+    private function startAt(?DateTimeImmutable $requested, DateTimeImmutable $now): DateTimeImmutable
+    {
+        if (! $requested instanceof DateTimeImmutable) {
+            return $now;
+        }
+
+        if ($requested > $now) {
+            throw SubscriptionChangeRefused::startsInTheFuture();
+        }
+
+        if ($requested < $now->sub(new DateInterval(sprintf('P%dD', self::MAX_BACKDATE_DAYS)))) {
+            throw SubscriptionChangeRefused::backdatedTooFar(self::MAX_BACKDATE_DAYS);
+        }
+
+        return $requested;
     }
 }

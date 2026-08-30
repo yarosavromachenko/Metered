@@ -137,3 +137,53 @@ it('announces a subscription starting and ending through the outbox', function (
             'ends_at' => '2026-02-28T14:00:00+00:00',
         ]);
 });
+
+it('backdates a subscription, anchoring it where it was asked to start', function (): void {
+    app()->instance(ClockInterface::class, new MockClock('2026-05-10 12:00:00', 'UTC'));
+    $project = TenantFactory::tenant();
+    $tenant = $project->tenant();
+    $actor = TenantFactory::member($project->organizationId, Role::Admin);
+    $version = CatalogFactory::version(CatalogFactory::plan($tenant));
+
+    $started = app(StartSubscriptionHandler::class)->handle(new StartSubscription(
+        $tenant,
+        CatalogFactory::customer($tenant)->id,
+        $version->id,
+        $actor,
+        new DateTimeImmutable('2026-01-31T09:30:00+02:00'),
+    ));
+
+    $audited = DB::table('audit_log')->where('subject_id', $started->id->value);
+    $occurredAt = $audited->clone()->value('occurred_at');
+    $payload = $audited->clone()->value('payload');
+
+    expect($started->anchorAt->format(DATE_ATOM))->toBe('2026-01-31T07:30:00+00:00')
+        ->and(app(SubscriptionRepository::class)->find($tenant, $started->id)?->anchorAt->format(DATE_ATOM))->toBe('2026-01-31T07:30:00+00:00')
+        // Audited when it was done, with where it was anchored.
+        ->and(is_string($occurredAt) ? substr($occurredAt, 0, 19) : null)->toBe('2026-05-10 12:00:00')
+        ->and(is_string($payload) ? json_decode($payload, true) : null)->toHaveKey('anchor_at', '2026-01-31T07:30:00+00:00');
+});
+
+it('backdates as far as a year and a day, and no further, and never into the future', function (string $startsAt, ?string $refusal): void {
+    app()->instance(ClockInterface::class, new MockClock('2026-05-10 12:00:00', 'UTC'));
+    $project = TenantFactory::tenant();
+    $tenant = $project->tenant();
+    $start = static fn(): Subscription => app(StartSubscriptionHandler::class)->handle(new StartSubscription(
+        $tenant,
+        CatalogFactory::customer($tenant)->id,
+        CatalogFactory::version(CatalogFactory::plan($tenant))->id,
+        TenantFactory::member($project->organizationId, Role::Admin),
+        new DateTimeImmutable($startsAt),
+    ));
+
+    if ($refusal === null) {
+        expect($start()->anchorAt->format(DATE_ATOM))->toBe(new DateTimeImmutable($startsAt)->format(DATE_ATOM));
+    } else {
+        expect($start)->toThrow(SubscriptionChangeRefused::class, $refusal);
+    }
+})->with([
+    'now' => ['2026-05-10T12:00:00Z', null],
+    '366 days back' => ['2025-05-09T12:00:00Z', null],
+    'a second further' => ['2025-05-09T11:59:59Z', 'at most 366 days in the past'],
+    'a second ahead' => ['2026-05-10T12:00:01Z', 'starts now or in the past'],
+]);

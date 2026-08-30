@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Billing\Presentation\Http;
 
+use DateTimeImmutable;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -28,11 +29,13 @@ final readonly class StartSubscriptionController
     {
         $tenant = TenantRequest::tenant($request);
 
-        /** @var array{customer_ref: string, plan_version_id: string} $input */
+        /** @var array{customer_ref: string, plan_version_id: string, starts_at?: string} $input */
         $input = Validator::make($request->all(), [
             // The customer's reference, as usage events name it.
             'customer_ref' => ['required', 'string', 'max:128'],
             'plan_version_id' => ['required', 'uuid'],
+            // RFC 3339, any offset; backdates the subscription when given.
+            'starts_at' => ['sometimes', 'string', 'date'],
         ])->validate();
 
         $customer = $this->customers->findByReference($tenant, CustomerReference::fromString($input['customer_ref']));
@@ -52,6 +55,7 @@ final readonly class StartSubscriptionController
             $customer->id,
             Uuid::fromString($input['plan_version_id']),
             ApiCaller::actor($request),
+            isset($input['starts_at']) ? new DateTimeImmutable($input['starts_at']) : null,
         ));
 
         return new JsonResponse(CatalogJson::subscription($subscription), 201);

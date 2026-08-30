@@ -47,6 +47,16 @@ final class SubscriptionChangeRefused extends DomainException
         return new self(sprintf('A plan change is already scheduled for %s.', $at->format('Y-m-d H:i')));
     }
 
+    public static function startsInTheFuture(): self
+    {
+        return new self('A subscription starts now or in the past; one that starts later is started then.');
+    }
+
+    public static function backdatedTooFar(int $days): self
+    {
+        return new self(sprintf('A subscription may start at most %d days in the past.', $days));
+    }
+
     public static function notActive(string $status): self
     {
         return new self(sprintf('The subscription %s.', $status === 'canceled' ? 'is canceled' : 'is pending cancellation'));

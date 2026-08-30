@@ -363,9 +363,13 @@ POST /api/v1/subscriptions
 ```
 
 A subscription starts now, on a published version, and is anchored at that
-instant: its periods run from the anchor, month or year at a time, clamped to
-the end of a shorter month. `POST /subscriptions/{id}/change-plan` with a
-`plan_version_id` takes effect at the end of the current period — the new phase
+instant — or at `starts_at`, when the request gives one, which backdates it by
+at most 366 days and never into the future. A backdated subscription is billed
+as if it had started then: the next period close invoices every period that
+has already ended, in order, and usage older than the acceptance window is not
+part of them unless it was loaded some other way. Periods run from the anchor,
+month or year at a time, clamped to the end of a shorter month.
+`POST /subscriptions/{id}/change-plan` with a `plan_version_id` takes effect at the end of the current period — the new phase
 in the response says exactly when — and may not change the currency or the
 interval. `POST /subscriptions/{id}/cancel` ends it at the end of the current
 period, or at once with `{"immediately": true}`.

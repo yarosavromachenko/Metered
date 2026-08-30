@@ -58,6 +58,27 @@ function createdId(TestResponse $response): string
     return is_string($id) ? $id : throw new LogicException('The response carries no id.');
 }
 
+it('backdates a subscription over the API, and refuses a start in the future', function (): void {
+    app()->instance(ClockInterface::class, new MockClock('2026-05-10 12:00:00', 'UTC'));
+    ['headers' => $headers] = catalogProject();
+
+    catalogWrite('/api/v1/customers', ['reference' => 'cus_4471', 'name' => 'Acme Corp'], $headers)->assertCreated();
+    $plan = createdId(catalogWrite('/api/v1/plans', ['code' => 'pro', 'name' => 'Pro'], $headers));
+    $version = createdId(catalogWrite("/api/v1/plans/{$plan}/versions", ['interval' => 'month', 'prices' => [['model' => 'flat_fee', 'amount' => 4900]]], $headers));
+
+    catalogWrite('/api/v1/subscriptions', ['customer_ref' => 'cus_4471', 'plan_version_id' => $version, 'starts_at' => '2026-01-31T14:00:00+01:00'], $headers)
+        ->assertCreated()
+        ->assertJsonPath('anchor_at', '2026-01-31T13:00:00+00:00');
+
+    catalogWrite('/api/v1/subscriptions', ['customer_ref' => 'cus_4471', 'plan_version_id' => $version, 'starts_at' => '2026-06-01T00:00:00Z'], $headers)
+        ->assertStatus(422)
+        ->assertJsonPath('type', 'https://metered.dev/problems/rule-violated');
+
+    catalogWrite('/api/v1/subscriptions', ['customer_ref' => 'cus_4471', 'plan_version_id' => $version, 'starts_at' => 'last tuesday-ish'], $headers)
+        ->assertStatus(422)
+        ->assertJsonPath('errors.0.pointer', '/starts_at');
+});
+
 it('builds a catalog and runs a subscription through it, end to end', function (): void {
     app()->instance(ClockInterface::class, $clock = new MockClock('2026-01-31 14:00:00', 'UTC'));
     ['headers' => $headers] = catalogProject();
