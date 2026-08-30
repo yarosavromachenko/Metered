@@ -70,3 +70,17 @@ it('refuses a currency the domain does not know', function (): void {
         ->and($result['output'])->toContain('not a known ISO 4217 currency')
         ->and(DB::table('organizations')->count())->toBe(0);
 });
+
+it('prints one JSON object for scripts, with a key that authenticates', function (): void {
+    expect(Artisan::call('org:create', ['name' => 'North Wind', '--json' => true]))->toBe(0);
+
+    /** @var array{organization: array{id: string, slug: string}, project: array{id: string, slug: string, currency: string}, key: array{prefix: string, secret: string}} $result */
+    $result = json_decode(trim(Artisan::output()), true, 512, JSON_THROW_ON_ERROR);
+    $key = app(ApiKeyAuthenticator::class)->authenticate($result['key']['secret']);
+
+    expect($result['organization']['slug'])->toBe('north-wind')
+        ->and($result['project'])->toMatchArray(['slug' => 'production', 'currency' => 'EUR'])
+        ->and($key->tenant->projectId->value)->toBe($result['project']['id'])
+        ->and($key->tenant->organizationId->value)->toBe($result['organization']['id'])
+        ->and($key->prefix)->toBe($result['key']['prefix']);
+});

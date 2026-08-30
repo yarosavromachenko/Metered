@@ -28,7 +28,8 @@ final class CreateOrganizationCommand extends Command
         {name : The name of the organization}
         {--project=Production : The name of its first project}
         {--environment=test : live or test}
-        {--currency=EUR : The currency everything under the project is priced in}';
+        {--currency=EUR : The currency everything under the project is priced in}
+        {--json : Print the result as one JSON object, for scripts}';
 
     protected $description = 'Create an organization with its first project and API key';
 
@@ -56,6 +57,18 @@ final class CreateOrganizationCommand extends Command
             $this->components->error($failure->getMessage());
 
             return self::INVALID;
+        }
+
+        if ($this->option('json') === true) {
+            // For tooling that provisions a tenant and goes on to use it — the
+            // demo seed above all. Still the only time the secret is shown.
+            $this->line(json_encode([
+                'organization' => ['id' => $tenant->organization->id->value, 'slug' => $tenant->organization->slug->value],
+                'project' => ['id' => $tenant->project->id->value, 'slug' => $tenant->project->slug->value, 'currency' => $tenant->project->currency],
+                'key' => ['prefix' => $tenant->apiKey->prefix, 'secret' => $tenant->secret->reveal()],
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+
+            return self::SUCCESS;
         }
 
         $this->components->info(sprintf('Organization "%s" is ready.', $tenant->organization->name));
