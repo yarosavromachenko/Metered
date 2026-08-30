@@ -37,6 +37,11 @@ final readonly class DatabaseOrganizationRepository implements OrganizationRepos
         return $this->first(['slug' => $slug->value]);
     }
 
+    public function remove(Uuid $id): void
+    {
+        $this->db->connection()->table('organizations')->where('id', $id->value)->delete();
+    }
+
     /**
      * @param  array<string, string>  $conditions
      */

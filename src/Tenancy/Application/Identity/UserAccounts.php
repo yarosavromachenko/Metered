@@ -30,4 +30,12 @@ interface UserAccounts
     public function existsWithEmail(string $email): bool;
 
     public function recordSignIn(Uuid $userId, DateTimeImmutable $at): void;
+
+    /**
+     * Deletes those of these accounts that belong to no organization any
+     * more. Somebody who is also a member elsewhere keeps their account.
+     *
+     * @param  list<Uuid>  $userIds
+     */
+    public function removeUnaffiliated(array $userIds): void;
 }

@@ -12,11 +12,15 @@ use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\ServiceProvider;
 use Livewire\Livewire;
+use Metered\Shared\Application\Audit\AuditLogger;
+use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authorization\PermissionGuard;
+use Metered\Tenancy\Application\Command\PurgeDemoOrganizationHandler;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Application\Contract\PanelScope as PanelScopeContract;
 use Metered\Tenancy\Application\Contract\ProjectDirectory;
+use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Tenancy\Application\Identity\UserAccounts;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\MembershipRepository;
@@ -79,6 +83,23 @@ final class TenancyServiceProvider extends ServiceProvider
             ),
         );
 
+        // Each module tags its own purger; they run in the reverse of the order
+        // the modules were registered, so a module's rows go before the rows
+        // of the modules it builds on (TenantDataPurger).
+        $this->app->bind(
+            PurgeDemoOrganizationHandler::class,
+            static fn(Application $app): PurgeDemoOrganizationHandler => new PurgeDemoOrganizationHandler(
+                $app->make(OrganizationRepository::class),
+                $app->make(ProjectRepository::class),
+                $app->make(MembershipRepository::class),
+                $app->make(UserAccounts::class),
+                self::purgers($app),
+                $app->make(Transactions::class),
+                $app->make(AuditLogger::class),
+                $app->make(ClockInterface::class),
+            ),
+        );
+
         $this->app->singleton(
             ThrottleApiKey::class,
             static fn(Application $app): ThrottleApiKey => new ThrottleApiKey(
@@ -112,6 +133,22 @@ final class TenancyServiceProvider extends ServiceProvider
             PanelsRenderHook::TOPBAR_START,
             static fn(): string => Blade::render('@livewire(\'tenancy.project-switcher\')'),
         );
+    }
+
+    /**
+     * @return list<TenantDataPurger>
+     */
+    private static function purgers(Application $app): array
+    {
+        $purgers = [];
+
+        foreach ($app->tagged(TenantDataPurger::TAG) as $purger) {
+            if ($purger instanceof TenantDataPurger) {
+                $purgers[] = $purger;
+            }
+        }
+
+        return array_reverse($purgers);
     }
 
     private static function configInt(Application $app, string $key, int $default): int

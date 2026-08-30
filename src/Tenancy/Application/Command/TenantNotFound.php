@@ -23,6 +23,11 @@ final class TenantNotFound extends RuntimeException
         return new self(sprintf('No project %s in this organization.', $tenant->projectId->value));
     }
 
+    public static function organization(Uuid $id): self
+    {
+        return new self(sprintf('No organization %s.', $id->value));
+    }
+
     public static function apiKey(Uuid $id): self
     {
         return new self(sprintf('No API key %s in this project.', $id->value));

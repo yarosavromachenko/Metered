@@ -18,4 +18,11 @@ interface OrganizationRepository
     public function find(Uuid $id): ?Organization;
 
     public function findBySlug(Slug $slug): ?Organization;
+
+    /**
+     * Deletes the organization row; its projects, keys and memberships follow
+     * it by cascade. Everything the other modules hold must be gone first.
+     */
+    public function remove(Uuid $id): void;
+
 }

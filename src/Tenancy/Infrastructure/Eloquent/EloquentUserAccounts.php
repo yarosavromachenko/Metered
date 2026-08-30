@@ -7,6 +7,7 @@ namespace Metered\Tenancy\Infrastructure\Eloquent;
 use DateTimeImmutable;
 use Illuminate\Contracts\Hashing\Hasher;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\Query\Builder;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Application\Identity\UserAccounts;
@@ -65,6 +66,22 @@ final readonly class EloquentUserAccounts implements UserAccounts
         $this->db->connection()->table('users')
             ->where('id', $userId->value)
             ->update(['last_signed_in_at' => $at]);
+    }
+
+    public function removeUnaffiliated(array $userIds): void
+    {
+        if ($userIds === []) {
+            return;
+        }
+
+        $this->db->connection()->table('users')
+            ->whereIn('id', array_map(static fn(Uuid $id): string => $id->value, $userIds))
+            ->whereNotExists(static function (Builder $memberships): void {
+                $memberships->selectRaw('1')
+                    ->from('organization_members')
+                    ->whereColumn('organization_members.user_id', 'users.id');
+            })
+            ->delete();
     }
 
     private function normalise(string $email): string
