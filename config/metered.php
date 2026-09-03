@@ -237,4 +237,20 @@ return [
         'endpoint' => env('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318'),
     ],
 
+    /*
+    |--------------------------------------------------------------------------
+    | Simulation
+    |--------------------------------------------------------------------------
+    |
+    | Where the dev-only simulation finds the platform it drives. The API URL
+    | is the app as another container reaches it — the seed goes through the
+    | network like any client (ADR-0016) — and the receiver is the demo's own
+    | webhook receiver, the one private destination the SSRF guard admits.
+    |
+    */
+
+    'simulation' => [
+        'api_url' => env('SIM_API_URL', 'http://app:8080'),
+        'receiver_url' => env('SIM_RECEIVER_URL', 'http://webhook-receiver:8080'),
+    ],
 ];

@@ -1,0 +1,64 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Metered\Simulation\Presentation\Console;
+
+use Illuminate\Console\Command;
+use Metered\Simulation\Application\Seed\Profile;
+use Metered\Simulation\Application\Seed\SeedTenant;
+use Metered\Simulation\Application\Seed\SeedTenantHandler;
+
+/**
+ * Fills a tenant through the public API (ADR-0016). Without --key it creates
+ * the organization first and prints the key it was given, once.
+ */
+final class SeedCommand extends Command
+{
+    protected $signature = 'sim:seed
+        {--profile=small : small, demo or heavy}
+        {--organization=Northwind Cloud : The name of the organization to create}
+        {--key= : Seed the tenant this API key belongs to instead of creating one}
+        {--seed=1 : Randomness seed; the same seed seeds the same data}';
+
+    protected $description = 'Seed a tenant with catalog, customers, webhooks and usage through the API';
+
+    public function handle(SeedTenantHandler $handler): int
+    {
+        $profile = Profile::tryFrom((string) $this->option('profile'));
+
+        if ($profile === null) {
+            $this->components->error('The profile must be small, demo or heavy.');
+
+            return self::INVALID;
+        }
+
+        $key = $this->option('key');
+        $started = microtime(true);
+
+        $report = $handler->handle(new SeedTenant(
+            profile: $profile,
+            seed: (int) $this->option('seed'),
+            organizationName: (string) $this->option('organization'),
+            token: is_string($key) && $key !== '' ? $key : null,
+            progress: fn(string $line) => $this->line('  <fg=gray>·</> ' . $line),
+        ));
+
+        $this->components->info(sprintf('Seeded the %s profile in %.1fs.', $profile->value, microtime(true) - $started));
+        $this->table(['', ''], [
+            ['Organization', $report->organizationSlug ?? '(the key\'s own)'],
+            ['Meters / plans', sprintf('%d / %d', $report->meters, $report->plans)],
+            ['Customers', (string) $report->customers],
+            ['Webhook endpoints', (string) $report->endpoints],
+            ['Events sent', sprintf('%d (%d duplicates, %d meant to be rejected)', $report->eventsSent, $report->duplicatesSent, $report->rejectsSent)],
+            ['Events accepted', (string) $report->eventsAccepted],
+        ]);
+
+        if ($report->token !== null) {
+            $this->components->warn('The organization\'s key, shown this once:');
+            $this->line($report->token);
+        }
+
+        return self::SUCCESS;
+    }
+}
