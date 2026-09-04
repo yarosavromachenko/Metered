@@ -3,6 +3,8 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use OpenTelemetry\API\Trace\NoopTracerProvider;
+use OpenTelemetry\API\Trace\TracerProviderInterface;
 
 /*
  * Guards against the suite quietly running somewhere it should not.
@@ -41,4 +43,12 @@ it('resolves the same connection from the container as the tests use', function 
     // what the test just wrote.
     expect(config('metered.outbox.connection'))->toBe(testConnection())
         ->and(DB::connection(testConnection()))->toBe(DB::connection());
+});
+
+it('exports no traces when the SDK is switched off, as the suite and .env.example switch it', function (): void {
+    // OTEL_SDK_DISABLED=true once read as "enabled", because env() turns the
+    // string into a boolean before it could be compared with one. Every test
+    // and every local process then tried to reach a collector nobody runs.
+    expect(config('metered.tracing.enabled'))->toBeFalse()
+        ->and(app(TracerProviderInterface::class))->toBeInstanceOf(NoopTracerProvider::class);
 });

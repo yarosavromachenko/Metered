@@ -232,7 +232,10 @@ return [
     */
 
     'tracing' => [
-        'enabled' => env('OTEL_SDK_DISABLED', 'true') !== 'true',
+        // env() hands back the string "true" as a boolean, so the value is
+        // read as one: compared with the string, it was never equal, and
+        // tracing was on wherever OTEL_SDK_DISABLED said it was off.
+        'enabled' => ! filter_var(env('OTEL_SDK_DISABLED', true), FILTER_VALIDATE_BOOL),
         'service_name' => env('OTEL_SERVICE_NAME', 'metered'),
         'endpoint' => env('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318'),
     ],
