@@ -44,3 +44,17 @@ it('closes a period when the queued job runs, and keeps two at once from overlap
     expect(DB::table('invoices')->where('subscription_id', $scenario->subscription->id->value)->value('number'))->toBe(1)
         ->and($job->middleware())->toHaveCount(1);
 });
+
+it('closes the due periods in this process when asked to, rather than queueing them', function (): void {
+    $scenario = InvoicingScenario::start()->at('2026-02-28 15:00:00');
+    // A queue that drops what it is given: only work done in this process
+    // leaves an invoice behind.
+    config(['queue.default' => 'null']);
+    $invoiced = static fn(): mixed => DB::table('invoices')->where('subscription_id', $scenario->subscription->id->value)->value('status');
+
+    expect(Artisan::call('billing:close-periods'))->toBe(0)
+        ->and($invoiced())->toBeNull()
+        ->and(Artisan::call('billing:close-periods', ['--sync' => true]))->toBe(0)
+        ->and(Artisan::output())->toContain('Closed periods for 1 subscription(s).')
+        ->and($invoiced())->toBe('finalized');
+});

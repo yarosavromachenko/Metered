@@ -22,7 +22,8 @@ use Psr\Clock\ClockInterface;
  */
 final class ClosePeriodsCommand extends Command
 {
-    protected $signature = 'billing:close-periods';
+    protected $signature = 'billing:close-periods
+        {--sync : Close them in this process, one after another, instead of queueing}';
 
     protected $description = 'Queue a period close for every subscription with a period past its grace window';
 
@@ -46,16 +47,21 @@ final class ClosePeriodsCommand extends Command
                 continue;
             }
 
-            $bus->dispatch(new CloseSubscriptionPeriodsJob(
+            $job = new CloseSubscriptionPeriodsJob(
                 $subscription->tenant->organizationId->value,
                 $subscription->tenant->projectId->value,
                 $subscription->id->value,
-            )->onQueue(is_string($queue) ? $queue : 'billing'));
+            )->onQueue(is_string($queue) ? $queue : 'billing');
+
+            // The same job either way, so --sync closes exactly what the
+            // queue would have; it only waits for it. For an operator who
+            // wants the invoices now, and for the demo seed.
+            $this->option('sync') === true ? $bus->dispatchSync($job) : $bus->dispatch($job);
 
             ++$queued;
         }
 
-        $this->components->info(sprintf('Queued %d period close(s).', $queued));
+        $this->components->info(sprintf($this->option('sync') === true ? 'Closed periods for %d subscription(s).' : 'Queued %d period close(s).', $queued));
 
         return self::SUCCESS;
     }
