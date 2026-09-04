@@ -21,6 +21,7 @@ final class EnsurePartitionsCommand extends Command
 {
     protected $signature = 'usage:partitions:ensure
         {--days= : How many days ahead to create, defaults to the configured window}
+        {--back= : How many days back to create, when history older than the acceptance window is to be loaded}
         {--prune : Also drop partitions older than the retention window}
         {--rescue : Move rows stranded in the default partition into the day they belong to}';
 
@@ -34,6 +35,10 @@ final class EnsurePartitionsCommand extends Command
         // Backwards as far as the acceptance window reaches: an event from six
         // days ago is legitimate and must not land in the default partition.
         $daysBack = (int) ceil($this->config('metered.usage.acceptance.max_age_seconds', 604800) / 86400);
+
+        // Further back only when asked: a bulk load of history (sim:backfill)
+        // needs its days to have partitions of their own, like any other day.
+        $daysBack = max($daysBack, $this->intOption('back') ?? 0);
 
         $created = $partitions->ensure($now, $daysBack, $daysAhead, $this->option('rescue') === true);
 

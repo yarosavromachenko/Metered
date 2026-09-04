@@ -6,6 +6,8 @@ use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Metered\Usage\Infrastructure\Persistence\Partition;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
+use Psr\Clock\ClockInterface;
+use Symfony\Component\Clock\MockClock;
 
 const PARTITION_PROJECT_ID = '01924b7c-0000-7000-8000-000000000301';
 
@@ -136,6 +138,16 @@ it('creates the window the scheduler asks for and reports what it holds', functi
         // The default partition is one of them, and it is never the whole
         // story: a working installation has a partition per day as well.
         ->and(partitionNames())->toContain('usage_events_default');
+});
+
+it('reaches further back when history is to be loaded', function (): void {
+    app()->instance(ClockInterface::class, new MockClock('2019-09-30 12:00:00', 'UTC'));
+
+    expect(Artisan::call('usage:partitions:ensure', ['--days' => '0', '--back' => '40']))->toBe(0)
+        ->and(partitionNames())->toContain('usage_events_p20190821')
+        ->and(partitionNames())->not->toContain('usage_events_p20190820');
+
+    dropPartitions(...array_values(array_filter(partitionNames(), static fn(string $name): bool => str_starts_with($name, 'usage_events_p2019'))));
 });
 
 /**
