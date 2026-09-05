@@ -139,8 +139,9 @@ demo-reset: ## Wipe demo tenants and reseed
 # The app is then recreated at the default limit, in the middle of the run, so
 # the number reported is the limiter's and the restart appears as connection
 # errors. The stack under test is started by `make up`; this only sends traffic.
-load: ## Run the k6 load profile against the local stack
-	$(DC) --profile load run --rm --no-deps k6 run /scripts/ingest.js
+SCENARIO ?= ingest
+load: ## Run a k6 profile against the local stack: SCENARIO=ingest (default) or mixed
+	$(DC) --profile load run --rm --no-deps k6 run /scripts/$(SCENARIO).js
 
 .PHONY: openapi
 openapi: ## Regenerate the OpenAPI document

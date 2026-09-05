@@ -23,7 +23,7 @@ otherwise it is marketing.
 |---|---|
 | `ingest-steady` | Constant rate, batches of 50 events, single project |
 | `ingest-burst` | 10× spike for 30 seconds — does backpressure engage, and does it recover |
-| `mixed` | Ingestion plus management API reads, the realistic pattern |
+| `mixed` | Ingestion plus management API reads, the realistic pattern — [`k6/mixed.js`](../k6/mixed.js), `make load SCENARIO=mixed` against a seeded tenant; no run recorded yet |
 | `close-periods` | 10,000 subscriptions closing at once — how long until the last invoice |
 
 ## Environment template
