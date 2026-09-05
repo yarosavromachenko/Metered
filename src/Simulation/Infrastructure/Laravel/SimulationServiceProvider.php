@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Simulation\Application\Port\ApiConnector;
 use Metered\Simulation\Application\Port\HistoryLoader;
+use Metered\Simulation\Application\Port\Pacer;
 use Metered\Simulation\Application\Port\PeriodCloser;
 use Metered\Simulation\Application\Port\TenantProvisioner;
 use Metered\Simulation\Application\Port\WebhookInbox;
@@ -17,6 +18,7 @@ use Metered\Simulation\Infrastructure\Http\HttpApiConnector;
 use Metered\Simulation\Infrastructure\Http\ReceiverInbox;
 use Metered\Simulation\Infrastructure\Persistence\CopyHistoryLoader;
 use Metered\Simulation\Presentation\Console\SeedCommand;
+use Metered\Simulation\Presentation\Console\TrafficCommand;
 
 /**
  * The simulation's wiring. The module is removed from the production image,
@@ -50,12 +52,13 @@ final class SimulationServiceProvider extends ServiceProvider
         $this->app->singleton(TenantProvisioner::class, ConsoleTenantProvisioner::class);
         $this->app->singleton(PeriodCloser::class, ConsolePeriodCloser::class);
         $this->app->singleton(HistoryLoader::class, CopyHistoryLoader::class);
+        $this->app->bind(Pacer::class, WallClockPacer::class);
     }
 
     public function boot(): void
     {
         if ($this->app->environment(self::ENVIRONMENTS) && $this->app->runningInConsole()) {
-            $this->commands([SeedCommand::class]);
+            $this->commands([SeedCommand::class, TrafficCommand::class]);
         }
     }
 
