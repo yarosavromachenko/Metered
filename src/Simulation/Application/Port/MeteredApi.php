@@ -24,6 +24,16 @@ interface MeteredApi
     public function write(string $path, array $body): array;
 
     /**
+     * A read, with its query string.
+     *
+     * @param  array<string, string|int>  $query
+     * @return array<string, mixed> the decoded answer
+     *
+     * @throws ApiRefused when the answer is not a success
+     */
+    public function read(string $path, array $query = []): array;
+
+    /**
      * Usage events in batches, several requests at a time.
      *
      * @param  list<list<array<string, string>>>  $batches  at most 100 events each

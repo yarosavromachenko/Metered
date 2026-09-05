@@ -52,14 +52,16 @@ enum Profile: string
 
     /**
      * Events an average customer sends in a day. A customer's own size, the
-     * hour and the weekday move it around this.
+     * hour and the weekday move it around this. Customers join over the
+     * history's first month, fifteen and a half days in on average, which
+     * the rates for demo and heavy allow for.
      */
     public function eventsPerCustomerDay(): int
     {
         return match ($this) {
             self::Small => 40,
-            self::Demo => 185,
-            self::Heavy => 222,
+            self::Demo => 220,
+            self::Heavy => 265,
         };
     }
 }

@@ -71,6 +71,22 @@ it('seeds a new tenant through the API, the way a client would', function (): vo
     ])->and(trustedSecrets())->toHaveCount(5)
         ->and(array_filter(trustedSecrets(), static fn(string $secret): bool => str_starts_with($secret, 'whsec_')))->toHaveCount(5);
 
+    // History up to the last week, bulk-loaded and reconciled; the week
+    // itself through the API, so still on its way through the stream.
+    expect($report->historyEvents)->toBeGreaterThan(10_000)
+        ->and(DB::table('usage_events')->where('organization_id', $organization)->count())->toBe($report->historyEvents)
+        ->and(DB::table('usage_aggregates')->where('organization_id', $organization)->count())->toBe($report->historyAggregates)
+        ->and(DB::table('usage_events')->where('organization_id', $organization)->max('occurred_at'))->toBeLessThan('2026-03-08 12:00:00+00');
+
+    // Every customer with a closed period has its first invoice, built by the
+    // ordinary close; most are paid, one is voided with a credit note.
+    expect(DB::table('invoices')->where('organization_id', $organization)->count())->toBe(12)
+        ->and($report->invoicesPaid)->toBeGreaterThan(5)
+        ->and(DB::table('invoices')->where('organization_id', $organization)->where('status', 'paid')->count())->toBeGreaterThanOrEqual($report->invoicesPaid)
+        ->and($report->invoicesVoided)->toBe(1)
+        ->and(DB::table('credit_notes')->where('organization_id', $organization)->count())->toBe(1)
+        ->and(DB::table('invoice_lines')->where('organization_id', $organization)->where('kind', 'usage')->where('amount_minor', '>', 0)->count())->toBeGreaterThan(5);
+
     // Written through the ordinary API: every change is audited as the key.
     expect(DB::table('audit_log')->where('action', 'subscription.started')->where('actor', 'like', 'api-key:%')->count())->toBe(12);
 });

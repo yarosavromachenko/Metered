@@ -9,10 +9,13 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Support\ServiceProvider;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Simulation\Application\Port\ApiConnector;
+use Metered\Simulation\Application\Port\HistoryLoader;
+use Metered\Simulation\Application\Port\PeriodCloser;
 use Metered\Simulation\Application\Port\TenantProvisioner;
 use Metered\Simulation\Application\Port\WebhookInbox;
 use Metered\Simulation\Infrastructure\Http\HttpApiConnector;
 use Metered\Simulation\Infrastructure\Http\ReceiverInbox;
+use Metered\Simulation\Infrastructure\Persistence\CopyHistoryLoader;
 use Metered\Simulation\Presentation\Console\SeedCommand;
 
 /**
@@ -45,6 +48,8 @@ final class SimulationServiceProvider extends ServiceProvider
         ));
 
         $this->app->singleton(TenantProvisioner::class, ConsoleTenantProvisioner::class);
+        $this->app->singleton(PeriodCloser::class, ConsolePeriodCloser::class);
+        $this->app->singleton(HistoryLoader::class, CopyHistoryLoader::class);
     }
 
     public function boot(): void

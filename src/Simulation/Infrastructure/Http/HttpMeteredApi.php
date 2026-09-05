@@ -17,6 +17,8 @@ use SensitiveParameter;
  * The API over HTTP, as a well-behaved client uses it: an Idempotency-Key on
  * every write, and a wait — as long as `Retry-After` asks, or a second — when
  * the answer is 429 (the key's rate limit) or 503 (ingestion backpressure).
+ * A usage batch that fails in any way that is not a refusal of its content is
+ * sent again as it was.
  * Anything else that is not a success stops the simulation with the problem
  * the API described.
  */
@@ -55,6 +57,25 @@ final readonly class HttpMeteredApi implements MeteredApi
         }
     }
 
+    public function read(string $path, array $query = []): array
+    {
+        for ($attempt = 1; ; ++$attempt) {
+            $response = $this->request()->get($path, $query);
+
+            if ($this->shouldWait($response, $attempt)) {
+                continue;
+            }
+
+            if (! $response->successful()) {
+                throw ApiRefused::answered('GET', $path, $response->status(), self::problem($response));
+            }
+
+            $answer = $response->json();
+
+            return is_array($answer) ? $this->stringKeys($answer) : [];
+        }
+    }
+
     public function ingest(array $batches): int
     {
         $accepted = 0;
@@ -80,7 +101,10 @@ final readonly class HttpMeteredApi implements MeteredApi
                         continue;
                     }
 
-                    if ($response instanceof Response && in_array($response->status(), [429, 503], true) && $attempt < self::ATTEMPTS) {
+                    // Throttled, shed, broken or not answered at all: the batch is
+                    // sent again with the same event ids, which is what makes
+                    // resending safe — ingestion deduplicates by them.
+                    if ($attempt < self::ATTEMPTS && (! $response instanceof Response || in_array($response->status(), [429, 503], true) || $response->serverError())) {
                         $retry[] = $batch;
 
                         continue;

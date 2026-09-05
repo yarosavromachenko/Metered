@@ -31,7 +31,8 @@ it('seats the awkward customers where ADR-0016 wants them', function (Profile $p
         ->and(array_map(static fn(SeededCustomer $c): string => $c->startsAt->format('d'), array_slice($customers, 0, 3)))->toBe(['29', '30', '31'])
         ->and($customers[3]->silent)->toBeTrue()
         ->and($customers[4]->switchesTo)->toBe('growth')
-        ->and($customers[5]->cancels)->toBeTrue();
+        ->and($customers[5]->cancels)->toBeTrue()
+        ->and($customers[6]->plan)->toBe('scale');
 
     foreach ($customers as $customer) {
         expect(array_key_exists($customer->plan, Catalog::plans()))->toBeTrue()
@@ -88,8 +89,11 @@ it('sends about as many events as the profile promises', function (Profile $prof
 })->with([Profile::Small, Profile::Demo]);
 
 it('sizes the demo profile at about two million events, and heavy at about twenty', function (): void {
-    // Customers average size one, so volume is customers × days × daily rate.
-    expect(Profile::Demo->customers() * Profile::Demo->historyDays() * Profile::Demo->eventsPerCustomerDay())->toBeGreaterThan(1_900_000)->toBeLessThan(2_100_000)
-        ->and(Profile::Heavy->customers() * Profile::Heavy->historyDays() * Profile::Heavy->eventsPerCustomerDay())->toBeGreaterThan(19_000_000)->toBeLessThan(21_000_000)
+    // Customers average size one and join 15.5 days into the history on
+    // average, so volume is customers × days they are there × daily rate.
+    $volume = static fn(Profile $p): float => $p->customers() * ($p->historyDays() - 15.5) * $p->eventsPerCustomerDay();
+
+    expect($volume(Profile::Demo))->toBeGreaterThan(1_900_000)->toBeLessThan(2_100_000)
+        ->and($volume(Profile::Heavy))->toBeGreaterThan(19_000_000)->toBeLessThan(21_000_000)
         ->and(Profile::Small->liveDays())->toBeLessThanOrEqual(7);
 });

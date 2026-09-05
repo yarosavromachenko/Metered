@@ -50,6 +50,8 @@ final class SeedCommand extends Command
             ['Meters / plans', sprintf('%d / %d', $report->meters, $report->plans)],
             ['Customers', (string) $report->customers],
             ['Webhook endpoints', (string) $report->endpoints],
+            ['History (bulk-loaded)', sprintf('%d events in %d hourly aggregates, reconciled', $report->historyEvents, $report->historyAggregates)],
+            ['Invoices settled', sprintf('%d paid, %d voided', $report->invoicesPaid, $report->invoicesVoided)],
             ['Events sent', sprintf('%d (%d duplicates, %d meant to be rejected)', $report->eventsSent, $report->duplicatesSent, $report->rejectsSent)],
             ['Events accepted', (string) $report->eventsAccepted],
         ]);
