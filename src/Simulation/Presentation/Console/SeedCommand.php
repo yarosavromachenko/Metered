@@ -19,7 +19,9 @@ final class SeedCommand extends Command
         {--profile=small : small, demo or heavy}
         {--organization=Northwind Cloud : The name of the organization to create}
         {--key= : Seed the tenant this API key belongs to instead of creating one}
-        {--seed=1 : Randomness seed; the same seed seeds the same data}';
+        {--seed=1 : Randomness seed; the same seed seeds the same data}
+        {--demo : Create the organization as a demo one, which demo:reset may purge (demo mode only)}
+        {--json : Print the result, key included, as one JSON object for scripts}';
 
     protected $description = 'Seed a tenant with catalog, customers, webhooks and usage through the API';
 
@@ -41,8 +43,22 @@ final class SeedCommand extends Command
             seed: (int) $this->option('seed'),
             organizationName: (string) $this->option('organization'),
             token: is_string($key) && $key !== '' ? $key : null,
-            progress: fn(string $line) => $this->line('  <fg=gray>·</> ' . $line),
+            progress: $this->option('json') === true ? null : fn(string $line) => $this->line('  <fg=gray>·</> ' . $line),
+            demo: $this->option('demo') === true,
         ));
+
+        if ($this->option('json') === true) {
+            $this->line(json_encode([
+                'organization' => $report->organizationSlug,
+                'key' => $report->token,
+                'customers' => $report->customers,
+                'history_events' => $report->historyEvents,
+                'events_sent' => $report->eventsSent,
+                'seconds' => round(microtime(true) - $started, 1),
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+
+            return self::SUCCESS;
+        }
 
         $this->components->info(sprintf('Seeded the %s profile in %.1fs.', $profile->value, microtime(true) - $started));
         $this->table(['', ''], [

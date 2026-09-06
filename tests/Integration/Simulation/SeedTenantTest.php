@@ -121,3 +121,20 @@ it('runs from the console, and refuses a profile it does not know', function ():
         ->and(Artisan::call('sim:seed', ['--profile' => 'small', '--organization' => 'Console Co'], $output))->toBe(0)
         ->and($output->fetch())->toContain('Seeded the small profile')->toContain('console-co')->toContain('mk_test_');
 });
+
+it('prints one JSON object for scripts, key included', function (): void {
+    $output = new BufferedOutput();
+
+    expect(Artisan::call('sim:seed', ['--profile' => 'small', '--organization' => 'Script Co', '--json' => true], $output))->toBe(0);
+
+    /** @var array{organization: string, key: string, customers: int} $result */
+    $result = json_decode(trim($output->fetch()), true, 512, JSON_THROW_ON_ERROR);
+
+    expect($result['organization'])->toBe('script-co')
+        ->and($result['key'])->toStartWith('mk_test_')
+        ->and($result['customers'])->toBe(12);
+});
+
+it('creates no demo organization outside demo mode, and says why', function (): void {
+    app(SeedTenantHandler::class)->handle(new SeedTenant(Profile::Small, organizationName: 'Showcase', demo: true));
+})->throws(RuntimeException::class, 'only in demo mode');

@@ -68,7 +68,7 @@ final readonly class SeedTenantHandler
 
         if ($token === null) {
             $say(sprintf('Creating organization "%s"', $command->organizationName));
-            $provisioned = $this->provisioner->provision($command->organizationName);
+            $provisioned = $this->provisioner->provision($command->organizationName, $command->demo);
             $token = $provisioned->token;
         }
 

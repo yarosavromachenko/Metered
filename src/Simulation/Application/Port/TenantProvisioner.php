@@ -11,5 +11,8 @@ namespace Metered\Simulation\Application\Port;
  */
 interface TenantProvisioner
 {
-    public function provision(string $organizationName): ProvisionedTenant;
+    /**
+     * @param  bool  $demo  created as a demo organization, which demo:reset may purge
+     */
+    public function provision(string $organizationName, bool $demo = false): ProvisionedTenant;
 }

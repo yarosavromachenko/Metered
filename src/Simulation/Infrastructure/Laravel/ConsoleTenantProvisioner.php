@@ -18,9 +18,9 @@ final readonly class ConsoleTenantProvisioner implements TenantProvisioner
 {
     public function __construct(private Kernel $console) {}
 
-    public function provision(string $organizationName): ProvisionedTenant
+    public function provision(string $organizationName, bool $demo = false): ProvisionedTenant
     {
-        if ($this->console->call('org:create', ['name' => $organizationName, '--json' => true]) !== 0) {
+        if ($this->console->call('org:create', ['name' => $organizationName, '--json' => true, '--demo' => $demo]) !== 0) {
             throw new RuntimeException('org:create failed: ' . trim($this->console->output()));
         }
 

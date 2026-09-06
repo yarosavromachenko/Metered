@@ -11,7 +11,8 @@ use SensitiveParameter;
  * Fill a tenant with a profile's worth of catalog, customers and usage.
  *
  * With a token, the tenant it belongs to is filled — a demo sign-up's own.
- * Without one, a new organization is created first.
+ * Without one, a new organization is created first; `demo` creates it as a
+ * demo organization, which is what the showcase is.
  */
 final readonly class SeedTenant
 {
@@ -25,5 +26,6 @@ final readonly class SeedTenant
         #[SensitiveParameter]
         public ?string $token = null,
         public ?Closure $progress = null,
+        public bool $demo = false,
     ) {}
 }
