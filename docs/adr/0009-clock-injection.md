@@ -65,3 +65,20 @@ banned-helper list checked by the architecture suite for every module's domain
 and application layer, and `Carbon` is refused there outright. The container
 sets `date.timezone = UTC` so that a machine's local timezone can never leak
 into a result.
+
+## Amended in M7: a clock the demo can move
+
+`sim:time-travel` moves the demo's clock forward so a reviewer can watch a
+month of periods close in a minute (plan §10). Every process of the stack —
+the app, Horizon's workers, the consumer, the scheduler, a console command —
+has to agree on the new time, or a period closes in one while another refuses
+its usage as too new. So the offset lives in the shared cache
+(`ClockOffset`), and in the `local` and `demo` environments the clock is a
+`TravellingClock`: the system clock plus that offset, read again at most once
+a second.
+
+Everywhere else the binding is the plain `SystemClock` and there is nothing to
+move — an offset left in a production cache changes nothing. Tests bind a
+`MockClock` as before. The clock only moves forward: everything written while
+it was ahead carries the later time, and moving back would make "now" precede
+invoices already built.

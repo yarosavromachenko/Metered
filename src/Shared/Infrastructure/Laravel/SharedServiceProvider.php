@@ -18,7 +18,9 @@ use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Audit\DatabaseAuditLogger;
 use Metered\Shared\Infrastructure\Audit\DatabaseChainVerifier;
+use Metered\Shared\Infrastructure\Clock\ClockOffset;
 use Metered\Shared\Infrastructure\Clock\SystemClock;
+use Metered\Shared\Infrastructure\Clock\TravellingClock;
 use Metered\Shared\Infrastructure\Idempotency\DatabaseIdempotencyStore;
 use Metered\Shared\Infrastructure\Identifier\Uuid7Generator;
 use Metered\Shared\Infrastructure\Inbox\DatabaseInboxGuard;
@@ -55,7 +57,14 @@ final class SharedServiceProvider extends ServiceProvider
 
     public function register(): void
     {
-        $this->app->singleton(ClockInterface::class, SystemClock::class);
+        // Where a demo runs, time can be moved forward (sim:time-travel);
+        // anywhere else it is the operating system's, and nothing can move it.
+        $this->app->singleton(
+            ClockInterface::class,
+            static fn(Application $app): ClockInterface => $app->environment('local', 'demo')
+                ? new TravellingClock(new SystemClock(), $app->make(ClockOffset::class), static fn(): int => (int) hrtime(true))
+                : new SystemClock(),
+        );
         $this->app->singleton(IdentifierGenerator::class, Uuid7Generator::class);
 
         $this->app->singleton(OutboxWriter::class, DatabaseOutboxWriter::class);
