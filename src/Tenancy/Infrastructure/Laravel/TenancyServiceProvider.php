@@ -27,6 +27,7 @@ use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\MembershipRepository;
 use Metered\Tenancy\Domain\OrganizationRepository;
 use Metered\Tenancy\Domain\ProjectRepository;
+use Metered\Tenancy\Domain\Slug;
 use Metered\Tenancy\Infrastructure\Eloquent\EloquentUserAccounts;
 use Metered\Tenancy\Infrastructure\Persistence\CachingApiKeyRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseApiKeyRepository;
@@ -34,6 +35,7 @@ use Metered\Tenancy\Infrastructure\Persistence\DatabaseMembershipRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseOrganizationRepository;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectDirectory;
 use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
+use Metered\Tenancy\Presentation\Console\AddMemberCommand;
 use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
 use Metered\Tenancy\Presentation\Console\PurgeIdleDemosCommand;
 use Metered\Tenancy\Presentation\Filament\Components\ProjectSwitcher;
@@ -109,6 +111,7 @@ final class TenancyServiceProvider extends ServiceProvider
                 $app->make(PurgeDemoOrganizationHandler::class),
                 $app->make(ClockInterface::class),
                 self::configInt($app, 'metered.demo.idle_days', 7) * 86_400,
+                is_string($showcase = $app->make('config')->get('metered.demo.showcase')) && $showcase !== '' ? Slug::fromString($showcase) : null,
             ),
         );
 
@@ -131,7 +134,7 @@ final class TenancyServiceProvider extends ServiceProvider
         );
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreateOrganizationCommand::class, PurgeIdleDemosCommand::class]);
+            $this->commands([CreateOrganizationCommand::class, AddMemberCommand::class, PurgeIdleDemosCommand::class]);
         }
 
         // The module carries its own views and its own piece of the panel
@@ -145,6 +148,18 @@ final class TenancyServiceProvider extends ServiceProvider
             PanelsRenderHook::TOPBAR_START,
             static fn(): string => Blade::render('@livewire(\'tenancy.project-switcher\')'),
         );
+
+        // On a demo, the sign-in page says how to look around before signing
+        // up: the showcase's read-only account (ADR-0016). Nowhere else.
+        if ($this->app->make('config')->get('metered.demo.enabled') === true) {
+            FilamentView::registerRenderHook(
+                PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,
+                fn(): string => view('tenancy::filament.showcase-login', [
+                    'email' => $this->app->make('config')->get('metered.demo.showcase_login.email'),
+                    'password' => $this->app->make('config')->get('metered.demo.showcase_login.password'),
+                ])->render(),
+            );
+        }
     }
 
     /**

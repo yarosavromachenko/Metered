@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Application\Command;
 
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Tenancy\Domain\Slug;
 use RuntimeException;
 
 /**
@@ -26,6 +27,11 @@ final class TenantNotFound extends RuntimeException
     public static function organization(Uuid $id): self
     {
         return new self(sprintf('No organization %s.', $id->value));
+    }
+
+    public static function organizationNamed(Slug $slug): self
+    {
+        return new self(sprintf('No organization "%s".', $slug->value));
     }
 
     public static function apiKey(Uuid $id): self

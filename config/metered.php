@@ -25,6 +25,16 @@ return [
         // A demo tenant nobody has signed in to for this long is deleted by
         // the daily tenancy:purge-idle-demos, invoices and all.
         'idle_days' => (int) env('DEMO_IDLE_DAYS', 7),
+
+        // The seeded organization a visitor can look around before signing
+        // up (`make demo`), and the read-only account that signs in to it.
+        // It is a demo, so demo:reset can rebuild it, but the idle sweep
+        // never removes it.
+        'showcase' => env('DEMO_SHOWCASE', 'northwind-cloud'),
+        'showcase_login' => [
+            'email' => env('DEMO_SHOWCASE_EMAIL', 'demo@metered.test'),
+            'password' => env('DEMO_SHOWCASE_PASSWORD', 'metered-demo'),
+        ],
     ],
 
     'admin' => [

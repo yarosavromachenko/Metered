@@ -18,3 +18,10 @@ it('has no sign-up route when the instance is not a demo', function (): void {
 
     get('/admin/register')->assertNotFound();
 });
+
+it('offers no showcase account on a sign-in page that is not a demo\'s', function (): void {
+    get('/admin/login')
+        ->assertOk()
+        ->assertDontSee('Look around first')
+        ->assertDontSee('metered-demo');
+});

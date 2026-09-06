@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Tenancy\Presentation\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Contracts\Config\Repository;
 use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Exception\DomainException;
 use Metered\Tenancy\Application\Command\ProvisionTenant;
@@ -29,12 +30,24 @@ final class CreateOrganizationCommand extends Command
         {--project=Production : The name of its first project}
         {--environment=test : live or test}
         {--currency=EUR : The currency everything under the project is priced in}
-        {--json : Print the result as one JSON object, for scripts}';
+        {--json : Print the result as one JSON object, for scripts}
+        {--demo : Create it as a demo organization, which demo mode may purge — only in demo mode}';
 
     protected $description = 'Create an organization with its first project and API key';
 
-    public function handle(ProvisionTenantHandler $handler): int
+    public function handle(ProvisionTenantHandler $handler, Repository $config): int
     {
+        $demo = $this->option('demo') === true;
+
+        // A demo organization is deleted, money history and all, when it is
+        // idle or the demo is reset. Only an instance that is a demo may
+        // create one, so a stray flag cannot doom a real tenant.
+        if ($demo && $config->get('metered.demo.enabled') !== true) {
+            $this->components->error('Demo organizations exist only in demo mode (APP_DEMO=true).');
+
+            return self::INVALID;
+        }
+
         $environment = Environment::tryFrom((string) $this->option('environment'));
 
         if ($environment === null) {
@@ -50,6 +63,7 @@ final class CreateOrganizationCommand extends Command
                 projectName: (string) $this->option('project'),
                 environment: $environment,
                 currency: (string) $this->option('currency'),
+                demo: $demo,
             ));
         } catch (DomainException $failure) {
             // A rule the domain refused — an empty name, an unknown currency.

@@ -104,3 +104,15 @@ it('runs every day on the scheduler', function (): void {
     expect(Artisan::call('schedule:list'))->toBe(0)
         ->and(Artisan::output())->toContain('tenancy:purge-idle-demos');
 });
+
+it('leaves the showcase alone, however idle', function (): void {
+    config(['metered.demo.showcase' => 'showcase']);
+    $showcase = demoSignedInAt('showcase', null);
+    $visitor = demoSignedInAt('visitor', null);
+
+    moveTo('2026-03-10 12:00:00');
+
+    expect(sweep())->toContain('Purged 1 idle demo organization(s).')
+        ->and(stillThere($showcase))->toBeTrue()
+        ->and(stillThere($visitor))->toBeFalse();
+});

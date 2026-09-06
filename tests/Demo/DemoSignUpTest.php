@@ -27,3 +27,11 @@ it('starts a visitor with nothing and no tenant until they sign up', function ()
 
     get('/admin')->assertRedirect();
 });
+
+it('tells a visitor how to look around before signing up', function (): void {
+    get('/admin/login')
+        ->assertOk()
+        ->assertSee('Look around first')
+        ->assertSee('demo@metered.test')
+        ->assertSee('metered-demo');
+});
