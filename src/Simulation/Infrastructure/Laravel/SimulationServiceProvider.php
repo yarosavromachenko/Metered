@@ -5,19 +5,24 @@ declare(strict_types=1);
 namespace Metered\Simulation\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Http\Client\Factory;
 use Illuminate\Support\ServiceProvider;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Simulation\Application\Port\ApiConnector;
+use Metered\Simulation\Application\Port\Disruption;
 use Metered\Simulation\Application\Port\HistoryLoader;
 use Metered\Simulation\Application\Port\Pacer;
 use Metered\Simulation\Application\Port\PeriodCloser;
 use Metered\Simulation\Application\Port\TenantProvisioner;
 use Metered\Simulation\Application\Port\TimeMachine;
+use Metered\Simulation\Application\Port\UsageAudit;
+use Metered\Simulation\Application\Port\Waiter;
 use Metered\Simulation\Application\Port\WebhookInbox;
 use Metered\Simulation\Infrastructure\Http\HttpApiConnector;
 use Metered\Simulation\Infrastructure\Http\ReceiverInbox;
 use Metered\Simulation\Infrastructure\Persistence\CopyHistoryLoader;
+use Metered\Simulation\Presentation\Console\ChaosCommand;
 use Metered\Simulation\Presentation\Console\SeedCommand;
 use Metered\Simulation\Presentation\Console\TimeTravelCommand;
 use Metered\Simulation\Presentation\Console\TrafficCommand;
@@ -56,12 +61,19 @@ final class SimulationServiceProvider extends ServiceProvider
         $this->app->singleton(HistoryLoader::class, CopyHistoryLoader::class);
         $this->app->bind(Pacer::class, WallClockPacer::class);
         $this->app->singleton(TimeMachine::class, SharedClockTimeMachine::class);
+        $this->app->singleton(Waiter::class, PollingWaiter::class);
+        $this->app->singleton(UsageAudit::class, ConsoleUsageAudit::class);
+        $this->app->singleton(Disruption::class, static fn(Application $app): Disruption => new ProcessDisruption(
+            $app->make(RedisFactory::class),
+            $app->make('config'),
+            $app->basePath('artisan'),
+        ));
     }
 
     public function boot(): void
     {
         if ($this->app->environment(self::ENVIRONMENTS) && $this->app->runningInConsole()) {
-            $this->commands([SeedCommand::class, TrafficCommand::class, TimeTravelCommand::class]);
+            $this->commands([SeedCommand::class, TrafficCommand::class, TimeTravelCommand::class, ChaosCommand::class]);
         }
     }
 
