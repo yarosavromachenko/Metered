@@ -13,11 +13,13 @@ use Metered\Simulation\Application\Port\HistoryLoader;
 use Metered\Simulation\Application\Port\Pacer;
 use Metered\Simulation\Application\Port\PeriodCloser;
 use Metered\Simulation\Application\Port\TenantProvisioner;
+use Metered\Simulation\Application\Port\TimeMachine;
 use Metered\Simulation\Application\Port\WebhookInbox;
 use Metered\Simulation\Infrastructure\Http\HttpApiConnector;
 use Metered\Simulation\Infrastructure\Http\ReceiverInbox;
 use Metered\Simulation\Infrastructure\Persistence\CopyHistoryLoader;
 use Metered\Simulation\Presentation\Console\SeedCommand;
+use Metered\Simulation\Presentation\Console\TimeTravelCommand;
 use Metered\Simulation\Presentation\Console\TrafficCommand;
 
 /**
@@ -53,12 +55,13 @@ final class SimulationServiceProvider extends ServiceProvider
         $this->app->singleton(PeriodCloser::class, ConsolePeriodCloser::class);
         $this->app->singleton(HistoryLoader::class, CopyHistoryLoader::class);
         $this->app->bind(Pacer::class, WallClockPacer::class);
+        $this->app->singleton(TimeMachine::class, SharedClockTimeMachine::class);
     }
 
     public function boot(): void
     {
         if ($this->app->environment(self::ENVIRONMENTS) && $this->app->runningInConsole()) {
-            $this->commands([SeedCommand::class, TrafficCommand::class]);
+            $this->commands([SeedCommand::class, TrafficCommand::class, TimeTravelCommand::class]);
         }
     }
 
