@@ -15,6 +15,18 @@ Artisan::command('inspire', function (): void {
 | Scheduled work
 |--------------------------------------------------------------------------
 |
+| Every overlap lock is given a lifetime near its command's own interval.
+| The default is a day, and a scheduler restarted while a command holds its
+| lock would leave that command skipped for the rest of it — which is how
+| webhook delivery once stopped on a running stack (M7, `sim:chaos`).
+|
+*/
+
+/*
+|--------------------------------------------------------------------------
+| Partitions
+|--------------------------------------------------------------------------
+|
 | Partitions have to exist before the events that belong in them arrive, so
 | this runs daily and creates a week ahead: a day of scheduler downtime costs
 | pruning, not ingestion, because the default partition still accepts writes
@@ -27,7 +39,7 @@ Artisan::command('inspire', function (): void {
 
 Schedule::command('usage:partitions:ensure')
     ->dailyAt('03:10')
-    ->withoutOverlapping()
+    ->withoutOverlapping(60)
     ->onOneServer();
 
 /*
@@ -43,7 +55,7 @@ Schedule::command('usage:partitions:ensure')
 
 Schedule::command('billing:close-periods')
     ->everyFiveMinutes()
-    ->withoutOverlapping()
+    ->withoutOverlapping(5)
     ->onOneServer();
 
 /*
@@ -59,7 +71,7 @@ Schedule::command('billing:close-periods')
 
 Schedule::command('webhooks:dispatch')
     ->everyTenSeconds()
-    ->withoutOverlapping()
+    ->withoutOverlapping(1)
     ->onOneServer();
 
 /*
@@ -76,5 +88,5 @@ Schedule::command('webhooks:dispatch')
 
 Schedule::command('tenancy:purge-idle-demos')
     ->dailyAt('03:40')
-    ->withoutOverlapping()
+    ->withoutOverlapping(60)
     ->onOneServer();
