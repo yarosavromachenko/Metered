@@ -7,8 +7,10 @@ namespace Metered\Tenancy\Presentation\Filament\Auth;
 use Filament\Auth\Pages\Register;
 use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
+use Illuminate\Contracts\Events\Dispatcher;
 use Metered\Tenancy\Application\Command\RegisterDemoTenant;
 use Metered\Tenancy\Application\Command\RegisterDemoTenantHandler;
+use Metered\Tenancy\Application\Contract\DemoDataRequested;
 use Metered\Tenancy\Infrastructure\Eloquent\User;
 use RuntimeException;
 use SensitiveParameter;
@@ -60,6 +62,13 @@ final class RegisterTenant extends Register
             email: $this->text($data['email'] ?? null),
             password: $this->text($data['password'] ?? null),
             organizationName: $this->text($data['organization'] ?? null),
+        ));
+
+        // Filled in the background, once this registration has committed:
+        // the visitor lands in their panel at once and watches it fill.
+        app(Dispatcher::class)->dispatch(new DemoDataRequested(
+            $registered->tenant->organization->id->value,
+            $registered->tenant->secret->reveal(),
         ));
 
         $user = User::query()->find($registered->userId->value);

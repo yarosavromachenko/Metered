@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Simulation\Infrastructure\Laravel;
 
+use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Http\Client\Factory;
@@ -22,10 +23,12 @@ use Metered\Simulation\Application\Port\WebhookInbox;
 use Metered\Simulation\Infrastructure\Http\HttpApiConnector;
 use Metered\Simulation\Infrastructure\Http\ReceiverInbox;
 use Metered\Simulation\Infrastructure\Persistence\CopyHistoryLoader;
+use Metered\Simulation\Infrastructure\Queue\SeedDemoTenantJob;
 use Metered\Simulation\Presentation\Console\ChaosCommand;
 use Metered\Simulation\Presentation\Console\SeedCommand;
 use Metered\Simulation\Presentation\Console\TimeTravelCommand;
 use Metered\Simulation\Presentation\Console\TrafficCommand;
+use Metered\Tenancy\Application\Contract\DemoDataRequested;
 
 /**
  * The simulation's wiring. The module is removed from the production image,
@@ -72,6 +75,15 @@ final class SimulationServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Every demo tenant that asks for data gets the small profile,
+        // queued; outside a demo nothing asks.
+        if ($this->app->environment(self::ENVIRONMENTS)) {
+            $this->app->make(Dispatcher::class)->listen(
+                DemoDataRequested::class,
+                static fn(DemoDataRequested $request): mixed => dispatch(new SeedDemoTenantJob($request->organizationId, $request->token)),
+            );
+        }
+
         if ($this->app->environment(self::ENVIRONMENTS) && $this->app->runningInConsole()) {
             $this->commands([SeedCommand::class, TrafficCommand::class, TimeTravelCommand::class, ChaosCommand::class]);
         }
