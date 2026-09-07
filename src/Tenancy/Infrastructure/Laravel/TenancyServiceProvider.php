@@ -16,8 +16,10 @@ use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authorization\PermissionGuard;
+use Metered\Tenancy\Application\Command\IssueApiKeyHandler;
 use Metered\Tenancy\Application\Command\PurgeDemoOrganizationHandler;
 use Metered\Tenancy\Application\Command\PurgeIdleDemosHandler;
+use Metered\Tenancy\Application\Command\ResetDemoOrganizationHandler;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Application\Contract\PanelScope as PanelScopeContract;
 use Metered\Tenancy\Application\Contract\ProjectDirectory;
@@ -97,6 +99,20 @@ final class TenancyServiceProvider extends ServiceProvider
                 $app->make(ProjectRepository::class),
                 $app->make(MembershipRepository::class),
                 $app->make(UserAccounts::class),
+                self::purgers($app),
+                $app->make(Transactions::class),
+                $app->make(AuditLogger::class),
+                $app->make(ClockInterface::class),
+            ),
+        );
+
+        $this->app->bind(
+            ResetDemoOrganizationHandler::class,
+            static fn(Application $app): ResetDemoOrganizationHandler => new ResetDemoOrganizationHandler(
+                $app->make(OrganizationRepository::class),
+                $app->make(ProjectRepository::class),
+                $app->make(Authorizer::class),
+                $app->make(IssueApiKeyHandler::class),
                 self::purgers($app),
                 $app->make(Transactions::class),
                 $app->make(AuditLogger::class),

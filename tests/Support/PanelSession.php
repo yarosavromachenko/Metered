@@ -19,9 +19,9 @@ use RuntimeException;
  */
 final class PanelSession
 {
-    public static function signIn(string $organizationSlug = 'acme', Role $role = Role::Admin): Project
+    public static function signIn(string $organizationSlug = 'acme', Role $role = Role::Admin, bool $demo = false): Project
     {
-        $project = TenantFactory::tenant($organizationSlug);
+        $project = TenantFactory::tenant($organizationSlug, $demo);
         $member = TenantFactory::member($project->organizationId, $role, $role->value . '@' . $organizationSlug . '.example');
 
         $user = User::query()->find($member->userId?->value);

@@ -73,9 +73,9 @@ final class TenantFactory
      * A whole tenant in one call, for tests that care about isolation rather
      * than about how a tenant is assembled.
      */
-    public static function tenant(string $slug = 'acme'): Project
+    public static function tenant(string $slug = 'acme', bool $demo = false): Project
     {
-        return self::project(self::organization($slug));
+        return self::project(self::organization($slug, $demo));
     }
 
     /**
