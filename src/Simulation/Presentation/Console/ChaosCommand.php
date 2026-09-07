@@ -24,7 +24,10 @@ final class ChaosCommand extends Command
 
     public function handle(RunChaosHandler $handler): int
     {
-        $scenario = Scenario::tryFrom((string) $this->argument('scenario'));
+        // Narrowed here rather than cast: the signature only types the input
+        // where the command is registered, and it is not in every environment.
+        $name = $this->argument('scenario');
+        $scenario = is_string($name) ? Scenario::tryFrom($name) : null;
 
         if ($scenario === null) {
             $this->components->error('The scenario must be one of: ' . implode(', ', array_map(static fn(Scenario $s): string => $s->value, Scenario::cases())) . '.');

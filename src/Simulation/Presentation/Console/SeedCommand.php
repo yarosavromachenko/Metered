@@ -27,7 +27,7 @@ final class SeedCommand extends Command
 
     public function handle(SeedTenantHandler $handler): int
     {
-        $profile = Profile::tryFrom((string) $this->option('profile'));
+        $profile = Profile::tryFrom($this->text('profile'));
 
         if ($profile === null) {
             $this->components->error('The profile must be small, demo or heavy.');
@@ -41,7 +41,7 @@ final class SeedCommand extends Command
         $report = $handler->handle(new SeedTenant(
             profile: $profile,
             seed: (int) $this->option('seed'),
-            organizationName: (string) $this->option('organization'),
+            organizationName: $this->text('organization'),
             token: is_string($key) && $key !== '' ? $key : null,
             progress: $this->option('json') === true ? null : fn(string $line) => $this->line('  <fg=gray>·</> ' . $line),
             demo: $this->option('demo') === true,
@@ -78,5 +78,16 @@ final class SeedCommand extends Command
         }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * A text option, narrowed rather than cast: the signature only types the
+     * input where the command is registered, and it is not in every environment.
+     */
+    private function text(string $option): string
+    {
+        $value = $this->option($option);
+
+        return is_string($value) ? $value : '';
     }
 }

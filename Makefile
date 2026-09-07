@@ -64,8 +64,13 @@ fix: ## Apply Pint and Rector fixes
 	$(EXEC) vendor/bin/rector process
 
 .PHONY: static
+# Larastan boots the application and types console input from the signatures of
+# the commands registered there. CI has no .env and boots as production, where
+# the simulation commands are not registered; analysing under the local .env
+# typed their input and hid six errors CI then reported. So analyse the way CI
+# boots — with the demo-only settings the production boot refuses cleared.
 static: ## Larastan (level max) + Deptrac (layers and module boundaries)
-	$(EXEC) vendor/bin/phpstan analyse --memory-limit=1G
+	$(EXEC) env APP_ENV=production APP_DEMO=false WEBHOOKS_TRUSTED_DESTINATION= vendor/bin/phpstan analyse --memory-limit=1G
 	$(EXEC) vendor/bin/deptrac analyse --config-file=deptrac.layers.yaml
 	$(EXEC) vendor/bin/deptrac analyse --config-file=deptrac.modules.yaml
 
