@@ -214,7 +214,7 @@ services:
       # Several workers, so a /slow delivery does not hold up the others.
       PHP_CLI_SERVER_WORKERS: "4"
     ports:
-      - "127.0.0.1:8089:8080"
+      - "127.0.0.1:${WEBHOOK_RECEIVER_PORT:-8089}:8080"
     restart: unless-stopped
 
   # Load profile only: `make load`. Not part of `make up`.
