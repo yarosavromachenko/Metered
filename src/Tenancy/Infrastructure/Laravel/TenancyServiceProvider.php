@@ -40,6 +40,7 @@ use Metered\Tenancy\Infrastructure\Persistence\DatabaseProjectRepository;
 use Metered\Tenancy\Presentation\Console\AddMemberCommand;
 use Metered\Tenancy\Presentation\Console\CreateOrganizationCommand;
 use Metered\Tenancy\Presentation\Console\PurgeIdleDemosCommand;
+use Metered\Tenancy\Presentation\Console\ResetDemosCommand;
 use Metered\Tenancy\Presentation\Filament\Components\ProjectSwitcher;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
@@ -150,7 +151,7 @@ final class TenancyServiceProvider extends ServiceProvider
         );
 
         if ($this->app->runningInConsole()) {
-            $this->commands([CreateOrganizationCommand::class, AddMemberCommand::class, PurgeIdleDemosCommand::class]);
+            $this->commands([CreateOrganizationCommand::class, AddMemberCommand::class, PurgeIdleDemosCommand::class, ResetDemosCommand::class]);
         }
 
         // The module carries its own views and its own piece of the panel

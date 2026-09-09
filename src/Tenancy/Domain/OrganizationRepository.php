@@ -27,10 +27,11 @@ interface OrganizationRepository
     public function remove(Uuid $id): void;
 
     /**
-     * Demo organizations nobody has signed in to since the cutoff, oldest
-     * first. A member who never signed in counts from when they registered.
+     * Demo organizations, oldest first. Given a cutoff, only those nobody
+     * has signed in to since — a member who never signed in counts from when
+     * they registered.
      *
      * @return list<Uuid>
      */
-    public function demosIdleSince(DateTimeImmutable $cutoff): array;
+    public function demos(?DateTimeImmutable $idleSince = null): array;
 }

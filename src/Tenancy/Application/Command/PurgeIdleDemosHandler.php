@@ -39,7 +39,7 @@ final readonly class PurgeIdleDemosHandler
         $cutoff = $this->clock->now()->sub(new DateInterval(sprintf('PT%dS', $this->idleSeconds)));
         $showcase = $this->showcase instanceof Slug ? $this->organizations->findBySlug($this->showcase)?->id : null;
         $idle = array_values(array_filter(
-            $this->organizations->demosIdleSince($cutoff),
+            $this->organizations->demos(idleSince: $cutoff),
             static fn(Uuid $id): bool => ! $showcase instanceof Uuid || ! $id->equals($showcase),
         ));
 

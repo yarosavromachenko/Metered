@@ -44,23 +44,23 @@ final readonly class DatabaseOrganizationRepository implements OrganizationRepos
         $this->db->connection()->table('organizations')->where('id', $id->value)->delete();
     }
 
-    public function demosIdleSince(DateTimeImmutable $cutoff): array
+    public function demos(?DateTimeImmutable $idleSince = null): array
     {
-        $instant = $cutoff->format('Y-m-d H:i:s.uP');
+        $query = $this->db->connection()->table('organizations as o')->where('o.demo', true);
 
-        $ids = $this->db->connection()->table('organizations as o')
-            ->where('o.demo', true)
-            ->where('o.created_at', '<', $instant)
-            ->whereNotExists(static function (Builder $members) use ($instant): void {
-                $members->selectRaw('1')
-                    ->from('organization_members as m')
-                    ->join('users as u', 'u.id', '=', 'm.user_id')
-                    ->whereColumn('m.organization_id', 'o.id')
-                    ->whereRaw('COALESCE(u.last_signed_in_at, u.created_at) >= ?', [$instant]);
-            })
-            ->orderBy('o.created_at')
-            ->pluck('o.id')
-            ->all();
+        if ($idleSince instanceof DateTimeImmutable) {
+            $instant = $idleSince->format('Y-m-d H:i:s.uP');
+            $query->where('o.created_at', '<', $instant)
+                ->whereNotExists(static function (Builder $members) use ($instant): void {
+                    $members->selectRaw('1')
+                        ->from('organization_members as m')
+                        ->join('users as u', 'u.id', '=', 'm.user_id')
+                        ->whereColumn('m.organization_id', 'o.id')
+                        ->whereRaw('COALESCE(u.last_signed_in_at, u.created_at) >= ?', [$instant]);
+                });
+        }
+
+        $ids = $query->orderBy('o.created_at')->pluck('o.id')->all();
 
         return array_values(array_map(
             static fn(mixed $id): Uuid => Uuid::fromString(RowReader::string($id, 'id')),
