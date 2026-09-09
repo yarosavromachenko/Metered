@@ -4,13 +4,14 @@ declare(strict_types=1);
 
 namespace Metered\Webhooks\Application\Command;
 
+use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Access\Permission;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Webhooks\Domain\Endpoint\EndpointRepository;
 
 /**
  * Removes an endpoint, and with it its deliveries and their log. Switching it
- * off keeps both.
+ * off keeps both. The removal and its audit entry commit together.
  */
 final readonly class RemoveEndpointHandler
 {
@@ -18,6 +19,7 @@ final readonly class RemoveEndpointHandler
         private EndpointRepository $endpoints,
         private Authorizer $authorizer,
         private EndpointAudit $audit,
+        private Transactions $transactions,
     ) {}
 
     public function handle(RemoveEndpoint $command): void
@@ -26,7 +28,9 @@ final readonly class RemoveEndpointHandler
 
         $endpoint = $this->endpoints->find($command->tenant, $command->endpointId) ?? throw WebhookNotFound::of('endpoint', $command->endpointId);
 
-        $this->endpoints->remove($command->tenant, $endpoint->id);
-        $this->audit->record($command->actor, 'webhook_endpoint.removed', $endpoint);
+        $this->transactions->run(function () use ($command, $endpoint): void {
+            $this->endpoints->remove($command->tenant, $endpoint->id);
+            $this->audit->record($command->actor, 'webhook_endpoint.removed', $endpoint);
+        });
     }
 }

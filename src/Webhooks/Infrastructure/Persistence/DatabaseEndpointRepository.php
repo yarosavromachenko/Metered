@@ -89,8 +89,21 @@ final readonly class DatabaseEndpointRepository implements EndpointRepository
         return $endpoints;
     }
 
+    /**
+     * Deliveries first, then the endpoint. A delivery worker locks the
+     * delivery it claims and then its endpoint; deleting the endpoint and
+     * letting the cascade reach the deliveries locks them the other way
+     * round, and a removal during an attempt deadlocks
+     * (tests/Concurrency/Webhooks). The cascade stays, for anything else.
+     */
     public function remove(TenantContext $tenant, Uuid $id): bool
     {
+        $this->db->connection()->table('webhook_deliveries')
+            ->where('project_id', $tenant->projectId->value)
+            ->where('organization_id', $tenant->organizationId->value)
+            ->where('endpoint_id', $id->value)
+            ->delete();
+
         return $this->scoped($tenant)->where('id', $id->value)->delete() > 0;
     }
 

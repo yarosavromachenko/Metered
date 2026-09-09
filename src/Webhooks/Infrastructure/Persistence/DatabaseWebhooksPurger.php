@@ -9,8 +9,9 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 
 /**
- * A purged tenant's endpoints, and with them, by cascade, every delivery and
- * attempt — the same thing removing one endpoint does.
+ * A purged tenant's deliveries (their attempts follow by cascade), then its
+ * endpoints — the same thing removing one endpoint does, and in the same
+ * order, for the same reason: see DatabaseEndpointRepository::remove().
  */
 final readonly class DatabaseWebhooksPurger implements TenantDataPurger
 {
@@ -24,6 +25,7 @@ final readonly class DatabaseWebhooksPurger implements TenantDataPurger
             return;
         }
 
+        $this->db->connection()->table('webhook_deliveries')->whereIn('project_id', $projects)->delete();
         $this->db->connection()->table('webhook_endpoints')->whereIn('project_id', $projects)->delete();
     }
 }
