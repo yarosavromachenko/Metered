@@ -122,20 +122,52 @@ security: ## Dependency and filesystem vulnerability scan
 # Demo and load
 # --------------------------------------------------------------------------
 
+.PHONY: install
+install: ## Install PHP dependencies into the working tree (the app mounts it over the image's)
+	@test -f .env || cp .env.example .env
+	$(DC) run --rm --no-deps --entrypoint composer app install --no-interaction --no-progress
+
+# The showcase every visitor can look around before signing up (ADR-0016).
+# Its read-only account is printed on the login page in demo mode; keep these
+# in step with DEMO_SHOWCASE_EMAIL / DEMO_SHOWCASE_PASSWORD if you change them.
+SHOWCASE          ?= Northwind Cloud
+SHOWCASE_EMAIL    ?= demo@metered.test
+SHOWCASE_PASSWORD ?= metered-demo
+TRAFFIC           := metered-demo-traffic
+
 .PHONY: demo
-demo: ## One command for a reviewer: stack + seeded data + live traffic + open admin
-	$(DC) --profile demo up -d --build
-	$(MAKE) migrate
-	$(EXEC) php artisan sim:seed --profile=demo
-	$(EXEC) php artisan sim:traffic --rps=50 --duration=60 &
-	@echo "Admin panel:  http://localhost:8080/admin  (sign up to get your own demo tenant)"
-	@echo "Grafana:      http://localhost:3000"
-	@echo "Horizon:      http://localhost:8080/horizon"
+# APP_DEMO is read once, at boot, by long-running processes; when this switches
+# it on for a stack that is already up, the stack is restarted to see it.
+demo: ## One command for a reviewer: stack, showcase data, live traffic
+	@test -f .env || cp .env.example .env
+	@if ! grep -q '^APP_DEMO=true' .env; then \
+		sed -i.bak 's/^APP_DEMO=.*/APP_DEMO=true/' .env && rm -f .env.bak; \
+		$(DC) restart >/dev/null 2>&1 || true; \
+	fi
+	@test -f vendor/autoload.php || $(MAKE) install
+	$(MAKE) up
+	$(MAKE) demo-reset
+	@echo
+	@echo "Admin panel:  http://localhost:$${APP_PORT:-8080}/admin"
+	@echo "              $(SHOWCASE_EMAIL) / $(SHOWCASE_PASSWORD) (read-only), or sign up for a tenant of your own"
+	@echo "Webhooks:     http://localhost:8089"
+	@echo "Horizon:      http://localhost:$${APP_PORT:-8080}/horizon"
 
 .PHONY: demo-reset
-demo-reset: ## Wipe demo tenants and reseed
+# sim:seed prints one JSON object with the showcase's slug and key; the traffic
+# generator runs as its own container so the next reset can stop it.
+demo-reset: ## Delete every demo tenant, seed the showcase again, restart live traffic
+	@docker rm -f $(TRAFFIC) >/dev/null 2>&1 || true
 	$(EXEC) php artisan demo:reset --force
-	$(EXEC) php artisan sim:seed --profile=demo
+	@set -eu; \
+	seeded=$$($(EXEC) php artisan sim:seed --profile=demo --demo --organization="$(SHOWCASE)" --json) \
+		|| { echo "$$seeded" >&2; exit 1; }; \
+	key=$$(echo "$$seeded" | sed -n 's/.*"key":"\([^"]*\)".*/\1/p'); \
+	slug=$$(echo "$$seeded" | sed -n 's/.*"organization":"\([^"]*\)".*/\1/p'); \
+	test -n "$$key" -a -n "$$slug" || { echo "sim:seed printed no key: $$seeded" >&2; exit 1; }; \
+	$(EXEC) php artisan org:member "$$slug" $(SHOWCASE_EMAIL) --role=viewer --password=$(SHOWCASE_PASSWORD); \
+	$(DC) run -d --rm --no-deps --name $(TRAFFIC) app php artisan sim:traffic --key="$$key" --rps=20 --duration=3600 >/dev/null 2>&1; \
+	echo "Live traffic: 20 events/s for an hour (docker logs -f $(TRAFFIC))"
 
 .PHONY: load
 # --no-deps, because `compose run` otherwise reconciles the services this one
