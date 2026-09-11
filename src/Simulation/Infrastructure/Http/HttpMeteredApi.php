@@ -8,6 +8,7 @@ use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\Pool;
 use Illuminate\Http\Client\Response;
+use Illuminate\Support\Sleep;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Simulation\Application\Port\ApiRefused;
 use Metered\Simulation\Application\Port\MeteredApi;
@@ -83,6 +84,7 @@ final readonly class HttpMeteredApi implements MeteredApi
 
         for ($attempt = 1; $pending !== []; ++$attempt) {
             $retry = [];
+            $wait = 1;
 
             foreach (array_chunk($pending, self::CONCURRENCY) as $group) {
                 $responses = $this->http->createPendingRequest()->pool(function (Pool $pool) use ($group): void {
@@ -106,6 +108,7 @@ final readonly class HttpMeteredApi implements MeteredApi
                     // resending safe — ingestion deduplicates by them.
                     if ($attempt < self::ATTEMPTS && (! $response instanceof Response || in_array($response->status(), [429, 503], true) || $response->serverError())) {
                         $retry[] = $batch;
+                        $wait = $response instanceof Response ? max($wait, $this->retryAfter($response)) : $wait;
 
                         continue;
                     }
@@ -114,8 +117,11 @@ final readonly class HttpMeteredApi implements MeteredApi
                 }
             }
 
+            // As long as the longest Retry-After asked: a key whose minute is
+            // spent — by a seed that just ran on it — is refused until the
+            // minute is over, and resending sooner only spends attempts.
             if ($retry !== []) {
-                usleep(1_000_000);
+                Sleep::for($wait)->seconds();
             }
 
             $pending = $retry;
@@ -144,10 +150,17 @@ final readonly class HttpMeteredApi implements MeteredApi
             return false;
         }
 
-        $seconds = (int) $response->header('Retry-After');
-        usleep(max(1, min($seconds, 60)) * 1_000_000);
+        Sleep::for($this->retryAfter($response))->seconds();
 
         return true;
+    }
+
+    /**
+     * Seconds the answer asks to wait, at least one and at most a minute.
+     */
+    private function retryAfter(Response $response): int
+    {
+        return max(1, min((int) $response->header('Retry-After'), 60));
     }
 
     private function problem(Response $response): string
