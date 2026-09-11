@@ -15,71 +15,107 @@ cannot rot, cost money, or be abused.
 
 ## What `make demo` does
 
-1. Builds and starts the `demo` compose profile.
-2. Runs migrations and creates the usage partitions.
-3. Seeds the `demo` dataset (below).
-4. Starts a traffic generator so the graphs are alive rather than flat.
+1. Creates `.env` from `.env.example` if there is none and switches `APP_DEMO`
+   on, restarting a stack that was already running so it sees the change.
+2. Installs dependencies into the working tree if `vendor/` is missing — the
+   containers mount the tree over the image's own copy.
+3. Builds and starts the stack and runs the migrations.
+4. Runs `make demo-reset`: deletes every demo organization, seeds the showcase,
+   adds its read-only login, and starts a traffic generator.
 5. Prints the URLs.
+
+On a laptop the seed takes about two minutes; the first run adds the image
+build and `composer install`.
 
 | | |
 |---|---|
 | Admin panel | <http://localhost:8080/admin> |
-| API | <http://localhost:8080/api/v1> |
+| Grafana | <http://localhost:3000> — the "live load" dashboard |
+| Webhook receiver | <http://localhost:8089> |
 | Horizon | <http://localhost:8080/horizon> |
 | Mailpit | <http://localhost:8025> |
-| Grafana | <http://localhost:3000> |
+| API | <http://localhost:8080/api/v1> |
 
 If another project on your machine already holds one of those ports, set
-`APP_PORT`, `MAILPIT_WEB_PORT` and friends in `.env`; nothing inside the network
-cares which host port it is reached on.
+`APP_PORT`, `GRAFANA_PORT`, `WEBHOOK_RECEIVER_PORT`, `MAILPIT_WEB_PORT` and
+friends in `.env`; nothing inside the network cares which host port it is
+reached on.
 
-At the panel, sign up. You get your own organization, project, API key and a copy
-of the demo data, isolated from any other account on that machine.
+## Two ways in
+
+**Look around the showcase.** Sign in as `demo@metered.test` /
+`metered-demo` — the sign-in page shows both. "Northwind Cloud" has three months
+of history: 120 customers on four plans covering every pricing model, about two
+million usage events, some 230 invoices — most paid, a few overdue, one voided
+with a credit note — and webhook deliveries in every state. The account is a
+viewer: everyone sees the same data, and nobody can change it.
+
+**Sign up.** You get an organization, a project and an owner account of your
+own, filled in the background with the `small` profile within seconds. Break
+it — void invoices, point webhooks at the receiver's failing modes, send odd
+usage — and **Reset demo data** on the projects page empties it and seeds it
+again, keeping your members, projects and keys. A demo tenant nobody has
+signed in to for seven days is deleted by a daily sweep.
 
 ## Seed profiles
 
-| Profile | Contents | Purpose |
+| Profile | Contents | Used by |
 |---|---|---|
-| `small` | 2 organizations, 10 customers, a few thousand events | Development and the test suite |
-| `demo` | 3 organizations, 5 projects across two currencies, 120 customers, 4 plans covering all four pricing models, ~2M usage events across 90 days, closed invoices for past periods | What `make demo` loads |
-| `heavy` | ~20M events | Benchmarking and index work only |
+| `small` | 12 customers, ~30k events over 60 days, a week of it through the API | Every sign-up; development |
+| `demo` | 120 customers, ~2M events over 90 days, ~230 invoices | The showcase |
+| `heavy` | 1,000 customers, ~20M events over 90 days | Benchmarking and index work only |
 
-The `demo` profile deliberately includes awkward data, because a demo of only
-happy paths demonstrates nothing: subscriptions anchored on the 29th, 30th and
-31st; duplicate events; events arriving late; a customer with zero usage; an
-invoice that was voided and re-issued; a webhook endpoint whose circuit breaker
-is open; and two projects in different currencies under one organization, so the
-dashboards have to group rather than sum.
+Every profile carries the same awkward cases, because a demo of only happy
+paths demonstrates nothing: subscriptions anchored on the 29th, 30th and 31st,
+so the month-end clamp shows in real invoices; a customer who never uses
+anything; one who changes plan and one who cancels; duplicates, late events and
+events naming a meter or customer that does not exist; and one webhook endpoint
+for each mode of the demo receiver — accepting, flaky, slow, down (its circuit
+breaker opens) and gone.
 
-## Why seeding does not go through the API
+## How a tenant is seeded
 
-`sim:traffic` and `sim:seed` drive the public HTTP API on purpose — that is the
-only way the ingestion path is exercised end to end. Two million historical
-events over HTTP would take far longer than anyone will wait, so historical bulk
-is loaded by `sim:backfill` with `COPY`, writing events and aggregates in the
-same shape the consumer would have produced. `usage:reconcile` runs afterwards
-and proves the two agree. The reasoning is in
+`sim:seed` works as a client and a history would:
+
+1. The catalog, webhook endpoints, customers and backdated subscriptions are
+   created **through the public API**.
+2. History older than the last few days is loaded with `COPY` — events and the
+   hourly aggregates the consumer would have written — and `usage:reconcile`
+   must find no drift, or the seed stops. Two million events over HTTP would
+   take far longer than anyone waits, and the acceptance window refuses events
+   older than a week anyway.
+3. Every period that has ended is closed by the ordinary period close, so the
+   invoices are built by the same code as any other.
+4. The invoices are settled through the API: paid some days after issue, a few
+   left overdue, one voided.
+5. The last days of usage go **through the API**, some of it late for periods
+   already closed, so the next invoice carries late lines.
+
+The reasoning, and what changed from the first proposal, is in
 [ADR-0016](adr/0016-demo-mode-and-seed-profiles.md).
 
 ## Other commands
 
 ```bash
-make demo-reset   # wipe demo tenants and reseed
+make demo-reset   # delete every demo tenant, seed the showcase again
 make load         # k6 load profile against the local stack
 make down         # stop, keep data
 make destroy      # stop and delete volumes
 ```
 
 ```bash
-docker compose exec app php artisan sim:traffic --rps=200 --duration=120 --dup-rate=0.02 --late-rate=0.01
+docker compose exec app php artisan sim:seed --profile=small --organization="Acme"
+docker compose exec app php artisan sim:traffic --key=<key> --rps=200 --duration=120 --dup-rate=0.02
+docker compose exec app php artisan sim:time-travel --by=P1M
 docker compose exec app php artisan sim:chaos kill-consumer
-docker compose exec app php artisan usage:reconcile --from="-1 hour"
 ```
 
-`sim:chaos` kills a component mid-flight and then checks the invariants. Each
-scenario ends by running `usage:reconcile`, which must report zero drift — no
-lost events and no double counting. Those runs are the evidence behind the
-reliability claims in the README.
+`sim:chaos` breaks one part of the running stack — the consumer, Redis, the
+outbox relay, a webhook receiver — while traffic flows, and then checks the
+invariants: every accepted event stored exactly once, the aggregates agreeing
+with the events under them, every event published and every delivery
+accounted for. Those runs are the evidence behind the reliability claims in
+the README.
 
 ## What is running
 
@@ -88,15 +124,16 @@ reliability claims in the README.
 | `app` | Octane on FrankenPHP: the API, the admin panel and Horizon's dashboard |
 | `outbox-relay` | Publishes committed integration events to the queue |
 | `horizon` | Queue workers: `billing`, `webhooks`, `default`, each supervised separately |
-| `usage-consumer` | Redis Stream → PostgreSQL, with aggregates in the same transaction *(M3)* |
-| `scheduler` | Period close, partition creation, expiry sweeps *(M3)* |
+| `usage-consumer` | Redis Stream → PostgreSQL, with aggregates in the same transaction |
+| `scheduler` | Period close, partition creation, expiry and idle-demo sweeps |
 | `postgres` | PostgreSQL 18 |
 | `pgbouncer` | Transaction pooling for the web tier only; the daemons connect directly |
 | `redis` | Cache, sessions, queues and the ingestion stream |
 | `mailpit` | Catches every outgoing message and shows it in a browser |
-| `webhook-sink` | A local endpoint to deliver webhooks to, including on purpose-broken ones *(M6)* |
-| `otel-collector`, `tempo`, `prometheus`, `grafana` | Traces, metrics and dashboards *(M8)* |
-| `k6` | Load scenarios, under the `load` profile *(M7)* |
+| `webhook-receiver` | A stand-in for a tenant's system: receives, verifies and lists webhooks, with purpose-broken modes |
+| `grafana` | The live-load dashboard, read from PostgreSQL |
+| `otel-collector`, `tempo`, `prometheus` | Traces and metrics *(M8)* |
+| `k6` | Load scenarios, under the `load` profile |
 
 ## Requirements
 

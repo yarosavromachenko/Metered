@@ -15,8 +15,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M4 | Billing catalog and subscriptions | M | ✅ done |
 | M5 | Invoicing and ledger | L | ✅ done |
 | M6 | Webhooks | M | ✅ done |
-| M7 | Simulation, seed profiles and chaos | M | 🔜 next |
-| M8 | Observability polish | S–M | ⬜ |
+| M7 | Simulation, seed profiles and chaos | M | ✅ done |
+| M8 | Observability polish | S–M | 🔜 next |
 | M9 | Release polish | S | ⬜ |
 
 The admin panel is not a milestone of its own. It grows inside each milestone,
@@ -150,13 +150,24 @@ both are fixed and tested.
 
 ## M7 — Simulation, seed profiles and chaos
 
-`sim:seed` with `small`/`demo`/`heavy` profiles, `sim:backfill` for bulk history,
-`sim:traffic`, `sim:chaos`, `sim:time-travel`, k6 scenarios, `demo:reset`.
+`sim:seed` with `small`/`demo`/`heavy` profiles and a bulk history stage,
+`sim:traffic`, `sim:chaos`, `sim:time-travel`, k6 scenarios, `demo:reset`,
+the showcase and self-service demo tenants, a live-load dashboard in Grafana.
 
-- [ ] `make demo` on a clean clone brings up the stack, fills it, and shows live load in Grafana
-- [ ] The `demo` profile produces roughly two million usage events over 90 days in under five minutes
-- [ ] Every chaos scenario ends with a green invariant check
-- [ ] ADR-0016 accepted
+- [x] `make demo` on a clean clone brings up the stack, fills it, and shows live load in Grafana
+- [x] The `demo` profile produces roughly two million usage events over 90 days in under five minutes — about two on a laptop
+- [x] Every chaos scenario ends with a green invariant check — `kill-consumer`, `kill-redis-brief`, `kill-relay`, `slow-webhook`, `failing-webhook`
+- [x] ADR-0016 accepted
+
+A visitor looks around a shared, read-only showcase or signs up for a small
+tenant of their own that seeds in seconds and resets from the panel; idle demo
+tenants are purged, and only demo tenants can be ([ADR-0016](adr/0016-demo-mode-and-seed-profiles.md),
+assumptions 37–48). Running it for real found five bugs outside the
+simulation, each fixed with a test: tracing was switched on everywhere, a lost
+overlap lock held for a day, the client resent throttled usage too soon,
+removing a webhook endpoint during a delivery deadlocked, and Larastan in CI
+typed console input differently from a local run. The Grafana dashboard reads
+PostgreSQL; metrics from the processes come in M8.
 
 ## M8 — Observability polish
 

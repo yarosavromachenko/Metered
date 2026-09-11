@@ -25,7 +25,7 @@ that links back, so the reasoning at the time stays readable.
 | [0013](0013-multi-tenancy.md) | Multi-tenancy by row scoping | **Accepted** |
 | [0014](0014-audit-log-hash-chain.md) | Hash-chained audit log | **Accepted** |
 | [0015](0015-admin-ui-filament.md) | Admin panel on Filament | Proposed |
-| [0016](0016-demo-mode-and-seed-profiles.md) | Demo mode and seed profiles | Proposed |
+| [0016](0016-demo-mode-and-seed-profiles.md) | Demo mode and seed profiles | Accepted (M7) |
 | [0017](0017-admin-authentication.md) | Admin authentication and authorization | **Accepted** |
 | [0018](0018-design-principles.md) | Design principles: earn every abstraction | **Accepted** |
 
