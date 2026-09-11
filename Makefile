@@ -150,6 +150,7 @@ demo: ## One command for a reviewer: stack, showcase data, live traffic
 	@echo
 	@echo "Admin panel:  http://localhost:$${APP_PORT:-8080}/admin"
 	@echo "              $(SHOWCASE_EMAIL) / $(SHOWCASE_PASSWORD) (read-only), or sign up for a tenant of your own"
+	@echo "Grafana:      http://localhost:$${GRAFANA_PORT:-3000}  (live load)"
 	@echo "Webhooks:     http://localhost:$${WEBHOOK_RECEIVER_PORT:-8089}"
 	@echo "Horizon:      http://localhost:$${APP_PORT:-8080}/horizon"
 

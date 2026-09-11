@@ -1,0 +1,19 @@
+# The demo's dashboards read PostgreSQL directly, as a role that can only read
+# (docker/postgres/init-metered.sh). Metrics scraped from the processes
+# themselves — stream lag, latency percentiles — arrive with Prometheus in M8.
+apiVersion: 1
+
+datasources:
+  - name: Metered
+    uid: metered-postgres
+    type: grafana-postgresql-datasource
+    url: postgres:5432
+    user: grafana_reader
+    isDefault: true
+    jsonData:
+      database: metered
+      sslmode: disable
+      postgresVersion: 1800
+      timescaledb: false
+    secureJsonData:
+      password: grafana-reader

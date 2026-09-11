@@ -12,4 +12,10 @@ psql --username "${POSTGRES_USER}" --dbname "${POSTGRES_DB}" <<-SQL
     -- UUIDv7 arrives from the application, not from the database, but
     -- gen_random_uuid() is still useful in ad-hoc queries and fixtures.
     CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+    -- Grafana's dashboards read the database directly (docker/grafana). A
+    -- role that can read and nothing else, so a dashboard query cannot
+    -- change what it is showing. A local, demo-only password.
+    CREATE ROLE grafana_reader LOGIN PASSWORD 'grafana-reader';
+    GRANT pg_read_all_data TO grafana_reader;
 SQL

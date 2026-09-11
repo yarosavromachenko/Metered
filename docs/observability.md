@@ -51,7 +51,24 @@ payload that may contain personal data.
 ## Dashboards
 
 Provisioned from the repository under `docker/grafana/`, so a clean clone gets
-the same dashboards without clicking:
+the same dashboards without clicking. Grafana runs with the stack at
+<http://localhost:3000>, open to anonymous viewers and closed to edits.
+
+**Today (M7): Metered — live load.** One dashboard that reads PostgreSQL
+directly, as `grafana_reader`, a role granted `pg_read_all_data` and nothing
+else: events accepted per minute, rejections by reason, the age of the oldest
+unpublished outbox message, webhook attempts by outcome, outbox throughput and
+invoices finalized. It is what shows `make demo`'s traffic arriving, and every
+figure on it is a query a reader can run by hand. What only the processes know
+— stream length and pending, latency percentiles, breaker states — needs
+metrics, which come with Prometheus in M8.
+
+The role is created when the database volume is first initialised
+(`docker/postgres/init-metered.sh`). A volume from before M7 does not have it;
+`make destroy && make demo` recreates it, or run the two statements from that
+script by hand.
+
+**Planned (M8)**, on Prometheus metrics:
 
 1. **Ingestion** — request rate, latency percentiles, stream length and pending, rejection reasons.
 2. **Processing** — batch size and duration, aggregate upsert rate, partition count, reconciliation drift.
