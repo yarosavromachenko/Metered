@@ -31,32 +31,33 @@ gives that reviewer a working admin panel with a system under live load).
 ```bash
 git clone https://github.com/yarosavromachenko/Metered.git metered
 cd metered
-make up      # build, start, migrate
-make check   # every gate CI runs
+make demo
 ```
 
 Docker and Docker Compose are the only requirements — PHP, PostgreSQL and Redis
-all run in containers. If something on the machine already holds port 8080, set
-`APP_PORT` in `.env`.
-
-From M7 onwards, `make demo` additionally seeds a demo dataset (~2M usage events
-over 90 days) and starts a traffic generator, so the graphs have shape. Then
-open:
+all run in containers. `make demo` installs dependencies, starts the stack,
+seeds a showcase organization — 120 customers, all four pricing models, about
+two million usage events over 90 days, invoices paid, late and voided — and
+starts a traffic generator, so the dashboards move. It takes a few minutes the
+first time. If something on the machine already holds a port, set `APP_PORT`
+(or `GRAFANA_PORT`, `WEBHOOK_RECEIVER_PORT`, `MAILPIT_WEB_PORT`) in `.env`.
 
 | What | Where |
 |---|---|
-| Admin panel | <http://localhost:8080/admin> — sign up, you get your own isolated demo tenant (M2) |
-| API | <http://localhost:8080/api/v1> — key is printed by `sim:seed` (M3) |
+| Admin panel | <http://localhost:8080/admin> — sign in as `demo@metered.test` / `metered-demo` to look around the showcase (read-only), or **sign up**: you get a tenant of your own, seeded in seconds, that you can break and reset |
+| API | <http://localhost:8080/api/v1> — a key is issued in the panel under API keys |
+| Grafana | <http://localhost:3000> — the live load: events accepted per minute, rejections, outbox age, webhook outcomes, invoices |
 | Horizon | <http://localhost:8080/horizon> — queue throughput, failed jobs, retries |
 | Mailpit | <http://localhost:8025> — every message the application sends, caught locally |
-| Webhook receiver | <http://localhost:8089> — a stand-in for a tenant's system: what the webhooks delivered, and whether each signature checks out (M6) |
-| Grafana | <http://localhost:3000> — ingestion rate, stream lag, outbox lag, webhook success (M8) |
+| Webhook receiver | <http://localhost:8089> — a stand-in for a tenant's system: what the webhooks delivered, and whether each signature checks out |
 
-Everything runs on the machine in front of you. Nothing is hosted, no message
-leaves the host, and there is no account to create anywhere.
+`make demo-reset` deletes every demo tenant and seeds the showcase again.
+`make up` starts the stack without demo data, and `make check` runs every gate
+CI runs.
 
-Nothing is hosted publicly: the whole system, including observability, runs from
-this repository on your machine. `make help` lists every other entrypoint.
+Everything runs on the machine in front of you: nothing is hosted, no message
+leaves the host, and the only account you create is in your own copy.
+`make help` lists every other entrypoint.
 
 ## What it does
 
