@@ -6,9 +6,12 @@ namespace Metered\Shared\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Audit\ChainVerifier;
+use Metered\Shared\Application\Health\Readiness;
+use Metered\Shared\Application\Health\ReadinessCheck;
 use Metered\Shared\Application\Idempotency\IdempotencyStore;
 use Metered\Shared\Application\Inbox\InboxGuard;
 use Metered\Shared\Application\Inbox\IntegrationEventHandler;
@@ -21,6 +24,8 @@ use Metered\Shared\Infrastructure\Audit\DatabaseChainVerifier;
 use Metered\Shared\Infrastructure\Clock\ClockOffset;
 use Metered\Shared\Infrastructure\Clock\SystemClock;
 use Metered\Shared\Infrastructure\Clock\TravellingClock;
+use Metered\Shared\Infrastructure\Health\DatabaseCheck;
+use Metered\Shared\Infrastructure\Health\RedisCheck;
 use Metered\Shared\Infrastructure\Idempotency\DatabaseIdempotencyStore;
 use Metered\Shared\Infrastructure\Identifier\Uuid7Generator;
 use Metered\Shared\Infrastructure\Inbox\DatabaseInboxGuard;
@@ -34,6 +39,8 @@ use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
 use Metered\Shared\Presentation\Console\VerifyAuditChainCommand;
 use Metered\Shared\Presentation\Http\IdempotencyScope;
+use Metered\Shared\Presentation\Http\LivenessController;
+use Metered\Shared\Presentation\Http\ReadinessController;
 use Metered\Shared\Presentation\Http\RequestAttributeScope;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
@@ -113,11 +120,27 @@ final class SharedServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.outbox.max_attempts', 10),
             ),
         );
+
+        // What every instance needs; modules tag what they need on top.
+        $this->app->tag([DatabaseCheck::class, RedisCheck::class], ReadinessCheck::TAG);
+
+        $this->app->singleton(
+            Readiness::class,
+            static fn(Application $app): Readiness => new Readiness(
+                self::taggedReadinessChecks($app),
+                $app->make(LoggerInterface::class),
+            ),
+        );
     }
 
     public function boot(): void
     {
         $this->app->make(QueueTracing::class)->register($this->app->make('events'));
+
+        // No middleware group: a probe carries no session, no API key and no
+        // trace, and it must not be rate limited into looking unhealthy.
+        Route::get('health/live', LivenessController::class)->name('health.live');
+        Route::get('health/ready', ReadinessController::class)->name('health.ready');
 
         if ($this->app->runningInConsole()) {
             $this->commands([
@@ -145,6 +168,22 @@ final class SharedServiceProvider extends ServiceProvider
         }
 
         return $handlers;
+    }
+
+    /**
+     * @return list<ReadinessCheck>
+     */
+    private static function taggedReadinessChecks(Application $app): array
+    {
+        $checks = [];
+
+        foreach ($app->tagged(ReadinessCheck::TAG) as $check) {
+            if ($check instanceof ReadinessCheck) {
+                $checks[] = $check;
+            }
+        }
+
+        return $checks;
     }
 
     private static function configString(Application $app, string $key, string $default): string
