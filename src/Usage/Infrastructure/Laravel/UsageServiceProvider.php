@@ -12,6 +12,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Billing\Application\Contract\MeterCatalog;
+use Metered\Shared\Application\Health\ReadinessCheck;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Command\IngestEventsHandler;
@@ -20,6 +21,7 @@ use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\Deduplicator;
 use Metered\Usage\Application\Ingestion\EventWriter;
 use Metered\Usage\Application\Ingestion\RejectionLog;
+use Metered\Usage\Application\Stream\BacklogCheck;
 use Metered\Usage\Application\Stream\EventStream;
 use Metered\Usage\Application\Stream\StreamDepth;
 use Metered\Usage\Domain\AcceptanceWindow;
@@ -30,6 +32,7 @@ use Metered\Usage\Infrastructure\Persistence\DatabaseUsageTotals;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
 use Metered\Usage\Infrastructure\Persistence\UsageSummaryReader;
+use Metered\Usage\Infrastructure\Redis\DeferredStreamDepth;
 use Metered\Usage\Infrastructure\Redis\RedisDeduplicator;
 use Metered\Usage\Infrastructure\Redis\RedisEventStream;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
@@ -180,6 +183,17 @@ final class UsageServiceProvider extends ServiceProvider
 
         // Removed with a purged demo tenant, by the module that owns the rows.
         $this->app->tag([DatabaseUsagePurger::class], TenantDataPurger::TAG);
+
+        // Not ready while ingestion would shed load: same depth, same threshold.
+        // The depth is deferred so that building the check opens no connection.
+        $this->app->bind(
+            BacklogCheck::class,
+            static fn(Application $app): BacklogCheck => new BacklogCheck(
+                new DeferredStreamDepth(static fn(): StreamDepth => $app->make(StreamDepth::class)),
+                self::configInt($app, 'metered.usage.stream.backpressure_threshold', 500_000),
+            ),
+        );
+        $this->app->tag([BacklogCheck::class], ReadinessCheck::TAG);
     }
 
     public function boot(): void
