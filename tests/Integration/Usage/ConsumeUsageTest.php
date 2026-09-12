@@ -183,11 +183,12 @@ it('keeps a max meter at its peak when a smaller value is redelivered', function
 
 it('separates buckets by the hour the event happened in', function (): void {
     ['tenant' => $tenant, 'headers' => $headers] = ingestionTenant();
+    $hour = now()->subDay()->startOfHour();
 
     send($headers, [
-        usageEvent(['event_id' => 'evt_1', 'occurred_at' => '2026-09-22T10:15:00+00:00']),
-        usageEvent(['event_id' => 'evt_2', 'occurred_at' => '2026-09-22T10:45:00+00:00']),
-        usageEvent(['event_id' => 'evt_3', 'occurred_at' => '2026-09-22T11:05:00+00:00']),
+        usageEvent(['event_id' => 'evt_1', 'occurred_at' => $hour->copy()->addMinutes(15)->toAtomString()]),
+        usageEvent(['event_id' => 'evt_2', 'occurred_at' => $hour->copy()->addMinutes(45)->toAtomString()]),
+        usageEvent(['event_id' => 'evt_3', 'occurred_at' => $hour->copy()->addMinutes(65)->toAtomString()]),
     ]);
     consume();
 
