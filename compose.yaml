@@ -49,8 +49,12 @@ services:
         condition: service_started
       mailpit:
         condition: service_started
+    # Readiness, not liveness: compose restarts nothing on "unhealthy", so here
+    # the status is information — `docker compose ps` shows an app that cannot
+    # reach its database or is shedding ingestion load. A 503 makes
+    # file_get_contents return false.
     healthcheck:
-      test: ["CMD", "php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+      test: ["CMD", "php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/health/ready') === false ? 1 : 0);"]
       interval: 10s
       timeout: 3s
       retries: 5

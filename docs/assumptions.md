@@ -56,6 +56,7 @@ code.
 | 46 | `demo:reset` | **Purges every demo organization, the showcase included,** one transaction each; `make demo-reset` then seeds the showcase again and restarts the traffic generator. Real organizations are never listed, and the database would refuse their invoices regardless | [ADR-0016](adr/0016-demo-mode-and-seed-profiles.md) |
 | 47 | Limits on a demo tenant | **The per-key rate limit and the idle purge, nothing more.** No extra quotas: a demo tenant can only reach its own rows, and a week without a sign-in removes it | [ADR-0016](adr/0016-demo-mode-and-seed-profiles.md) |
 | 48 | Grafana before Prometheus | **M7's dashboard reads PostgreSQL** as `grafana_reader` (`pg_read_all_data` only). What only the processes know — stream lag, latency percentiles — waits for M8's metrics | [`observability.md`](observability.md) |
+| 49 | What "ready" means | **PostgreSQL answers a query, Redis answers `PING`, and the ingestion backlog is below the backpressure threshold.** Not "migrations applied": migrations run as a deploy step before traffic moves, and a check that compares the schema on every probe costs a query against the migrations table for a condition the deploy already guarantees. A failed dependency is reported as "unreachable", with the exception in the log only, because the endpoint is unauthenticated | [`runbook.md`](runbook.md#health) |
 
 ## Consequences worth remembering
 

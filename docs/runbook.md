@@ -10,11 +10,31 @@ because that is the only way to find out whether they make sense.
 
 | Check | Meaning |
 |---|---|
-| `GET /health/live` | The process is up. Never touches dependencies. |
-| `GET /health/ready` | PostgreSQL and Redis reachable, migrations applied, stream lag under threshold. |
+| `GET /health/live` | The process is up. Never touches dependencies. Always `200`. |
+| `GET /health/ready` | `200` when every check passes, `503` otherwise: `database` (a query on the web connection), `redis` (`PING`), `usage_backlog` (pending events below `USAGE_STREAM_BACKPRESSURE`). |
 
 A liveness probe that checks dependencies restarts a healthy application when a
 database blips. Keep them separate.
+
+The readiness body names each check, so the failing one is read off the probe:
+
+```json
+{"status": "not_ready", "checks": {
+  "database": {"status": "pass", "detail": "ok"},
+  "redis": {"status": "fail", "detail": "unreachable"},
+  "usage_backlog": {"status": "pass", "detail": "120 pending of 500000"}}}
+```
+
+"unreachable" is all the endpoint says about a failed dependency; the
+exception behind it is logged as `Readiness check failed.` with the check's
+name. `usage_backlog` fails at exactly the depth where ingestion starts
+answering 503 — see the next section.
+
+Compose uses readiness for the `app` service (`docker compose ps` shows it
+unhealthy); the image's own `HEALTHCHECK` uses liveness, since an orchestrator
+restarts on it. The worker daemons (`usage-consumer`, `outbox-relay`,
+`horizon`, `scheduler`) serve no HTTP and have no healthcheck: their liveness
+is the process running, answered by the restart policy.
 
 ## Ingestion is returning 503
 

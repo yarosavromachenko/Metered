@@ -93,8 +93,10 @@ USER 10001
 
 EXPOSE 8080
 
+# Liveness: an orchestrator restarts on this, and must not restart a healthy
+# process because a dependency is down. Readiness is /health/ready.
 HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
-    CMD ["php", "-r", "exit(@fsockopen('127.0.0.1', 8080) ? 0 : 1);"]
+    CMD ["php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/health/live') === false ? 1 : 0);"]
 
 ENTRYPOINT ["entrypoint"]
 CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080"]
