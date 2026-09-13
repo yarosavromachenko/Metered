@@ -10,6 +10,7 @@ use OpenTelemetry\Contrib\Otlp\OtlpHttpTransportFactory;
 use OpenTelemetry\Contrib\Otlp\SpanExporter;
 use OpenTelemetry\SDK\Common\Attribute\Attributes;
 use OpenTelemetry\SDK\Common\Time\ClockFactory;
+use OpenTelemetry\SDK\Common\Util\ShutdownHandler;
 use OpenTelemetry\SDK\Resource\ResourceInfo;
 use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
 use OpenTelemetry\SDK\Trace\SpanProcessor\BatchSpanProcessor;
@@ -42,10 +43,17 @@ final readonly class TracerProviderFactory
             new OtlpHttpTransportFactory()->create($this->endpoint . '/v1/traces', 'application/x-protobuf'),
         );
 
-        return TracerProvider::builder()
+        $provider = TracerProvider::builder()
             ->addSpanProcessor(new BatchSpanProcessor($exporter, ClockFactory::getDefault()))
             ->setResource($this->resource())
             ->build();
+
+        // The batch is exported when it fills or when a span ends after the
+        // delay has passed. A command that finishes first — a scheduled run,
+        // a worker being stopped — would take its last spans with it.
+        ShutdownHandler::register($provider->shutdown(...));
+
+        return $provider;
     }
 
     private function resource(): ResourceInfo

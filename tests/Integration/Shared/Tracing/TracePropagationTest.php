@@ -12,8 +12,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Route;
 use Metered\Shared\Infrastructure\Tracing\QueueTracing;
-use Metered\Shared\Infrastructure\Tracing\Tracing;
-use OpenTelemetry\API\Trace\TracerProviderInterface;
 
 use function Pest\Laravel\getJson;
 
@@ -39,24 +37,8 @@ function queuedPayload(): array
     return $payload;
 }
 
-/**
- * Swaps the application's tracer for one that records in memory, and
- * re-registers the queue hook so it uses it.
- */
-function inMemoryTracing(): InMemoryTracing
-{
-    $recorder = new InMemoryTracing();
-
-    app()->instance(TracerProviderInterface::class, $recorder->tracing);
-    app()->instance(Tracing::class, $recorder->tracing);
-
-    new QueueTracing($recorder->tracing)->register(app('events'));
-
-    return $recorder;
-}
-
 it('puts the current trace context into the job payload', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     $request = $recorder->tracing->tracer()->spanBuilder('POST /api/v1/subscriptions')->startSpan();
     $scope = $request->activate();
@@ -76,7 +58,7 @@ it('puts the current trace context into the job payload', function (): void {
 });
 
 it('continues the request trace inside the job that request queued', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     $request = $recorder->tracing->tracer()->spanBuilder('POST /api/v1/subscriptions')->startSpan();
     $scope = $request->activate();
@@ -104,7 +86,7 @@ it('continues the request trace inside the job that request queued', function ()
 });
 
 it('starts a fresh trace when a job carries no context', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     $queue = new QueueTracing($recorder->tracing);
     $queue->start([], TracedTestJob::class);
@@ -119,7 +101,7 @@ it('starts a fresh trace when a job carries no context', function (): void {
 });
 
 it('marks a failed job as an error', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     $queue = new QueueTracing($recorder->tracing);
     $queue->start([], TracedTestJob::class);
@@ -136,7 +118,8 @@ it('closes an attempt that threw, so the retry starts cleanly', function (): voi
     // listener would open scopes of its own and interleave with these.
     $recorder = new InMemoryTracing();
     $events = new Dispatcher(app());
-    new QueueTracing($recorder->tracing)->register($events);
+    $queue = new QueueTracing($recorder->tracing);
+    QueueTracing::register($events, static fn(): QueueTracing => $queue);
     $job = new SyncJob(app(), (string) json_encode(['displayName' => TracedTestJob::class, 'job' => 'x', 'data' => []]), 'redis', 'billing');
 
     $events->dispatch(new JobProcessing('redis', $job));
@@ -153,7 +136,7 @@ it('closes an attempt that threw, so the retry starts cleanly', function (): voi
 });
 
 it('joins a trace the caller already started', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     // What a tenant sends when it instruments its own backend: our work then
     // appears inside their trace rather than starting a disconnected one.
@@ -170,7 +153,7 @@ it('joins a trace the caller already started', function (): void {
 });
 
 it('traces an API request through the middleware', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     Route::middleware('api')->get('/api/v1/traced/{id}', fn(): JsonResponse => response()->json(['ok' => true]));
 
@@ -188,7 +171,7 @@ it('traces an API request through the middleware', function (): void {
 });
 
 it('marks a failing request as an error, but not a rejected one', function (): void {
-    $recorder = inMemoryTracing();
+    $recorder = InMemoryTracing::install();
 
     Route::middleware('api')->get('/api/v1/traced-missing', fn(): JsonResponse => response()->json([], 404));
     Route::middleware('api')->get('/api/v1/traced-broken', fn(): JsonResponse => response()->json([], 503));

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Metered\Shared\Infrastructure\Tracing;
 
+use OpenTelemetry\API\Trace\NoopTracerProvider;
+use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
+use OpenTelemetry\API\Trace\Span;
+use OpenTelemetry\API\Trace\SpanContextInterface;
 use OpenTelemetry\API\Trace\SpanInterface;
 use OpenTelemetry\API\Trace\TracerInterface;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
@@ -28,6 +32,15 @@ final readonly class Tracing
         private TracerProviderInterface $tracerProvider,
         private TextMapPropagatorInterface $propagator,
     ) {}
+
+    /**
+     * Tracing that records nothing, for the places that are built without
+     * the container: a span started here costs nothing and goes nowhere.
+     */
+    public static function disabled(): self
+    {
+        return new self(new NoopTracerProvider(), TraceContextPropagator::getInstance());
+    }
 
     public function tracer(): TracerInterface
     {
@@ -56,6 +69,17 @@ final readonly class Tracing
     public function extract(array $carrier): ContextInterface
     {
         return $this->propagator->extract($carrier, ArrayAccessGetterSetter::getInstance());
+    }
+
+    /**
+     * The span a message was published from, to link to rather than to
+     * continue. Invalid when the message carried no context.
+     *
+     * @param  array<string, string>  $carrier
+     */
+    public function spanContextFrom(array $carrier): SpanContextInterface
+    {
+        return Span::fromContext($this->extract($carrier))->getContext();
     }
 
     /**

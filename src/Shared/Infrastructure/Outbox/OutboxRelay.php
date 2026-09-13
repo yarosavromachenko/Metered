@@ -11,6 +11,9 @@ use Metered\Shared\Application\Outbox\OutboxPublisher;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 use Throwable;
@@ -27,6 +30,11 @@ use Throwable;
  * and then dies before recording it will publish that message again later —
  * delivery is at-least-once by design, and consumers are made idempotent by the
  * inbox rather than by hoping this never happens.
+ *
+ * Each publication is a span in the trace the message was written in, taken
+ * from its headers, and the job it queues carries that span on (ADR-0012).
+ * Without it every event would start a trace of its own, cut off from the
+ * request or job that caused it.
  */
 final readonly class OutboxRelay
 {
@@ -37,6 +45,7 @@ final readonly class OutboxRelay
         private LoggerInterface $logger,
         private string $connection,
         private int $maxAttempts,
+        private Tracing $tracing,
     ) {}
 
     /**
@@ -77,12 +86,27 @@ final readonly class OutboxRelay
 
             $message = $this->toMessage($row);
 
+            $span = $this->tracing->tracer()
+                ->spanBuilder('outbox publish ' . $message->type)
+                ->setParent($this->tracing->extract($message->headers))
+                ->setSpanKind(SpanKind::KIND_PRODUCER)
+                ->setAttribute('messaging.operation.name', 'publish')
+                ->setAttribute('messaging.message.id', $message->id->value)
+                ->setAttribute('metered.outbox.attempt', $message->attempts + 1)
+                ->startSpan();
+            $scope = $span->activate();
+
             try {
                 $this->publisher->publish($message);
             } catch (Throwable $e) {
+                $span->recordException($e);
+                $span->setStatus(StatusCode::STATUS_ERROR, $e->getMessage());
                 $this->recordFailure($tx, $message, $e);
 
                 continue;
+            } finally {
+                $scope->detach();
+                $span->end();
             }
 
             $this->recordPublication($tx, $message);

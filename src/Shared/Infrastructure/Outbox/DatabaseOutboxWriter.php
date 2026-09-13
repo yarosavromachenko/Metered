@@ -8,6 +8,7 @@ use Illuminate\Database\DatabaseManager;
 use JsonException;
 use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use RuntimeException;
 
 /**
@@ -17,10 +18,18 @@ use RuntimeException;
  *
  * Nothing here opens a connection of its own. That is the whole guarantee: if
  * the business transaction rolls back, the message goes with it.
+ *
+ * The trace context of whatever is writing — a request, a job — is added to
+ * the message's headers here, so that producers stay free of tracing and the
+ * relay can continue the trace that caused the event (ADR-0012). Headers the
+ * producer set itself win.
  */
 final readonly class DatabaseOutboxWriter implements OutboxWriter
 {
-    public function __construct(private DatabaseManager $db) {}
+    public function __construct(
+        private DatabaseManager $db,
+        private Tracing $tracing,
+    ) {}
 
     public function append(OutboxMessage $message): void
     {
@@ -30,7 +39,7 @@ final readonly class DatabaseOutboxWriter implements OutboxWriter
             'aggregate_id' => $message->aggregateId->value,
             'type' => $message->type,
             'payload' => $this->encode($message->payload),
-            'headers' => $this->encode($message->headers),
+            'headers' => $this->encode($message->headers + $this->tracing->carrier()),
             'occurred_at' => $message->occurredAt,
             'published_at' => null,
             'attempts' => $message->attempts,

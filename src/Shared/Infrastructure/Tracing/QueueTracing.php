@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Shared\Infrastructure\Tracing;
 
+use Closure;
 use Illuminate\Contracts\Events\Dispatcher;
 use Illuminate\Queue\Events\JobExceptionOccurred;
 use Illuminate\Queue\Events\JobFailed;
@@ -37,34 +38,42 @@ final class QueueTracing
 
     public function __construct(private readonly Tracing $tracing) {}
 
-    public function register(Dispatcher $events): void
+    /**
+     * Hooks the queue once per process. Each event is handed to the instance
+     * $current returns when it fires, not to one captured now, so that the
+     * hooks never need registering twice: a second set would open scopes of
+     * its own and close them out of order.
+     *
+     * @param  Closure(): self  $current
+     */
+    public static function register(Dispatcher $events, Closure $current): void
     {
-        Queue::createPayloadUsing(fn(): array => [self::PAYLOAD_KEY => $this->tracing->carrier()]);
+        Queue::createPayloadUsing(static fn(): array => [self::PAYLOAD_KEY => $current()->tracing->carrier()]);
 
-        $events->listen(JobProcessing::class, function (JobProcessing $event): void {
+        $events->listen(JobProcessing::class, static function (JobProcessing $event) use ($current): void {
             /** @var array<string, mixed> $payload */
             $payload = $event->job->payload();
 
-            $this->start($payload, $event->job->resolveName());
+            $current()->start($payload, $event->job->resolveName());
         });
 
-        $events->listen(JobProcessed::class, function (JobProcessed $event): void {
-            $this->finish();
+        $events->listen(JobProcessed::class, static function (JobProcessed $event) use ($current): void {
+            $current()->finish();
         });
 
         // An attempt that throws and will be retried raises neither of the
         // events above: it ends here. Left open, its scope would still be
         // active when the retry starts, and OpenTelemetry's complaint about
         // that would fail the retry and bury the exception that caused it.
-        $events->listen(JobExceptionOccurred::class, function (JobExceptionOccurred $event): void {
-            $this->finish($event->exception->getMessage());
+        $events->listen(JobExceptionOccurred::class, static function (JobExceptionOccurred $event) use ($current): void {
+            $current()->finish($event->exception->getMessage());
         });
 
         // A job can fail without an attempt throwing — too many attempts, a
         // timeout. When an attempt did throw, the span is already closed and
         // this does nothing.
-        $events->listen(JobFailed::class, function (JobFailed $event): void {
-            $this->finish($event->exception->getMessage());
+        $events->listen(JobFailed::class, static function (JobFailed $event) use ($current): void {
+            $current()->finish($event->exception->getMessage());
         });
     }
 

@@ -6,6 +6,7 @@ namespace Metered\Shared\Presentation\Console;
 
 use Illuminate\Console\Command;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
+use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 
 /**
  * The outbox relay, as a long-running process.
@@ -24,7 +25,7 @@ final class RelayOutboxCommand extends Command
 
     private bool $shouldStop = false;
 
-    public function handle(OutboxRelay $relay): int
+    public function handle(OutboxRelay $relay, TelemetryFlush $telemetry): int
     {
         $batch = $this->batchSize();
 
@@ -32,6 +33,7 @@ final class RelayOutboxCommand extends Command
 
         do {
             $published = $relay->relayBatch($batch);
+            $telemetry->flushIfDue();
 
             if ($published > 0) {
                 $this->components->info(sprintf('Published %d message(s).', $published));

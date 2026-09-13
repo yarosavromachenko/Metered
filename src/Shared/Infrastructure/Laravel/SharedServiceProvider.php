@@ -6,8 +6,10 @@ namespace Metered\Shared\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Laravel\Octane\Events\RequestTerminated;
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Audit\ChainVerifier;
 use Metered\Shared\Application\Health\Readiness;
@@ -34,6 +36,7 @@ use Metered\Shared\Infrastructure\Outbox\DatabaseOutboxWriter;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Outbox\QueueOutboxPublisher;
 use Metered\Shared\Infrastructure\Tracing\QueueTracing;
+use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 use Metered\Shared\Infrastructure\Tracing\TracerProviderFactory;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
@@ -100,6 +103,13 @@ final class SharedServiceProvider extends ServiceProvider
 
         $this->app->singleton(Tracing::class);
         $this->app->singleton(QueueTracing::class);
+        $this->app->singleton(
+            TelemetryFlush::class,
+            static fn(Application $app): TelemetryFlush => new TelemetryFlush(
+                $app->make(TracerProviderInterface::class),
+                static fn(): int => (int) hrtime(true),
+            ),
+        );
 
         $this->app->singleton(
             IntegrationEventDispatcher::class,
@@ -118,6 +128,7 @@ final class SharedServiceProvider extends ServiceProvider
                 $app->make(LoggerInterface::class),
                 self::configString($app, 'metered.outbox.connection', 'pgsql_direct'),
                 self::configInt($app, 'metered.outbox.max_attempts', 10),
+                $app->make(Tracing::class),
             ),
         );
 
@@ -135,7 +146,16 @@ final class SharedServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        $this->app->make(QueueTracing::class)->register($this->app->make('events'));
+        QueueTracing::register($this->app->make('events'), fn(): QueueTracing => $this->app->make(QueueTracing::class));
+
+        // The idle points of the long-running processes the framework runs:
+        // a queue worker's every pass, and an Octane request once answered.
+        // The daemons of this codebase call it from their own loops.
+        $flush = function (): void {
+            $this->app->make(TelemetryFlush::class)->flushIfDue();
+        };
+        $this->app->make('events')->listen(Looping::class, $flush);
+        $this->app->make('events')->listen(RequestTerminated::class, $flush);
 
         // No middleware group: a probe carries no session, no API key and no
         // trace, and it must not be rate limited into looking unhealthy.

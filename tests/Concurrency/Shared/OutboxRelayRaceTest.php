@@ -8,6 +8,7 @@ use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
 use Spatie\Fork\Fork;
@@ -50,6 +51,7 @@ it('never lets two of three relays publish the same message', function () use ($
             new NullLogger(),
             testConnection(),
             10,
+            Tracing::disabled(),
         );
 
         // Small batches until nothing is left, so the three relays genuinely

@@ -8,6 +8,7 @@ use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Psr\Clock\ClockInterface;
 use Psr\Log\NullLogger;
 use Tests\Support\RecordingOutboxPublisher;
@@ -21,6 +22,7 @@ function relayWith(RecordingOutboxPublisher $publisher, int $maxAttempts = 10): 
         new NullLogger(),
         testConnection(),
         $maxAttempts,
+        Tracing::disabled(),
     );
 }
 
