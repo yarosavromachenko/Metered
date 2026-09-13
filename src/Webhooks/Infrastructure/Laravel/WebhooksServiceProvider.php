@@ -10,6 +10,7 @@ use Illuminate\Support\ServiceProvider;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Laravel\SharedServiceProvider;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Webhooks\Application\Command\EndpointAudit;
@@ -63,6 +64,7 @@ final class WebhooksServiceProvider extends ServiceProvider
         $this->app->singleton(WebhookTransport::class, static fn(Application $app): GuardedTransport => new GuardedTransport(
             $app->make(Resolver::class),
             trusted: self::trustedDestination($app),
+            tracing: $app->make(Tracing::class),
         ));
 
         $this->app->bind(RegisterEndpointHandler::class, static fn(Application $app): RegisterEndpointHandler => new RegisterEndpointHandler(

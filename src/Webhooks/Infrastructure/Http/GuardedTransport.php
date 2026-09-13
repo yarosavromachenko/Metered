@@ -10,10 +10,13 @@ use GuzzleHttp\Exception\GuzzleException;
 use GuzzleHttp\Handler\CurlHandler;
 use GuzzleHttp\HandlerStack;
 use GuzzleHttp\RequestOptions;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Webhooks\Application\Delivery\WebhookTransport;
 use Metered\Webhooks\Domain\Delivery\AttemptResult;
 use Metered\Webhooks\Domain\Destination\PublicAddress;
 use Metered\Webhooks\Domain\Endpoint\EndpointUrl;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use RuntimeException;
 
 /**
@@ -27,6 +30,11 @@ use RuntimeException;
  * the connection gets nowhere. Redirects are not followed; a kilobyte of the
  * answer is kept and reading stops after a megabyte; connect and total
  * timeouts are 5s and 10s.
+ *
+ * A request that is sent is a client span, and the receiver gets its
+ * `traceparent`, so a tenant that traces its own backend can join our trace
+ * to theirs (ADR-0012). A refused destination is never contacted and has no
+ * span of its own.
  */
 final readonly class GuardedTransport implements WebhookTransport
 {
@@ -34,6 +42,8 @@ final readonly class GuardedTransport implements WebhookTransport
     public const int MAX_ANSWER_BYTES = 1_048_576;
 
     private ClientInterface $client;
+
+    private Tracing $tracing;
 
     /**
      * @param ClientInterface|null $client what sends the request — a client
@@ -50,8 +60,10 @@ final readonly class GuardedTransport implements WebhookTransport
         private ?TrustedDestination $trusted = null,
         private float $connectTimeout = 5.0,
         private float $timeout = 10.0,
+        ?Tracing $tracing = null,
     ) {
         $this->client = $client ?? new Client(['handler' => HandlerStack::create(new CurlHandler())]);
+        $this->tracing = $tracing ?? Tracing::disabled();
     }
 
     public function send(EndpointUrl $url, array $headers, string $body): AttemptResult
@@ -62,6 +74,40 @@ final readonly class GuardedTransport implements WebhookTransport
             return $address;
         }
 
+        $span = $this->tracing->tracer()
+            ->spanBuilder('POST')
+            ->setSpanKind(SpanKind::KIND_CLIENT)
+            ->setAttribute('http.request.method', 'POST')
+            ->setAttribute('server.address', $url->host)
+            ->setAttribute('server.port', $url->port)
+            ->startSpan();
+        $scope = $span->activate();
+
+        try {
+            $result = $this->request($url, $address, $headers + $this->tracing->carrier(), $body);
+        } finally {
+            $scope->detach();
+        }
+
+        if ($result->statusCode !== null) {
+            $span->setAttribute('http.response.status_code', $result->statusCode);
+        }
+
+        // For a client, a 4xx is a failed call as much as a 5xx is.
+        if ($result->statusCode === null || $result->statusCode >= 400) {
+            $span->setStatus(StatusCode::STATUS_ERROR, $result->error ?? 'HTTP ' . $result->statusCode);
+        }
+
+        $span->end();
+
+        return $result;
+    }
+
+    /**
+     * @param  array<string, string>  $headers
+     */
+    private function request(EndpointUrl $url, string $address, array $headers, string $body): AttemptResult
+    {
         $started = hrtime(true);
 
         try {

@@ -10,6 +10,7 @@ use Illuminate\Database\Query\Builder;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Webhooks\Domain\Delivery\Delivery;
 use Metered\Webhooks\Domain\Delivery\DeliveryRepository;
 use Metered\Webhooks\Domain\Delivery\DeliveryStatus;
@@ -20,10 +21,17 @@ final readonly class DatabaseDeliveryRepository implements DeliveryRepository
 {
     private const string INSTANT = DatabaseEndpointRepository::INSTANT;
 
-    public function __construct(private DatabaseManager $db) {}
+    public function __construct(
+        private DatabaseManager $db,
+        private Tracing $tracing,
+    ) {}
 
     public function add(Delivery $delivery): bool
     {
+        // The context of the event being fanned out, kept for the attempts,
+        // which run from a scheduled pass with no context of their own.
+        $trace = $this->tracing->carrier();
+
         return $this->db->connection()->table('webhook_deliveries')->insertOrIgnore([
             'id' => $delivery->id->value,
             'organization_id' => $delivery->tenant->organizationId->value,
@@ -37,6 +45,7 @@ final readonly class DatabaseDeliveryRepository implements DeliveryRepository
             'next_attempt_at' => $delivery->nextAttemptAt?->format(self::INSTANT),
             'last_status_code' => $delivery->lastStatusCode,
             'created_at' => $delivery->createdAt->format(self::INSTANT),
+            'trace_context' => $trace === [] ? null : json_encode($trace, JSON_THROW_ON_ERROR),
         ]) > 0;
     }
 

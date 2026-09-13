@@ -129,6 +129,9 @@ if ($method === 'POST') {
         'attempt' => $attempt,
         'answered' => $status,
         'signature' => $verified === null ? 'no secret given' : ($verified ? 'valid' : 'INVALID'),
+        // The sender's trace, as a tenant that traces its own backend would
+        // continue it: paste the id into Grafana → Explore → Tempo.
+        'trace_id' => explode('-', text($_SERVER['HTTP_TRACEPARENT'] ?? ''))[1] ?? '',
         'body' => $body,
     ], JSON_UNESCAPED_SLASHES) . "\n", FILE_APPEND | LOCK_EX);
 
@@ -140,7 +143,7 @@ if ($method === 'POST') {
 $rows = '';
 foreach (array_slice(received($store), 0, 200) as $r) {
     $rows .= sprintf(
-        '<tr><td>%s</td><td>/%s</td><td>%s</td><td><code>%s</code></td><td>%d</td><td>%d</td><td>%s</td></tr>',
+        '<tr><td>%s</td><td>/%s</td><td>%s</td><td><code>%s</code></td><td>%d</td><td>%d</td><td>%s</td><td><code>%s</code></td></tr>',
         htmlspecialchars(text($r['at'] ?? '')),
         htmlspecialchars(text($r['mode'] ?? '')),
         htmlspecialchars(text($r['event_type'] ?? '')),
@@ -148,6 +151,7 @@ foreach (array_slice(received($store), 0, 200) as $r) {
         (int) text($r['attempt'] ?? 0),
         (int) text($r['answered'] ?? 0),
         htmlspecialchars(text($r['signature'] ?? '')),
+        htmlspecialchars(text($r['trace_id'] ?? '')),
     );
 }
 
@@ -158,6 +162,6 @@ echo <<<HTML
 <body><h1>Webhook receiver</h1>
 <p>A stand-in for a tenant's system. Paths: <code>/ok</code>, <code>/flaky</code>, <code>/down</code>, <code>/slow</code>, <code>/gone</code>. {$count} secret(s) known.</p>
 <form method="post" action="/_secrets"><input name="secret" size="60" placeholder="whsec_… — paste an endpoint's secret to verify its signatures"> <button>Add secret</button></form>
-<table><thead><tr><th>Received (UTC)</th><th>Path</th><th>Event</th><th>Event id</th><th>Attempt</th><th>Answered</th><th>Signature</th></tr></thead><tbody>{$rows}</tbody></table>
+<table><thead><tr><th>Received (UTC)</th><th>Path</th><th>Event</th><th>Event id</th><th>Attempt</th><th>Answered</th><th>Signature</th><th>Trace</th></tr></thead><tbody>{$rows}</tbody></table>
 </body></html>
 HTML;
