@@ -8,12 +8,15 @@ use Illuminate\Redis\Connections\PhpRedisConnection;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\IncomingEvent;
 use Metered\Usage\Application\Ingestion\IngestionOutcome;
 use Metered\Usage\Application\Ingestion\RejectionLog;
 use Metered\Usage\Domain\Rejection;
 use Metered\Usage\Domain\RejectionReason;
+use OpenTelemetry\API\Trace\SpanKind;
+use OpenTelemetry\API\Trace\StatusCode;
 use Psr\Clock\ClockInterface;
 use Redis;
 use Throwable;
@@ -33,9 +36,19 @@ use Throwable;
  * long enough; or it has failed so many times that it is moved to the
  * dead-letter stream and acknowledged, because one poison message must not
  * hold a tenant's ingestion behind it.
+ *
+ * Each tenant's write is a span of its own trace, linked to the requests its
+ * events came from rather than a child of any one of them (ADR-0012): one
+ * write serves many requests, and a span has one parent.
  */
 final readonly class StreamConsumer
 {
+    /**
+     * Past this many distinct requests a batch links to the first ones only;
+     * the span still records how many there were.
+     */
+    public const int MAX_LINKS = 128;
+
     public function __construct(
         private PhpRedisConnection $connection,
         private BatchProcessor $processor,
@@ -49,6 +62,7 @@ final readonly class StreamConsumer
         private int $blockMilliseconds,
         private int $reclaimIdleMilliseconds,
         private int $maxDeliveries,
+        private Tracing $tracing,
     ) {}
 
     /**
@@ -99,7 +113,7 @@ final readonly class StreamConsumer
      */
     private function handle(array $deliveries): IngestionOutcome
     {
-        /** @var array<string, array{tenant: TenantContext, events: list<IncomingEvent>, ids: list<string>}> $groups */
+        /** @var array<string, array{tenant: TenantContext, events: list<IncomingEvent>, ids: list<string>, traces?: array<string, array<string, string>>}> $groups */
         $groups = [];
         $outcome = new IngestionOutcome();
         $malformed = [];
@@ -123,6 +137,12 @@ final readonly class StreamConsumer
             $groups[$key]['tenant'] = $envelope->tenant;
             $groups[$key]['events'][] = new IncomingEvent($envelope->event, $envelope->receivedAt);
             $groups[$key]['ids'][] = $delivery->id;
+
+            // Fifty events of one request carry one context: keyed by it,
+            // each request is linked once.
+            if (isset($envelope->trace['traceparent'])) {
+                $groups[$key]['traces'][$envelope->trace['traceparent']] = $envelope->trace;
+            }
         }
 
         if ($malformed !== []) {
@@ -138,7 +158,7 @@ final readonly class StreamConsumer
         }
 
         foreach ($groups as $group) {
-            $outcome = $outcome->plus($this->processGroup($group['tenant'], $group['events'], $group['ids']));
+            $outcome = $outcome->plus($this->processGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
         }
 
         return $outcome;
@@ -147,10 +167,38 @@ final readonly class StreamConsumer
     /**
      * @param  list<IncomingEvent>  $events
      * @param  list<string>  $ids
+     * @param  list<array<string, string>>  $traces  the contexts of the requests the events came from
      */
-    private function processGroup(TenantContext $tenant, array $events, array $ids): IngestionOutcome
+    private function processGroup(TenantContext $tenant, array $events, array $ids, array $traces): IngestionOutcome
     {
-        $outcome = $this->processor->process($tenant, $events);
+        $builder = $this->tracing->tracer()
+            ->spanBuilder('usage.batch')
+            ->setSpanKind(SpanKind::KIND_CONSUMER)
+            ->setAttribute('messaging.system', 'redis')
+            ->setAttribute('messaging.destination.name', $this->key)
+            ->setAttribute('messaging.operation.name', 'process')
+            ->setAttribute('messaging.batch.message_count', count($events))
+            ->setAttribute('metered.project_id', $tenant->projectId->value)
+            ->setAttribute('metered.batch.request_count', count($traces));
+
+        foreach (array_slice($traces, 0, self::MAX_LINKS) as $trace) {
+            $builder->addLink($this->tracing->spanContextFrom($trace));
+        }
+
+        $span = $builder->startSpan();
+        $scope = $span->activate();
+
+        try {
+            $outcome = $this->processor->process($tenant, $events);
+        } catch (Throwable $failure) {
+            $span->recordException($failure);
+            $span->setStatus(StatusCode::STATUS_ERROR, $failure->getMessage());
+
+            throw $failure;
+        } finally {
+            $scope->detach();
+            $span->end();
+        }
 
         // Only now. Everything above this line is redoable; acknowledging
         // before it would make the failure unrecoverable instead.

@@ -14,6 +14,7 @@ use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Billing\Application\Contract\MeterCatalog;
 use Metered\Shared\Application\Health\ReadinessCheck;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Command\IngestEventsHandler;
 use Metered\Usage\Application\Contract\UsageTotals;
@@ -74,6 +75,7 @@ final class UsageServiceProvider extends ServiceProvider
                 self::configString($app, 'metered.usage.stream.key', 'usage:events'),
                 self::configString($app, 'metered.usage.stream.group', 'usage-writers'),
                 self::configInt($app, 'metered.usage.stream.max_length', 1_000_000),
+                $app->make(Tracing::class),
             ),
         );
         $this->app->singleton(EventStream::class, RedisEventStream::class);
@@ -170,6 +172,7 @@ final class UsageServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.usage.consumer.block_milliseconds', 2000),
                 self::configInt($app, 'metered.usage.consumer.reclaim_idle_milliseconds', 60_000),
                 self::configInt($app, 'metered.usage.consumer.max_deliveries', 5),
+                $app->make(Tracing::class),
             ),
         );
 

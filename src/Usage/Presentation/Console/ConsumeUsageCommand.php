@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Usage\Presentation\Console;
 
 use Illuminate\Console\Command;
+use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 use Metered\Usage\Infrastructure\Redis\ConsumeReport;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
 use Throwable;
@@ -33,7 +34,7 @@ final class ConsumeUsageCommand extends Command
 
     private bool $stopping = false;
 
-    public function handle(StreamConsumer $consumer): int
+    public function handle(StreamConsumer $consumer, TelemetryFlush $telemetry): int
     {
         $consumer->ensureGroup();
 
@@ -65,6 +66,7 @@ final class ConsumeUsageCommand extends Command
             }
 
             $this->report($report);
+            $telemetry->flushIfDue();
 
             $passes++;
 

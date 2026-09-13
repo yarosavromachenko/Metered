@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Usage\Infrastructure\Redis;
 
 use Illuminate\Redis\Connections\PhpRedisConnection;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Usage\Application\Stream\Batch;
 use Metered\Usage\Application\Stream\EventStream;
 use Metered\Usage\Application\Stream\StreamDepth;
@@ -27,11 +28,14 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
         private string $key,
         private string $group,
         private int $maxLength,
+        private Tracing $tracing,
     ) {}
 
     public function append(Batch $batch): void
     {
-        $messages = StreamEnvelope::encodeBatch($batch);
+        // The request's context goes into every message, so that the batch
+        // that eventually writes them can point back at this request.
+        $messages = StreamEnvelope::encodeBatch($batch, $this->tracing->carrier());
 
         if ($messages === []) {
             return;

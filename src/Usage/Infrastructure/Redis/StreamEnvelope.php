@@ -29,24 +29,36 @@ use Throwable;
  * Everything travels as a string, including the quantity. A number that goes
  * through a JSON float on the way to a billing calculation is a rounding
  * error with a customer's name on it.
+ *
+ * The request's trace context rides along as the W3C fields `traceparent` and
+ * `tracestate` (ADR-0012). They are optional within version 1: a message
+ * written before they existed, or with tracing off, simply has none, and the
+ * consumer links to nothing rather than refusing it.
  */
 final readonly class StreamEnvelope
 {
     public const string VERSION = '1';
+
+    /** @var list<string> */
+    private const array TRACE_FIELDS = ['traceparent', 'tracestate'];
 
     public function __construct(
         public TenantContext $tenant,
         public Uuid $requestId,
         public DateTimeImmutable $receivedAt,
         public SubmittedEvent $event,
+        /** @var array<string, string> */
+        public array $trace = [],
     ) {}
 
     /**
+     * @param  array<string, string>  $trace  the context of the request that accepted the batch
      * @return list<array<string, string>>
      */
-    public static function encodeBatch(Batch $batch): array
+    public static function encodeBatch(Batch $batch, array $trace = []): array
     {
         $messages = [];
+        $traceFields = self::traceFields($trace);
 
         foreach ($batch->events as $event) {
             $messages[] = [
@@ -61,6 +73,7 @@ final readonly class StreamEnvelope
                 'quantity' => (string) $event->quantity,
                 'occurred_at' => $event->occurredAt->format(DateTimeImmutable::RFC3339_EXTENDED),
                 'properties' => self::encodeProperties($event->properties),
+                ...$traceFields,
             ];
         }
 
@@ -102,12 +115,22 @@ final readonly class StreamEnvelope
                     self::instant($fields['occurred_at'] ?? ''),
                     self::decodeProperties($fields['properties'] ?? '{}'),
                 ),
+                self::traceFields($fields),
             );
         } catch (Throwable) {
             // Deliberately broad: every failure here has the same answer, and
             // that answer is never "stop consuming".
             return null;
         }
+    }
+
+    /**
+     * @param  array<string, string>  $fields
+     * @return array<string, string>
+     */
+    private static function traceFields(array $fields): array
+    {
+        return array_intersect_key($fields, array_flip(self::TRACE_FIELDS));
     }
 
     private static function encodeProperties(Properties $properties): string
