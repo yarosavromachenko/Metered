@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use Metered\Shared\Infrastructure\Logging\TraceContextProcessor;
+use Monolog\Formatter\JsonFormatter;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -113,6 +115,19 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        // One JSON object per line on the container's log stream, stamped
+        // with the trace it was written in (docs/observability.md).
+        'json' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => JsonFormatter::class,
+            'processors' => [PsrLogMessageProcessor::class, TraceContextProcessor::class],
         ],
 
         'syslog' => [

@@ -72,6 +72,7 @@
         <env name="SESSION_DRIVER" value="array"/>
         <env name="TELESCOPE_ENABLED" value="false"/>
         <env name="OTEL_SDK_DISABLED" value="true"/>
+        <env name="LOG_STACK" value="single"/>
         <!-- force="true" matters: without it, PHPUnit leaves an existing
              environment variable alone, and the container defines DB_CONNECTION
              already. The suite would then run against the development database,
