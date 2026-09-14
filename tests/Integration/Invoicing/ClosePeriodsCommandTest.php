@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Metered\Invoicing\Application\Command\CloseSubscriptionPeriodsHandler;
 use Metered\Invoicing\Infrastructure\Queue\CloseSubscriptionPeriodsJob;
+use Tests\Support\InMemoryTracing;
 use Tests\Support\InvoicingScenario;
 
 it('queues a close only for subscriptions with a period past its grace window', function (): void {
@@ -57,4 +58,21 @@ it('closes the due periods in this process when asked to, rather than queueing t
         ->and(Artisan::call('billing:close-periods', ['--sync' => true]))->toBe(0)
         ->and(Artisan::output())->toContain('Closed periods for 1 subscription(s).')
         ->and($invoiced())->toBe('finalized');
+});
+
+it('traces a run as the root of the closes it runs', function (): void {
+    $recorder = InMemoryTracing::install();
+    InvoicingScenario::start()->at('2026-02-28 15:00:00');
+
+    Artisan::call('billing:close-periods', ['--sync' => true]);
+
+    $run = $recorder->named('billing close-periods');
+    $close = $recorder->named(CloseSubscriptionPeriodsJob::class);
+
+    expect($run)->not->toBeNull()
+        ->and($close)->not->toBeNull()
+        ->and($run?->getParentContext()->isValid())->toBeFalse()
+        ->and($run?->getAttributes()->get('metered.close.subscriptions'))->toBe(1)
+        ->and($close?->getContext()->getTraceId())->toBe($run?->getContext()->getTraceId())
+        ->and($close?->getParentContext()->getSpanId())->toBe($run?->getContext()->getSpanId());
 });

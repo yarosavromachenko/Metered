@@ -10,6 +10,7 @@ use Illuminate\Contracts\Config\Repository;
 use Metered\Billing\Application\Contract\SubscriptionBilling;
 use Metered\Invoicing\Domain\Invoice\InvoiceRepository;
 use Metered\Invoicing\Infrastructure\Queue\CloseSubscriptionPeriodsJob;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -19,6 +20,10 @@ use Psr\Clock\ClockInterface;
  * Deciding "due" here keeps the queue to the work there is; the job decides
  * again, and anything this gets wrong in either direction costs a no-op job
  * or a five-minute wait, never an invoice.
+ *
+ * Each run is the root of a trace, and the closes it queues are its children:
+ * from there the trace follows each invoice's events through the outbox to
+ * the webhooks they cause (ADR-0012).
  */
 final class ClosePeriodsCommand extends Command
 {
@@ -28,6 +33,34 @@ final class ClosePeriodsCommand extends Command
     protected $description = 'Queue a period close for every subscription with a period past its grace window';
 
     public function handle(
+        SubscriptionBilling $billing,
+        InvoiceRepository $invoices,
+        Dispatcher $bus,
+        ClockInterface $clock,
+        Repository $config,
+        Tracing $tracing,
+    ): int {
+        $span = $tracing->tracer()->spanBuilder('billing close-periods')->startSpan();
+        $scope = $span->activate();
+
+        try {
+            $queued = $this->closeDue($billing, $invoices, $bus, $clock, $config);
+        } finally {
+            $scope->detach();
+        }
+
+        $span->setAttribute('metered.close.subscriptions', $queued);
+        $span->end();
+
+        $this->components->info(sprintf($this->option('sync') === true ? 'Closed periods for %d subscription(s).' : 'Queued %d period close(s).', $queued));
+
+        return self::SUCCESS;
+    }
+
+    /**
+     * @return int how many subscriptions had a close queued, or run
+     */
+    private function closeDue(
         SubscriptionBilling $billing,
         InvoiceRepository $invoices,
         Dispatcher $bus,
@@ -61,9 +94,7 @@ final class ClosePeriodsCommand extends Command
             ++$queued;
         }
 
-        $this->components->info(sprintf($this->option('sync') === true ? 'Closed periods for %d subscription(s).' : 'Queued %d period close(s).', $queued));
-
-        return self::SUCCESS;
+        return $queued;
     }
 
     private function seconds(Repository $config, string $key, int $default): int
