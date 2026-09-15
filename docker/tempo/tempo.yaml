@@ -1,0 +1,30 @@
+# Tempo as one process with local storage: enough for a laptop and a demo,
+# and the same query API a scaled deployment would give Grafana.
+stream_over_http_enabled: true
+
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks
+
+# A day of traces. The demo runs for an hour at a time; anything older is a
+# trace nobody will open.
+compactor:
+  compaction:
+    block_retention: 24h
+
+usage_report:
+  reporting_enabled: false

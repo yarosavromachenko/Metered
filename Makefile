@@ -136,12 +136,13 @@ SHOWCASE_PASSWORD ?= metered-demo
 TRAFFIC           := metered-demo-traffic
 
 .PHONY: demo
-# APP_DEMO is read once, at boot, by long-running processes; when this switches
-# it on for a stack that is already up, the stack is restarted to see it.
+# APP_DEMO and tracing are read once, at boot, by long-running processes; when
+# this switches either on for a stack that is already up, the stack is
+# restarted to see it.
 demo: ## One command for a reviewer: stack, showcase data, live traffic
 	@test -f .env || cp .env.example .env
-	@if ! grep -q '^APP_DEMO=true' .env; then \
-		sed -i.bak 's/^APP_DEMO=.*/APP_DEMO=true/' .env && rm -f .env.bak; \
+	@if ! grep -q '^APP_DEMO=true' .env || ! grep -q '^OTEL_SDK_DISABLED=false' .env; then \
+		sed -i.bak -e 's/^APP_DEMO=.*/APP_DEMO=true/' -e 's/^OTEL_SDK_DISABLED=.*/OTEL_SDK_DISABLED=false/' .env && rm -f .env.bak; \
 		$(DC) restart >/dev/null 2>&1 || true; \
 	fi
 	@test -f vendor/autoload.php || $(MAKE) install
@@ -150,7 +151,7 @@ demo: ## One command for a reviewer: stack, showcase data, live traffic
 	@echo
 	@echo "Admin panel:  http://localhost:$${APP_PORT:-8080}/admin"
 	@echo "              $(SHOWCASE_EMAIL) / $(SHOWCASE_PASSWORD) (read-only), or sign up for a tenant of your own"
-	@echo "Grafana:      http://localhost:$${GRAFANA_PORT:-3000}  (live load)"
+	@echo "Grafana:      http://localhost:$${GRAFANA_PORT:-3000}  (live load; traces under Explore → Tempo)"
 	@echo "Webhooks:     http://localhost:$${WEBHOOK_RECEIVER_PORT:-8089}"
 	@echo "Horizon:      http://localhost:$${APP_PORT:-8080}/horizon"
 

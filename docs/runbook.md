@@ -36,6 +36,27 @@ restarts on it. The worker daemons (`usage-consumer`, `outbox-relay`,
 `horizon`, `scheduler`) serve no HTTP and have no healthcheck: their liveness
 is the process running, answered by the restart policy.
 
+## After a migration: `cached plan must not change result type`
+
+Queries through PgBouncer fail with `SQLSTATE[0A000] ... cached plan must not
+change result type` right after a migration that adds or drops a column.
+Seen when `webhook_deliveries` gained `trace_context`: every
+`webhooks:dispatch` run failed until the pool was reset.
+
+PgBouncer keeps prepared statements on its server connections
+(`MAX_PREPARED_STATEMENTS`). A statement prepared as `select * from <table>`
+before the migration has a result shape the table no longer has, and
+PostgreSQL refuses to run the cached plan.
+
+1. Run migrations first, then reset the pool so every server connection starts
+   without cached statements: `docker compose restart pgbouncer`. Clients
+   reconnect on their next query.
+2. Nothing needs replaying. The failed commands were scheduled passes
+   (`webhooks:dispatch` every 10s, `billing:close-periods` every five minutes)
+   and the next pass after the reset does their work.
+
+Make the reset part of every deploy that changes a table's columns.
+
 ## Ingestion is returning 503
 
 Backpressure is working as designed: stream length or lag crossed its threshold.

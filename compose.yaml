@@ -241,6 +241,32 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      tempo:
+        condition: service_started
+
+  # Receives OTLP from every process of the application and forwards it: traces
+  # to Tempo. Nothing is published on the host; the processes reach it by name.
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    command: ["--config=/etc/otelcol/config.yaml"]
+    volumes:
+      - ./docker/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
+    depends_on:
+      tempo:
+        condition: service_started
+    restart: unless-stopped
+
+  # Trace storage and search, read by Grafana (Explore → Tempo).
+  tempo:
+    image: grafana/tempo:2.10.8
+    command: ["-config.file=/etc/tempo.yaml"]
+    # The image runs as an unprivileged user that cannot write to a fresh
+    # named volume, which Docker creates owned by root.
+    user: "0"
+    volumes:
+      - ./docker/tempo/tempo.yaml:/etc/tempo.yaml:ro
+      - tempo-data:/var/tempo
+    restart: unless-stopped
 
   # Load profile only: `make load`. Not part of `make up`.
   k6:
@@ -364,3 +390,4 @@ volumes:
   postgres-data:
   redis-data:
   mailpit-data:
+  tempo-data:

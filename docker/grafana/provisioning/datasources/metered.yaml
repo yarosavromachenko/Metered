@@ -1,6 +1,5 @@
-# The demo's dashboards read PostgreSQL directly, as a role that can only read
-# (docker/postgres/init-metered.sh). Metrics scraped from the processes
-# themselves — stream lag, latency percentiles — arrive with Prometheus in M8.
+# The live-load dashboard reads PostgreSQL directly, as a role that can only
+# read (docker/postgres/init-metered.sh). Traces come from Tempo.
 apiVersion: 1
 
 datasources:
@@ -17,3 +16,13 @@ datasources:
       timescaledb: false
     secureJsonData:
       password: grafana-reader
+
+  - name: Tempo
+    uid: metered-tempo
+    type: tempo
+    url: http://tempo:3200
+    jsonData:
+      nodeGraph:
+        enabled: true
+      search:
+        hide: false
