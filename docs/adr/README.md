@@ -28,5 +28,6 @@ that links back, so the reasoning at the time stays readable.
 | [0016](0016-demo-mode-and-seed-profiles.md) | Demo mode and seed profiles | Accepted (M7) |
 | [0017](0017-admin-authentication.md) | Admin authentication and authorization | **Accepted** |
 | [0018](0018-design-principles.md) | Design principles: earn every abstraction | **Accepted** |
+| [0019](0019-metrics-through-opentelemetry.md) | Export metrics through OpenTelemetry, and read gauges in one process | **Accepted** |
 
 Statuses: **Proposed** → **Accepted** → **Superseded by NNNN** / **Deprecated**.

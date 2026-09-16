@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Shared\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Contracts\Queue\Factory as QueueFactory;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Queue\Events\Looping;
 use Illuminate\Support\Facades\Route;
@@ -17,6 +18,8 @@ use Metered\Shared\Application\Health\ReadinessCheck;
 use Metered\Shared\Application\Idempotency\IdempotencyStore;
 use Metered\Shared\Application\Inbox\InboxGuard;
 use Metered\Shared\Application\Inbox\IntegrationEventHandler;
+use Metered\Shared\Application\Metrics\GaugeSource;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Application\Outbox\OutboxPublisher;
 use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Application\Transaction\Transactions;
@@ -32,19 +35,26 @@ use Metered\Shared\Infrastructure\Idempotency\DatabaseIdempotencyStore;
 use Metered\Shared\Infrastructure\Identifier\Uuid7Generator;
 use Metered\Shared\Infrastructure\Inbox\DatabaseInboxGuard;
 use Metered\Shared\Infrastructure\Inbox\IntegrationEventDispatcher;
+use Metered\Shared\Infrastructure\Metrics\GaugeObserver;
+use Metered\Shared\Infrastructure\Metrics\MeterProviderFactory;
+use Metered\Shared\Infrastructure\Metrics\OpenTelemetryMetrics;
 use Metered\Shared\Infrastructure\Outbox\DatabaseOutboxWriter;
+use Metered\Shared\Infrastructure\Outbox\OutboxGauges;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Outbox\QueueOutboxPublisher;
+use Metered\Shared\Infrastructure\Queue\QueueGauges;
 use Metered\Shared\Infrastructure\Tracing\QueueTracing;
 use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 use Metered\Shared\Infrastructure\Tracing\TracerProviderFactory;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
+use Metered\Shared\Presentation\Console\ObserveMetricsCommand;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
 use Metered\Shared\Presentation\Console\VerifyAuditChainCommand;
 use Metered\Shared\Presentation\Http\IdempotencyScope;
 use Metered\Shared\Presentation\Http\LivenessController;
 use Metered\Shared\Presentation\Http\ReadinessController;
 use Metered\Shared\Presentation\Http\RequestAttributeScope;
+use OpenTelemetry\API\Metrics\MeterProviderInterface;
 use OpenTelemetry\API\Trace\Propagation\TraceContextPropagator;
 use OpenTelemetry\API\Trace\TracerProviderInterface;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
@@ -107,8 +117,53 @@ final class SharedServiceProvider extends ServiceProvider
             TelemetryFlush::class,
             static fn(Application $app): TelemetryFlush => new TelemetryFlush(
                 $app->make(TracerProviderInterface::class),
+                $app->make(MeterProviderInterface::class),
                 static fn(): int => (int) hrtime(true),
             ),
+        );
+
+        $this->app->singleton(
+            MeterProviderInterface::class,
+            static fn(Application $app): MeterProviderInterface => new MeterProviderFactory(
+                self::configBool($app, 'metered.tracing.enabled', false),
+                self::configString($app, 'metered.tracing.service_name', 'metered'),
+                self::configString($app, 'metered.tracing.endpoint', 'http://otel-collector:4318'),
+                self::configString($app, 'app.env', 'production'),
+            )->make(),
+        );
+        $this->app->singleton(Metrics::class, OpenTelemetryMetrics::class);
+
+        $this->app->bind(
+            OutboxGauges::class,
+            static fn(Application $app): OutboxGauges => new OutboxGauges(
+                $app->make(DatabaseManager::class),
+                $app->make(ClockInterface::class),
+                self::configString($app, 'metered.outbox.connection', 'pgsql_direct'),
+                self::configInt($app, 'metered.outbox.max_attempts', 10),
+            ),
+        );
+        $this->app->bind(
+            QueueGauges::class,
+            static fn(Application $app): QueueGauges => new QueueGauges(
+                $app->make(QueueFactory::class),
+                self::configStringList($app, 'metered.metrics.queues'),
+            ),
+        );
+        $this->app->tag([OutboxGauges::class, QueueGauges::class], GaugeSource::TAG);
+
+        $this->app->singleton(
+            GaugeObserver::class,
+            static function (Application $app): GaugeObserver {
+                $sources = [];
+
+                foreach ($app->tagged(GaugeSource::TAG) as $source) {
+                    if ($source instanceof GaugeSource) {
+                        $sources[] = $source;
+                    }
+                }
+
+                return new GaugeObserver($sources, $app->make(MeterProviderInterface::class), $app->make(LoggerInterface::class));
+            },
         );
 
         $this->app->singleton(
@@ -164,6 +219,7 @@ final class SharedServiceProvider extends ServiceProvider
 
         if ($this->app->runningInConsole()) {
             $this->commands([
+                ObserveMetricsCommand::class,
                 RelayOutboxCommand::class,
                 VerifyAuditChainCommand::class,
             ]);
@@ -211,6 +267,16 @@ final class SharedServiceProvider extends ServiceProvider
         $value = $app->make('config')->get($key);
 
         return is_string($value) ? $value : $default;
+    }
+
+    /**
+     * @return list<string>
+     */
+    private static function configStringList(Application $app, string $key): array
+    {
+        $value = $app->make('config')->get($key);
+
+        return is_array($value) ? array_values(array_filter($value, is_string(...))) : [];
     }
 
     private static function configBool(Application $app, string $key, bool $default): bool

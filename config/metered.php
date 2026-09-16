@@ -250,6 +250,14 @@ return [
         'endpoint' => env('OTEL_EXPORTER_OTLP_ENDPOINT', 'http://otel-collector:4318'),
     ],
 
+    // Gauges are read by one process, metrics:observe, on this interval: the
+    // stream, the outbox, the queues below and the webhook breakers. Counters
+    // and histograms are recorded where things happen and need no setting.
+    'metrics' => [
+        'observe_interval_seconds' => (int) env('METRICS_OBSERVE_INTERVAL', 15),
+        'queues' => ['default', env('INVOICING_QUEUE', 'billing'), env('WEBHOOKS_QUEUE', 'webhooks')],
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Simulation
