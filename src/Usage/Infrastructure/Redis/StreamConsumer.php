@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Usage\Infrastructure\Redis;
 
 use Illuminate\Redis\Connections\PhpRedisConnection;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
@@ -13,6 +14,7 @@ use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\IncomingEvent;
 use Metered\Usage\Application\Ingestion\IngestionOutcome;
 use Metered\Usage\Application\Ingestion\RejectionLog;
+use Metered\Usage\Application\Metrics\UsageMetrics;
 use Metered\Usage\Domain\Rejection;
 use Metered\Usage\Domain\RejectionReason;
 use OpenTelemetry\API\Trace\SpanKind;
@@ -63,6 +65,7 @@ final readonly class StreamConsumer
         private int $reclaimIdleMilliseconds,
         private int $maxDeliveries,
         private Tracing $tracing,
+        private Metrics $metrics,
     ) {}
 
     /**
@@ -187,9 +190,12 @@ final readonly class StreamConsumer
 
         $span = $builder->startSpan();
         $scope = $span->activate();
+        $started = hrtime(true);
 
         try {
             $outcome = $this->processor->process($tenant, $events);
+            $this->metrics->record(UsageMetrics::batchWriteDuration(), (int) (hrtime(true) - $started));
+            $this->metrics->record(UsageMetrics::batchSize(), count($events));
         } catch (Throwable $failure) {
             $span->recordException($failure);
             $span->setStatus(StatusCode::STATUS_ERROR, $failure->getMessage());

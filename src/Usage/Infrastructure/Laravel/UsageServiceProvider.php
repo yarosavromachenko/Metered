@@ -13,12 +13,15 @@ use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\CustomerDirectory;
 use Metered\Billing\Application\Contract\MeterCatalog;
 use Metered\Shared\Application\Health\ReadinessCheck;
+use Metered\Shared\Application\Metrics\GaugeSource;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Command\IngestEventsHandler;
 use Metered\Usage\Application\Contract\UsageTotals;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
+use Metered\Usage\Application\Ingestion\CountingRejectionLog;
 use Metered\Usage\Application\Ingestion\Deduplicator;
 use Metered\Usage\Application\Ingestion\EventWriter;
 use Metered\Usage\Application\Ingestion\RejectionLog;
@@ -37,10 +40,12 @@ use Metered\Usage\Infrastructure\Redis\DeferredStreamDepth;
 use Metered\Usage\Infrastructure\Redis\RedisDeduplicator;
 use Metered\Usage\Infrastructure\Redis\RedisEventStream;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
+use Metered\Usage\Infrastructure\Redis\StreamGauges;
 use Metered\Usage\Presentation\Console\ConsumeUsageCommand;
 use Metered\Usage\Presentation\Console\EnsurePartitionsCommand;
 use Metered\Usage\Presentation\Console\ReconcileUsageCommand;
 use Metered\Usage\Presentation\Http\IngestEventsController;
+use Metered\Usage\Presentation\Http\Middleware\MeasureIngestion;
 use Metered\Usage\Presentation\Http\ReadCustomerUsageController;
 use Psr\Clock\ClockInterface;
 use RuntimeException;
@@ -129,9 +134,12 @@ final class UsageServiceProvider extends ServiceProvider
 
         $this->app->singleton(
             RejectionLog::class,
-            static fn(Application $app): RejectionLog => new DatabaseRejectionLog(
-                $app->make(DatabaseManager::class),
-                self::connection($app),
+            static fn(Application $app): RejectionLog => new CountingRejectionLog(
+                new DatabaseRejectionLog(
+                    $app->make(DatabaseManager::class),
+                    self::connection($app),
+                ),
+                $app->make(Metrics::class),
             ),
         );
 
@@ -173,6 +181,7 @@ final class UsageServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.usage.consumer.reclaim_idle_milliseconds', 60_000),
                 self::configInt($app, 'metered.usage.consumer.max_deliveries', 5),
                 $app->make(Tracing::class),
+                $app->make(Metrics::class),
             ),
         );
 
@@ -197,6 +206,17 @@ final class UsageServiceProvider extends ServiceProvider
             ),
         );
         $this->app->tag([BacklogCheck::class], ReadinessCheck::TAG);
+
+        $this->app->bind(
+            StreamGauges::class,
+            static fn(Application $app): StreamGauges => new StreamGauges(
+                self::redis($app),
+                $app->make(StreamDepth::class),
+                self::configString($app, 'metered.usage.stream.key', 'usage:events'),
+                self::configString($app, 'metered.usage.stream.dead_letter_key', 'usage:events:dead'),
+            ),
+        );
+        $this->app->tag([StreamGauges::class], GaugeSource::TAG);
     }
 
     public function boot(): void
@@ -212,7 +232,7 @@ final class UsageServiceProvider extends ServiceProvider
         // The module carries its own routes, as it carries its own screens: a
         // module that is deleted takes its endpoints with it, and
         // routes/api.php never learns what any of them were.
-        Route::middleware(['api', 'api-key:usage:write', 'throttle-api-key'])
+        Route::middleware(['api', MeasureIngestion::class, 'api-key:usage:write', 'throttle-api-key'])
             ->prefix('api/v1')
             ->group(static function (): void {
                 Route::post('usage/events', IngestEventsController::class)->name('usage.events.ingest');
