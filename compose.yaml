@@ -199,6 +199,44 @@ services:
         condition: service_healthy
     restart: unless-stopped
 
+  # Reads the gauges — stream depth, outbox lag, queue depth, open breakers —
+  # every METRICS_OBSERVE_INTERVAL seconds and exports them (ADR-0019). One
+  # reader for the whole stack; counters and histograms come from the
+  # processes that do the work.
+  metrics-observer:
+    build:
+      context: .
+      dockerfile: docker/app/Dockerfile
+      target: development
+    command: ["php", "artisan", "metrics:observe"]
+    healthcheck: *no-inherited-healthcheck
+    volumes:
+      - .:/app
+    user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
+    environment:
+      HOME: /tmp
+      XDG_CONFIG_HOME: /tmp/.config
+      XDG_DATA_HOME: /tmp/.local/share
+      APP_ENV: local
+      DB_HOST: pgbouncer
+      DB_PORT: "6432"
+      DB_DIRECT_HOST: postgres
+      DB_DIRECT_PORT: "5432"
+      DB_DATABASE: metered
+      DB_USERNAME: metered
+      DB_PASSWORD: secret
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+    stop_grace_period: 5s
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    restart: unless-stopped
+
   # A stand-in for a tenant's system, for the demo's webhooks: it answers by
   # path (/ok, /flaky, /down, /slow, /gone), checks signatures against the
   # secrets pasted into it, and lists what arrived at http://localhost:8089.
@@ -243,9 +281,12 @@ services:
         condition: service_healthy
       tempo:
         condition: service_started
+      prometheus:
+        condition: service_started
 
   # Receives OTLP from every process of the application and forwards it: traces
-  # to Tempo. Nothing is published on the host; the processes reach it by name.
+  # to Tempo, metrics to a Prometheus endpoint on :8889. Nothing is published
+  # on the host; the processes and Prometheus reach it by name.
   otel-collector:
     image: otel/opentelemetry-collector-contrib:0.160.0
     command: ["--config=/etc/otelcol/config.yaml"]
@@ -253,6 +294,24 @@ services:
       - ./docker/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
     depends_on:
       tempo:
+        condition: service_started
+    restart: unless-stopped
+
+  # Scrapes the collector, keeps a week of metrics, and evaluates the alert
+  # rules in docker/prometheus/rules. Read by Grafana; its own UI is on
+  # http://localhost:9090.
+  prometheus:
+    image: prom/prometheus:v3.14.0
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ./docker/prometheus:/etc/prometheus:ro
+      - prometheus-data:/prometheus
+    ports:
+      - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
+    depends_on:
+      otel-collector:
         condition: service_started
     restart: unless-stopped
 
@@ -391,3 +450,4 @@ volumes:
   redis-data:
   mailpit-data:
   tempo-data:
+  prometheus-data:

@@ -1,0 +1,409 @@
+{
+  "uid": "metered-billing",
+  "title": "Metered — Billing",
+  "description": "The period close: invoices finalized, how long each subscription's close takes, and the revenue booked, by currency.",
+  "tags": [
+    "metered",
+    "m8"
+  ],
+  "timezone": "utc",
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Invoices finalized, last hour",
+      "description": "Finalized by the close or by hand.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(increase(invoices_finalized_total[1h])) or vector(0)",
+          "instant": true
+        }
+      ],
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "Close p95",
+      "description": "95th percentile of one subscription's close: the draft built from the period's usage, then finalized.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 6,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 5
+              },
+              {
+                "color": "red",
+                "value": 30
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(billing_close_duration_seconds_bucket[1h])))",
+          "instant": true
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "Closes waiting",
+      "description": "CloseSubscriptionPeriodsJob instances on the billing queue.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 100
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(queue_depth{queue=\"billing\"}) or vector(0)",
+          "instant": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "stat",
+      "title": "Drafts older than an hour",
+      "description": "Invoices built but not finalized; the close finalizes in the same job, so a draft that stays is stuck (runbook).",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "metered-postgres"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 18,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "metered-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS drafts FROM invoices WHERE status = 'draft' AND built_at < now() - interval '1 hour'"
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Invoices finalized per minute",
+      "description": "From the counter of the processes that finalized them.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(rate(invoices_finalized_total[5m])) * 60",
+          "legendFormat": "invoices / min",
+          "range": true
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Close duration",
+      "description": "One subscription's due periods, closed.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(billing_close_duration_seconds_bucket[15m])))",
+          "legendFormat": "p50",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(billing_close_duration_seconds_bucket[15m])))",
+          "legendFormat": "p95",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(billing_close_duration_seconds_bucket[15m])))",
+          "legendFormat": "p99",
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Revenue booked per day, by currency",
+      "description": "Totals of invoices finalized each day, in major units, never summed across currencies.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "metered-postgres"
+      },
+      "gridPos": {
+        "w": 24,
+        "h": 8,
+        "x": 0,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "metered-postgres"
+          },
+          "format": "time_series",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT date_trunc('day', finalized_at) AS time, currency AS metric, sum(total_minor) / 100.0 AS value FROM invoices WHERE finalized_at IS NOT NULL AND $__timeFilter(finalized_at) GROUP BY 1, 2 ORDER BY 1"
+        }
+      ],
+      "id": 7
+    }
+  ]
+}

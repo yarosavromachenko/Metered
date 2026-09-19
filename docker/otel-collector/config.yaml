@@ -1,6 +1,7 @@
 # Every process of the application exports OTLP/HTTP here; the collector
-# batches it and hands traces to Tempo. The application knows one endpoint,
-# so where telemetry is stored can change without touching it (ADR-0012).
+# batches it, hands traces to Tempo and serves metrics for Prometheus to
+# scrape. The application knows one endpoint, so where telemetry is stored
+# can change without touching it (ADR-0012, ADR-0019).
 receivers:
   otlp:
     protocols:
@@ -15,6 +16,12 @@ exporters:
     endpoint: tempo:4317
     tls:
       insecure: true
+  # Each process reports cumulative totals under its own service.instance.id,
+  # which becomes the `instance` label; dashboards sum over it. A process
+  # that stops reporting drops out after five minutes.
+  prometheus:
+    endpoint: 0.0.0.0:8889
+    metric_expiration: 5m
 
 service:
   pipelines:
@@ -22,3 +29,7 @@ service:
       receivers: [otlp]
       processors: [batch]
       exporters: [otlp_grpc/tempo]
+    metrics:
+      receivers: [otlp]
+      processors: [batch]
+      exporters: [prometheus]

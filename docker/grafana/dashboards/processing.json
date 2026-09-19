@@ -1,0 +1,502 @@
+{
+  "uid": "metered-processing",
+  "title": "Metered — Processing",
+  "description": "The consumer writing the stream into PostgreSQL: how often, how much and how long each tenant's share of a batch takes, and the partitions it lands in.",
+  "tags": [
+    "metered",
+    "m8"
+  ],
+  "timezone": "utc",
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Events written per second",
+      "description": "Events in the batches the consumer wrote, across every consumer.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(rate(usage_batch_size_sum[1m]))",
+          "instant": true
+        }
+      ],
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "Batch write p95",
+      "description": "95th percentile of one tenant's share of a batch: dedupe, insert and aggregate upsert in one transaction.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 6,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.5
+              },
+              {
+                "color": "red",
+                "value": 2
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(usage_batch_write_duration_seconds_bucket[5m])))",
+          "instant": true
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "Dead-lettered",
+      "description": "Entries set aside in the dead-letter stream: unreadable, or delivered too many times.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(dlq_size)",
+          "instant": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "stat",
+      "title": "usage_events partitions",
+      "description": "Daily partitions attached to usage_events; usage:partitions:ensure keeps days ahead of now.",
+      "datasource": {
+        "type": "grafana-postgresql-datasource",
+        "uid": "metered-postgres"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 18,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "grafana-postgresql-datasource",
+            "uid": "metered-postgres"
+          },
+          "format": "table",
+          "rawQuery": true,
+          "editorMode": "code",
+          "rawSql": "SELECT count(*) AS partitions FROM pg_inherits i JOIN pg_class p ON p.oid = i.inhparent WHERE p.relname = 'usage_events'"
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Batch write duration",
+      "description": "One tenant's share of a batch, written in one transaction.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(usage_batch_write_duration_seconds_bucket[1m])))",
+          "legendFormat": "p50",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(usage_batch_write_duration_seconds_bucket[1m])))",
+          "legendFormat": "p95",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(usage_batch_write_duration_seconds_bucket[1m])))",
+          "legendFormat": "p99",
+          "range": true
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Batches and events per second",
+      "description": "Batches: tenant shares written. Events: what they carried.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(rate(usage_batch_write_duration_seconds_count[1m]))",
+          "legendFormat": "batches",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(rate(usage_batch_size_sum[1m]))",
+          "legendFormat": "events",
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Batch size",
+      "description": "Events per tenant share of a batch. Small batches under load mean many tenants, or a consumer reading faster than traffic arrives.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(usage_batch_size_bucket[5m])))",
+          "legendFormat": "p50",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(usage_batch_size_bucket[5m])))",
+          "legendFormat": "p95",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(usage_batch_size_bucket[5m])))",
+          "legendFormat": "p99",
+          "range": true
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Backlog and dead letters",
+      "description": "Backlog should hover near zero while the consumer keeps up; a dead-letter count that grows needs a look (runbook).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(usage_stream_pending)",
+          "legendFormat": "backlog",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(dlq_size)",
+          "legendFormat": "dead-lettered",
+          "range": true
+        }
+      ],
+      "id": 8
+    }
+  ]
+}

@@ -1,0 +1,490 @@
+{
+  "uid": "metered-ingestion",
+  "title": "Metered — Ingestion",
+  "description": "POST /api/v1/usage/events and the stream behind it: request rate and latency by status, the backlog backpressure decides on, and what the consumer refused.",
+  "tags": [
+    "metered",
+    "m8"
+  ],
+  "timezone": "utc",
+  "editable": false,
+  "refresh": "15s",
+  "time": {
+    "from": "now-30m",
+    "to": "now"
+  },
+  "schemaVersion": 41,
+  "version": 1,
+  "panels": [
+    {
+      "type": "stat",
+      "title": "Requests per second",
+      "description": "Ingestion requests answered, every status.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 0,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(rate(ingest_requests_total[1m]))",
+          "instant": true
+        }
+      ],
+      "id": 1
+    },
+    {
+      "type": "stat",
+      "title": "p99 latency",
+      "description": "99th percentile of the time to answer, all statuses. The k6 threshold is 150 ms.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 6,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.15
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(ingest_duration_seconds_bucket[5m])))",
+          "instant": true
+        }
+      ],
+      "id": 2
+    },
+    {
+      "type": "stat",
+      "title": "Stream backlog",
+      "description": "Entries accepted and not yet written — what the 503 backpressure decides on (USAGE_STREAM_BACKPRESSURE, 500 000 by default).",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 12,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "orange",
+                "value": 250000
+              },
+              {
+                "color": "red",
+                "value": 500000
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(usage_stream_pending)",
+          "instant": true
+        }
+      ],
+      "id": 3
+    },
+    {
+      "type": "stat",
+      "title": "Shed load, last 5 min",
+      "description": "Requests answered 503 because the backlog was past the threshold.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 6,
+        "h": 4,
+        "x": 18,
+        "y": 0
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 1
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ]
+        },
+        "colorMode": "value",
+        "graphMode": "area"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum(increase(ingest_requests_total{status=\"503\"}[5m])) or vector(0)",
+          "instant": true
+        }
+      ],
+      "id": 4
+    },
+    {
+      "type": "timeseries",
+      "title": "Requests per second, by status",
+      "description": "202 is accepted; 422 a malformed batch; 401/403 a key problem; 429 the per-key limit; 503 backpressure.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum by (status) (rate(ingest_requests_total[1m]))",
+          "legendFormat": "{{status}}",
+          "range": true
+        }
+      ],
+      "id": 5
+    },
+    {
+      "type": "timeseries",
+      "title": "Latency",
+      "description": "Time to answer an ingestion request, from before authentication to the response.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 4
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "s",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true,
+            "thresholdsStyle": {
+              "mode": "line"
+            }
+          },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green",
+                "value": null
+              },
+              {
+                "color": "red",
+                "value": 0.15
+              }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.5, sum by (le) (rate(ingest_duration_seconds_bucket[1m])))",
+          "legendFormat": "p50",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(ingest_duration_seconds_bucket[1m])))",
+          "legendFormat": "p95",
+          "range": true
+        },
+        {
+          "refId": "C",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "histogram_quantile(0.99, sum by (le) (rate(ingest_duration_seconds_bucket[1m])))",
+          "legendFormat": "p99",
+          "range": true
+        }
+      ],
+      "id": 6
+    },
+    {
+      "type": "timeseries",
+      "title": "Stream backlog and length",
+      "description": "Backlog: accepted, not yet written. Length: entries still in the stream, written or not, until MAXLEN trims them.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 0,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "stacking": {
+              "mode": "none"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(usage_stream_pending)",
+          "legendFormat": "backlog",
+          "range": true
+        },
+        {
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "max(usage_stream_length)",
+          "legendFormat": "length",
+          "range": true
+        }
+      ],
+      "id": 7
+    },
+    {
+      "type": "timeseries",
+      "title": "Rejected events per second, by reason",
+      "description": "Events the consumer refused after accepting them: unknown meter or customer, outside the acceptance window, malformed.",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "metered-prometheus"
+      },
+      "gridPos": {
+        "w": 12,
+        "h": 8,
+        "x": 12,
+        "y": 12
+      },
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "custom": {
+            "lineWidth": 2,
+            "fillOpacity": 60,
+            "stacking": {
+              "mode": "normal"
+            },
+            "spanNulls": true
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "metered-prometheus"
+          },
+          "expr": "sum by (reason) (rate(usage_events_rejected_total[5m]))",
+          "legendFormat": "{{reason}}",
+          "range": true
+        }
+      ],
+      "id": 8
+    }
+  ]
+}

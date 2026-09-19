@@ -1,5 +1,6 @@
 # The live-load dashboard reads PostgreSQL directly, as a role that can only
-# read (docker/postgres/init-metered.sh). Traces come from Tempo.
+# read (docker/postgres/init-metered.sh). Metrics come from Prometheus, traces
+# from Tempo.
 apiVersion: 1
 
 datasources:
@@ -26,3 +27,10 @@ datasources:
         enabled: true
       search:
         hide: false
+
+  - name: Prometheus
+    uid: metered-prometheus
+    type: prometheus
+    url: http://prometheus:9090
+    jsonData:
+      timeInterval: 15s
