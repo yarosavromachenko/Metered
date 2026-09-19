@@ -11,6 +11,8 @@ use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
 use Metered\Invoicing\Application\Command\CloseSubscriptionPeriods;
 use Metered\Invoicing\Application\Command\CloseSubscriptionPeriodsHandler;
+use Metered\Invoicing\Application\Metrics\InvoicingMetrics;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
@@ -43,12 +45,16 @@ final class CloseSubscriptionPeriodsJob implements ShouldQueue
         return [new WithoutOverlapping($this->subscriptionId)->dontRelease()->expireAfter(600)];
     }
 
-    public function handle(CloseSubscriptionPeriodsHandler $handler): void
+    public function handle(CloseSubscriptionPeriodsHandler $handler, Metrics $metrics): void
     {
+        $started = hrtime(true);
+
         $handler->handle(new CloseSubscriptionPeriods(
             new TenantContext(Uuid::fromString($this->organizationId), Uuid::fromString($this->projectId)),
             Uuid::fromString($this->subscriptionId),
             Actor::system('queue:billing:close-periods'),
         ));
+
+        $metrics->record(InvoicingMetrics::closeDuration(), (int) (hrtime(true) - $started));
     }
 }

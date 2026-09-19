@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Metered\Invoicing\Application\Command\CloseSubscriptionPeriodsHandler;
 use Metered\Invoicing\Infrastructure\Queue\CloseSubscriptionPeriodsJob;
+use Metered\Shared\Application\Metrics\Metrics;
 use Tests\Support\InMemoryTracing;
 use Tests\Support\InvoicingScenario;
 
@@ -28,7 +29,7 @@ it('queues a close only for subscriptions with a period past its grace window', 
 it('queues nothing for a subscription whose periods are all invoiced', function (): void {
     $scenario = InvoicingScenario::start()->at('2026-02-28 15:00:00');
     new CloseSubscriptionPeriodsJob($scenario->tenant->organizationId->value, $scenario->tenant->projectId->value, $scenario->subscription->id->value)
-        ->handle(app(CloseSubscriptionPeriodsHandler::class));
+        ->handle(app(CloseSubscriptionPeriodsHandler::class), app(Metrics::class));
     Queue::fake();
 
     expect(Artisan::call('billing:close-periods'))->toBe(0)

@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Metered\Invoicing\Application\Command;
 
+use Metered\Invoicing\Application\Metrics\InvoicingMetrics;
 use Metered\Invoicing\Domain\Invoice\DocumentNumbering;
 use Metered\Invoicing\Domain\Invoice\Invoice;
 use Metered\Invoicing\Domain\Invoice\InvoiceRepository;
 use Metered\Invoicing\Domain\Ledger\Ledger;
 use Metered\Invoicing\Domain\Ledger\LedgerTransaction;
 use Metered\Shared\Application\Audit\AuditLogger;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Access\Permission;
@@ -35,13 +37,14 @@ final readonly class FinalizeInvoiceHandler
         private IdentifierGenerator $ids,
         private ClockInterface $clock,
         private AuditLogger $audit,
+        private Metrics $metrics,
     ) {}
 
     public function handle(FinalizeInvoice $command): Invoice
     {
         $this->authorizer->ensure($command->actor, $command->tenant->organizationId, Permission::MoveMoney);
 
-        return $this->transactions->run(function () use ($command): Invoice {
+        $invoice = $this->transactions->run(function () use ($command): Invoice {
             // The invoice row first, then the organization's counter: every
             // finalization takes the two locks in that order, so they queue
             // rather than deadlock.
@@ -72,5 +75,11 @@ final readonly class FinalizeInvoiceHandler
 
             return $invoice;
         });
+
+        // Counted once the transaction has committed: a rolled-back
+        // finalization is not an invoice.
+        $this->metrics->add(InvoicingMetrics::invoicesFinalized());
+
+        return $invoice;
     }
 }
