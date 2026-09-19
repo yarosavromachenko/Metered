@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Metered\Webhooks\Application\Delivery;
 
 use DateTimeImmutable;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Application\Transaction\Transactions;
+use Metered\Webhooks\Application\Metrics\WebhookMetrics;
 use Metered\Webhooks\Domain\Delivery\AttemptLog;
 use Metered\Webhooks\Domain\Delivery\AttemptResult;
 use Metered\Webhooks\Domain\Delivery\Delivery;
@@ -46,6 +48,7 @@ final readonly class AttemptDeliveryHandler
         private int $breakerThreshold,
         private int $breakerCooldownSeconds,
         private int $leaseSeconds,
+        private Metrics $metrics,
     ) {}
 
     public function handle(AttemptDelivery $command): ?AttemptResult
@@ -70,7 +73,31 @@ final readonly class AttemptDeliveryHandler
             $this->record($command, $delivery, $sentAt, $result);
         });
 
+        $this->measure($endpoint, $result);
+
         return $result;
+    }
+
+    /**
+     * By endpoint, because "which receiver is failing" is the question a
+     * dashboard of deliveries is opened to answer. Endpoints are a tenant's
+     * own few, not something that grows with traffic.
+     */
+    private function measure(Endpoint $endpoint, AttemptResult $result): void
+    {
+        $endpointLabel = ['endpoint' => $endpoint->id->value];
+        $outcome = $result->refusedDestination ? 'refused' : match ($result->verdict()) {
+            Verdict::Delivered => 'delivered',
+            Verdict::Retry => 'retry',
+            Verdict::GiveUp => 'given_up',
+        };
+
+        $this->metrics->add(WebhookMetrics::deliveries(), 1, [...$endpointLabel, 'outcome' => $outcome]);
+
+        // A refused destination was never called: there is no answer to time.
+        if (! $result->refusedDestination) {
+            $this->metrics->record(WebhookMetrics::deliveryDuration(), $result->durationMs * 1_000_000, $endpointLabel);
+        }
     }
 
     /**

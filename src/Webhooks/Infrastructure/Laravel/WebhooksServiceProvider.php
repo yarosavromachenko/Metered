@@ -7,6 +7,8 @@ namespace Metered\Webhooks\Infrastructure\Laravel;
 use Illuminate\Contracts\Foundation\Application;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
+use Metered\Shared\Application\Metrics\GaugeSource;
+use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Laravel\SharedServiceProvider;
@@ -29,6 +31,7 @@ use Metered\Webhooks\Infrastructure\Http\RandomJitter;
 use Metered\Webhooks\Infrastructure\Http\Resolver;
 use Metered\Webhooks\Infrastructure\Http\SystemResolver;
 use Metered\Webhooks\Infrastructure\Http\TrustedDestination;
+use Metered\Webhooks\Infrastructure\Persistence\BreakerGauges;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseAttemptLog;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseDeliveryRepository;
 use Metered\Webhooks\Infrastructure\Persistence\DatabaseEndpointRepository;
@@ -102,9 +105,11 @@ final class WebhooksServiceProvider extends ServiceProvider
             self::configInt($app, 'metered.webhooks.breaker_threshold', 5),
             self::configInt($app, 'metered.webhooks.breaker_cooldown_seconds', 300),
             self::configInt($app, 'metered.webhooks.lease_seconds', 60),
+            $app->make(Metrics::class),
         ));
 
         $this->app->tag([FanOutWebhookEvent::class], SharedServiceProvider::HANDLER_TAG);
+        $this->app->tag([BreakerGauges::class], GaugeSource::TAG);
         // Removed with a purged demo tenant, by the module that owns the rows.
         $this->app->tag([DatabaseWebhooksPurger::class], TenantDataPurger::TAG);
     }
