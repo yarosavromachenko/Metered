@@ -50,7 +50,7 @@ fresh: ## Drop everything and re-migrate (local only)
 # --------------------------------------------------------------------------
 
 .PHONY: check
-check: lint static test ## Run every gate CI runs (except mutation)
+check: lint static alerts-test test ## Run every gate CI runs (except mutation)
 
 .PHONY: lint
 lint: ## composer validate + Pint (check mode) + Rector (dry run)
@@ -73,6 +73,17 @@ static: ## Larastan (level max) + Deptrac (layers and module boundaries)
 	$(EXEC) env APP_ENV=production APP_DEMO=false WEBHOOKS_TRUSTED_DESTINATION= vendor/bin/phpstan analyse --memory-limit=1G
 	$(EXEC) vendor/bin/deptrac analyse --config-file=deptrac.layers.yaml
 	$(EXEC) vendor/bin/deptrac analyse --config-file=deptrac.modules.yaml
+
+PROMETHEUS_IMAGE   := prom/prometheus:v3.15.0
+ALERTMANAGER_IMAGE := prom/alertmanager:v0.34.1
+
+.PHONY: alerts-test
+# The images compose runs, so the rules are checked by the Prometheus that
+# evaluates them. Needs Docker only, not the stack.
+alerts-test: ## Alert rules: promtool check + promtool test rules, amtool check-config
+	docker run --rm -v "$(CURDIR)/docker/prometheus:/etc/prometheus:ro" --entrypoint promtool $(PROMETHEUS_IMAGE) check config /etc/prometheus/prometheus.yml
+	docker run --rm -v "$(CURDIR)/docker/prometheus:/etc/prometheus:ro" -w /etc/prometheus/rules --entrypoint promtool $(PROMETHEUS_IMAGE) test rules metered.test.yml
+	docker run --rm -v "$(CURDIR)/docker/alertmanager:/etc/alertmanager:ro" --entrypoint amtool $(ALERTMANAGER_IMAGE) check-config /etc/alertmanager/alertmanager.yml
 
 .PHONY: test
 test: ## Full test suite with coverage thresholds

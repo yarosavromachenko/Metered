@@ -1,0 +1,110 @@
+# Alert rules, evaluated by Prometheus and routed by Alertmanager to Mailpit.
+# Every rule has a test in metered.test.yml (`make alerts-test`, and the CI
+# job `alerts`), and a runbook section its annotation links to.
+#
+# Aggregations drop `instance`: every process reports under its own, and an
+# alert is about the system, not about one worker.
+groups:
+  - name: ingestion
+    rules:
+      - alert: IngestionErrors
+        expr: |
+          sum(rate(ingest_requests_total{status=~"5..", status!="503"}[5m]))
+            / sum(rate(ingest_requests_total[5m])) > 0.05
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: More than 5% of ingestion requests fail with a server error.
+          runbook: docs/runbook.md#ingestion-is-failing-with-5xx
+
+      - alert: IngestionSheddingLoad
+        expr: sum(rate(ingest_requests_total{status="503"}[5m])) > 0
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: Ingestion answers 503 because the stream backlog is past its threshold.
+          runbook: docs/runbook.md#ingestion-is-returning-503
+
+      - alert: IngestionLatencyHigh
+        expr: |
+          histogram_quantile(0.99, sum by (le) (rate(ingest_duration_seconds_bucket{status="202"}[5m]))) > 0.15
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: p99 of accepted ingestion requests is above 150 ms.
+          runbook: docs/runbook.md#ingestion-is-slow
+
+      # Half of USAGE_STREAM_BACKPRESSURE (500 000 by default): time to act
+      # before ingestion starts shedding load.
+      - alert: UsageBacklogHigh
+        expr: max(usage_stream_pending) > 250000
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: The ingestion backlog is past half the backpressure threshold.
+          runbook: docs/runbook.md#ingestion-is-returning-503
+
+      - alert: UsageDeadLettersGrowing
+        expr: max(dlq_size) > max(dlq_size offset 15m)
+        labels:
+          severity: warning
+        annotations:
+          summary: Usage messages were dead-lettered in the last 15 minutes.
+          runbook: docs/runbook.md#messages-in-the-dead-letter-stream
+
+  - name: delivery
+    rules:
+      - alert: OutboxLagging
+        expr: max(outbox_unpublished_age_seconds) > 120
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: The oldest unpublished outbox message is more than two minutes old.
+          runbook: docs/runbook.md#outbox-is-falling-behind
+
+      - alert: WebhookBreakerOpen
+        expr: max by (endpoint) (webhook_breaker_open) == 1
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: A webhook endpoint's circuit breaker is open; its deliveries are held back.
+          runbook: docs/runbook.md#a-webhook-endpoint-is-failing
+
+      - alert: WebhookSuccessRateLow
+        expr: |
+          sum(rate(webhook_deliveries_total{outcome="delivered"}[15m]))
+            / sum(rate(webhook_deliveries_total[15m])) < 0.9
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Fewer than 90% of webhook attempts are delivered.
+          runbook: docs/runbook.md#a-webhook-endpoint-is-failing
+
+  - name: telemetry
+    rules:
+      - alert: TelemetryCollectorDown
+        expr: up{job="otel-collector"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: Prometheus cannot scrape the OpenTelemetry collector; no application metrics arrive.
+          runbook: docs/runbook.md#telemetry-is-missing
+
+      # The gauges come from one process, metrics:observe. When it stops,
+      # the collector drops its series five minutes later.
+      - alert: GaugesMissing
+        expr: absent(usage_stream_pending)
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: No gauges are reported; metrics:observe is not running.
+          runbook: docs/runbook.md#telemetry-is-missing

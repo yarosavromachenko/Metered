@@ -1,0 +1,235 @@
+# `promtool test rules` for metered.yml: each rule fires on the condition it
+# names, and stays quiet on the one next to it that it must not confuse.
+rule_files:
+  - metered.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: ingestion errors are server errors other than backpressure
+    interval: 1m
+    input_series:
+      - series: 'ingest_requests_total{status="202", instance="a"}'
+        values: '0+60x20'
+      - series: 'ingest_requests_total{status="500", instance="a"}'
+        values: '0+6x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: IngestionErrors
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: More than 5% of ingestion requests fail with a server error.
+              runbook: docs/runbook.md#ingestion-is-failing-with-5xx
+      - eval_time: 10m
+        alertname: IngestionSheddingLoad
+        exp_alerts: []
+
+  - name: a 503 is shedding load, not an error
+    interval: 1m
+    input_series:
+      - series: 'ingest_requests_total{status="202", instance="a"}'
+        values: '0+60x20'
+      - series: 'ingest_requests_total{status="503", instance="a"}'
+        values: '0+30x20'
+    alert_rule_test:
+      - eval_time: 10m
+        alertname: IngestionSheddingLoad
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Ingestion answers 503 because the stream backlog is past its threshold.
+              runbook: docs/runbook.md#ingestion-is-returning-503
+      - eval_time: 10m
+        alertname: IngestionErrors
+        exp_alerts: []
+
+  - name: no shedding once the 503s stop
+    interval: 1m
+    input_series:
+      - series: 'ingest_requests_total{status="503", instance="a"}'
+        values: '5x20'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: IngestionSheddingLoad
+        exp_alerts: []
+
+  - name: accepted requests slower than 150 ms at p99
+    interval: 1m
+    input_series:
+      - series: 'ingest_duration_seconds_bucket{status="202", le="0.1", instance="a"}'
+        values: '0x30'
+      - series: 'ingest_duration_seconds_bucket{status="202", le="0.25", instance="a"}'
+        values: '0+100x30'
+      - series: 'ingest_duration_seconds_bucket{status="202", le="+Inf", instance="a"}'
+        values: '0+100x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: IngestionLatencyHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: p99 of accepted ingestion requests is above 150 ms.
+              runbook: docs/runbook.md#ingestion-is-slow
+
+  - name: accepted requests fast at p99
+    interval: 1m
+    input_series:
+      - series: 'ingest_duration_seconds_bucket{status="202", le="0.05", instance="a"}'
+        values: '0+100x30'
+      - series: 'ingest_duration_seconds_bucket{status="202", le="+Inf", instance="a"}'
+        values: '0+100x30'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: IngestionLatencyHigh
+        exp_alerts: []
+
+  - name: backlog past half the backpressure threshold
+    interval: 1m
+    input_series:
+      - series: 'usage_stream_pending{instance="observer"}'
+        values: '300000x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: UsageBacklogHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: The ingestion backlog is past half the backpressure threshold.
+              runbook: docs/runbook.md#ingestion-is-returning-503
+
+  - name: a backlog the consumer keeps up with
+    interval: 1m
+    input_series:
+      - series: 'usage_stream_pending{instance="observer"}'
+        values: '1000x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: UsageBacklogHigh
+        exp_alerts: []
+
+  - name: dead letters that are new, not the ones already there
+    interval: 1m
+    input_series:
+      - series: 'dlq_size{instance="observer"}'
+        values: '1x20 2x20'
+    alert_rule_test:
+      - eval_time: 18m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Usage messages were dead-lettered in the last 15 minutes.
+              runbook: docs/runbook.md#messages-in-the-dead-letter-stream
+      - eval_time: 40m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts: []
+
+  - name: an outbox the relay is not draining
+    interval: 1m
+    input_series:
+      - series: 'outbox_unpublished_age_seconds{instance="observer"}'
+        values: '200x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: OutboxLagging
+        exp_alerts:
+          - exp_labels: {severity: critical}
+            exp_annotations:
+              summary: The oldest unpublished outbox message is more than two minutes old.
+              runbook: docs/runbook.md#outbox-is-falling-behind
+
+  - name: an outbox a few seconds behind
+    interval: 1m
+    input_series:
+      - series: 'outbox_unpublished_age_seconds{instance="observer"}'
+        values: '3x10'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: OutboxLagging
+        exp_alerts: []
+
+  - name: one breaker open among closed ones
+    interval: 1m
+    input_series:
+      - series: 'webhook_breaker_open{endpoint="e-1", instance="observer"}'
+        values: '1x5'
+      - series: 'webhook_breaker_open{endpoint="e-2", instance="observer"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: WebhookBreakerOpen
+        exp_alerts:
+          - exp_labels: {severity: warning, endpoint: e-1}
+            exp_annotations:
+              summary: A webhook endpoint's circuit breaker is open; its deliveries are held back.
+              runbook: docs/runbook.md#a-webhook-endpoint-is-failing
+
+  - name: deliveries failing across endpoints
+    interval: 1m
+    input_series:
+      - series: 'webhook_deliveries_total{outcome="delivered", endpoint="e-1", instance="a"}'
+        values: '0+50x30'
+      - series: 'webhook_deliveries_total{outcome="retry", endpoint="e-2", instance="a"}'
+        values: '0+10x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WebhookSuccessRateLow
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Fewer than 90% of webhook attempts are delivered.
+              runbook: docs/runbook.md#a-webhook-endpoint-is-failing
+
+  - name: deliveries mostly succeeding
+    interval: 1m
+    input_series:
+      - series: 'webhook_deliveries_total{outcome="delivered", endpoint="e-1", instance="a"}'
+        values: '0+95x30'
+      - series: 'webhook_deliveries_total{outcome="retry", endpoint="e-2", instance="a"}'
+        values: '0+5x30'
+    alert_rule_test:
+      - eval_time: 25m
+        alertname: WebhookSuccessRateLow
+        exp_alerts: []
+
+  - name: the collector cannot be scraped
+    interval: 1m
+    input_series:
+      - series: 'up{job="otel-collector", instance="otel-collector:8889"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: TelemetryCollectorDown
+        exp_alerts:
+          - exp_labels: {severity: critical, job: otel-collector, instance: "otel-collector:8889"}
+            exp_annotations:
+              summary: Prometheus cannot scrape the OpenTelemetry collector; no application metrics arrive.
+              runbook: docs/runbook.md#telemetry-is-missing
+
+  - name: the gauge observer stopped
+    interval: 1m
+    input_series:
+      - series: 'usage_stream_length{instance="observer"}'
+        values: '5x5'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GaugesMissing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: No gauges are reported; metrics:observe is not running.
+              runbook: docs/runbook.md#telemetry-is-missing
+
+  - name: the gauge observer running
+    interval: 1m
+    input_series:
+      - series: 'usage_stream_pending{instance="observer"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GaugesMissing
+        exp_alerts: []
