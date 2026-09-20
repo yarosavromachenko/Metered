@@ -1,0 +1,22 @@
+# Alerts go by email to Mailpit (http://localhost:8025): an operator's inbox
+# that never leaves the machine. A production deployment would change the
+# receiver, not the rules.
+global:
+  smtp_smarthost: mailpit:1025
+  smtp_from: alerts@metered.test
+  smtp_require_tls: false
+
+route:
+  receiver: operators
+  # One email per alert name, listing every instance of it: ten open breakers
+  # are one message, not ten.
+  group_by: [alertname]
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 4h
+
+receivers:
+  - name: operators
+    email_configs:
+      - to: ops@metered.test
+        send_resolved: true

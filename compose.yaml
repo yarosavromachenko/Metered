@@ -298,8 +298,8 @@ services:
     restart: unless-stopped
 
   # Scrapes the collector, keeps a week of metrics, and evaluates the alert
-  # rules in docker/prometheus/rules. Read by Grafana; its own UI is on
-  # http://localhost:9090.
+  # rules in docker/prometheus/rules, sending what fires to Alertmanager.
+  # Read by Grafana; its own UI is on http://localhost:9090.
   prometheus:
     image: prom/prometheus:v3.14.0
     command:
@@ -312,6 +312,22 @@ services:
       - "127.0.0.1:${PROMETHEUS_PORT:-9090}:9090"
     depends_on:
       otel-collector:
+        condition: service_started
+      alertmanager:
+        condition: service_started
+    restart: unless-stopped
+
+  # Routes firing alerts to Mailpit by email (docker/alertmanager). Its UI,
+  # with what is firing and what is silenced, is on http://localhost:9093.
+  alertmanager:
+    image: prom/alertmanager:v0.34.1
+    command: ["--config.file=/etc/alertmanager/alertmanager.yml"]
+    volumes:
+      - ./docker/alertmanager:/etc/alertmanager:ro
+    ports:
+      - "127.0.0.1:${ALERTMANAGER_PORT:-9093}:9093"
+    depends_on:
+      mailpit:
         condition: service_started
     restart: unless-stopped
 
