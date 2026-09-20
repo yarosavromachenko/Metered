@@ -36,6 +36,30 @@ restarts on it. The worker daemons (`usage-consumer`, `outbox-relay`,
 `horizon`, `scheduler`) serve no HTTP and have no healthcheck: their liveness
 is the process running, answered by the restart policy.
 
+## Alerts
+
+Prometheus evaluates `docker/prometheus/rules/metered.yml`; Alertmanager
+sends what fires by email, one message per alert name, to Mailpit
+(http://localhost:8025, `ops@metered.test`). What is firing right now is on
+http://localhost:9093.
+
+| Alert | Fires when | Section |
+|---|---|---|
+| `IngestionErrors` | over 5% of ingestion requests answer a 5xx other than 503, for 2 min | [Ingestion is failing with 5xx](#ingestion-is-failing-with-5xx) |
+| `IngestionSheddingLoad` | any 503 in the last 5 min, for 1 min | [Ingestion is returning 503](#ingestion-is-returning-503) |
+| `IngestionLatencyHigh` | p99 of accepted requests above 150 ms, for 5 min | [Ingestion is slow](#ingestion-is-slow) |
+| `UsageBacklogHigh` | backlog above 250 000, half the backpressure threshold, for 2 min | [Ingestion is returning 503](#ingestion-is-returning-503) |
+| `UsageDeadLettersGrowing` | the dead-letter stream grew in the last 15 min | [Messages in the dead-letter stream](#messages-in-the-dead-letter-stream) |
+| `OutboxLagging` | the oldest unpublished message is over 2 min old, for 2 min | [Outbox is falling behind](#outbox-is-falling-behind) |
+| `WebhookBreakerOpen` | an endpoint's breaker is open, for 1 min (one line per endpoint) | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
+| `WebhookSuccessRateLow` | under 90% of attempts delivered over 15 min, for 10 min | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
+| `TelemetryCollectorDown` | Prometheus cannot scrape the collector, for 1 min | [Telemetry is missing](#telemetry-is-missing) |
+| `GaugesMissing` | no gauge reported for 2 min | [Telemetry is missing](#telemetry-is-missing) |
+
+`UsageBacklogHigh` holds its threshold as a number; change it together with
+`USAGE_STREAM_BACKPRESSURE`. Each rule has a test in `metered.test.yml`, run
+by `make alerts-test` and the CI job `alerts`.
+
 ## After a migration: `cached plan must not change result type`
 
 Queries through PgBouncer fail with `SQLSTATE[0A000] ... cached plan must not
@@ -61,7 +85,9 @@ Make the reset part of every deploy that changes a table's columns.
 
 Backpressure is working as designed: stream length or lag crossed its threshold.
 
-1. `docker compose exec app php artisan usage:stream:status` — length, pending, consumer lag.
+1. Grafana → Metered — Ingestion: the stream backlog against its threshold, and
+   when the 503s started. `curl localhost:8080/health/ready` gives the backlog
+   as `usage_backlog`.
 2. Is the consumer running? `docker compose ps usage-consumer`.
 3. If it is alive but slow, look at `usage_batch_write_duration_seconds`. A jump usually means a missing partition, so the insert hit the default partition.
 4. `php artisan usage:partitions:ensure` creates missing partitions for the next N days. It is idempotent.
@@ -69,6 +95,42 @@ Backpressure is working as designed: stream length or lag crossed its threshold.
 
 Do not raise the backpressure threshold to make the 503s stop. That converts a
 visible, retryable rejection into unbounded lag.
+
+## Ingestion is failing with 5xx
+
+Not backpressure — that is a 503 and has its own section. A 500 is the
+application failing to accept a batch.
+
+1. The request span in Tempo (Grafana → Explore → Tempo, search
+   `{ name = "POST /api/v1/usage/events" && status = error }`) carries the
+   exception; its `trace_id` finds the log line: `docker compose logs app | grep <trace id>`.
+2. Almost always Redis: `curl localhost:8080/health/ready`. The stream is the
+   only thing ingestion writes to.
+3. A client retrying after a 5xx sends the same event ids, and the consumer
+   counts each id once, so nothing is double-counted once it recovers.
+
+## Ingestion is slow
+
+The alert is on accepted requests only; a slow 503 is still a 503.
+
+1. Grafana → Metered — Ingestion → Latency, and the traces behind the slow
+   ones: `{ name = "POST /api/v1/usage/events" && duration > 150ms }`.
+2. Ingestion normally touches no database — authentication reads a cached key
+   and the batch goes to Redis. A slow span shows which middleware held the
+   request.
+3. Compare with the k6 baseline in `docs/benchmarks.md` before changing
+   anything: the threshold is the benchmark's.
+
+## Telemetry is missing
+
+- `TelemetryCollectorDown`: `docker compose ps otel-collector`. While it is
+  down, spans exported meanwhile are dropped, not buffered. Counters are
+  cumulative, so the next export after it is back carries the totals; only
+  the graph has a gap (ADR-0019).
+- `GaugesMissing`: `docker compose ps metrics-observer`, and its log. The
+  counters still arrive from the processes; stream depth, outbox lag, queue
+  depth and breakers do not. `php artisan metrics:observe --once` reads them
+  once and says how many readings it took.
 
 ## The consumer died mid-batch
 
