@@ -201,6 +201,15 @@ final class SharedServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Built here, on the application Octane clones for every request, so
+        // a worker keeps one of each for its life. Resolved first inside a
+        // request, they would belong to that request's clone: a new provider
+        // per request, exporting one span at a time and restarting every
+        // counter from zero.
+        foreach ([TracerProviderInterface::class, MeterProviderInterface::class, Tracing::class, Metrics::class, TelemetryFlush::class] as $telemetry) {
+            $this->app->make($telemetry);
+        }
+
         QueueTracing::register($this->app->make('events'), fn(): QueueTracing => $this->app->make(QueueTracing::class));
 
         // The idle points of the long-running processes the framework runs:
