@@ -378,8 +378,9 @@
         "defaults": {
           "unit": "short",
           "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10
+            "lineWidth": 1,
+            "fillOpacity": 60,
+            "drawStyle": "bars"
           }
         },
         "overrides": []
@@ -403,7 +404,8 @@
           "rawSql": "SELECT date_trunc('day', finalized_at) AS time, currency AS metric, sum(total_minor) / 100.0 AS value FROM invoices WHERE finalized_at IS NOT NULL AND $__timeFilter(finalized_at) GROUP BY 1, 2 ORDER BY 1"
         }
       ],
-      "id": 7
+      "id": 7,
+      "timeFrom": "30d"
     }
   ]
 }

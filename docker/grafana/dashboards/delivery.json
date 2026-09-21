@@ -96,11 +96,21 @@
             "mode": "absolute",
             "steps": [
               {
-                "color": "green",
+                "color": "red",
                 "value": null
+              },
+              {
+                "color": "orange",
+                "value": 0.9
+              },
+              {
+                "color": "green",
+                "value": 0.99
               }
             ]
-          }
+          },
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -429,7 +439,9 @@
               "mode": "none"
             },
             "spanNulls": true
-          }
+          },
+          "min": 0,
+          "max": 1
         },
         "overrides": []
       },
@@ -508,9 +520,9 @@
       "id": 9
     },
     {
-      "type": "timeseries",
+      "type": "table",
       "title": "Open breakers, by endpoint",
-      "description": "1 while open or half-open.",
+      "description": "Endpoints whose breaker is open or half-open now.",
       "datasource": {
         "type": "prometheus",
         "uid": "metered-prometheus"
@@ -522,26 +534,14 @@
         "y": 20
       },
       "fieldConfig": {
-        "defaults": {
-          "unit": "short",
-          "custom": {
-            "lineWidth": 2,
-            "fillOpacity": 10,
-            "stacking": {
-              "mode": "none"
-            },
-            "spanNulls": true
-          }
-        },
+        "defaults": {},
         "overrides": []
       },
       "options": {
-        "legend": {
-          "displayMode": "list",
-          "placement": "bottom"
-        },
-        "tooltip": {
-          "mode": "multi"
+        "showHeader": true,
+        "cellHeight": "sm",
+        "footer": {
+          "show": false
         }
       },
       "targets": [
@@ -551,12 +551,26 @@
             "type": "prometheus",
             "uid": "metered-prometheus"
           },
-          "expr": "max by (endpoint) (webhook_breaker_open) > 0",
-          "legendFormat": "{{endpoint}}",
-          "range": true
+          "expr": "max by (endpoint) (webhook_breaker_open) == 1",
+          "instant": true,
+          "format": "table"
         }
       ],
-      "id": 10
+      "id": 10,
+      "transformations": [
+        {
+          "id": "organize",
+          "options": {
+            "excludeByName": {
+              "Time": true,
+              "Value": true
+            },
+            "renameByName": {
+              "endpoint": "Endpoint"
+            }
+          }
+        }
+      ]
     }
   ]
 }
