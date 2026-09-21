@@ -124,7 +124,10 @@ The alert is on accepted requests only; a slow 503 is still a 503.
 ## Telemetry is missing
 
 - `TelemetryCollectorDown`: `docker compose ps otel-collector`. While it is
-  down, spans exported meanwhile are dropped, not buffered. Counters are
+  down, spans exported meanwhile are dropped, not buffered, and every failed
+  export costs its process about half a second of retries — after the
+  response for the web workers, so ingestion p99 barely moves
+  ([`benchmarks.md`](benchmarks.md)). Counters are
   cumulative, so the next export after it is back carries the totals; only
   the graph has a gap (ADR-0019).
 - `GaugesMissing`: `docker compose ps metrics-observer`, and its log. The

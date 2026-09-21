@@ -76,7 +76,7 @@ aggregates, a stream-lag widget.
 
 - [x] Integration tests: duplicates, redelivery, poison message → DLQ, late and future events
 - [x] Kill the consumer mid-batch → after restart `usage:reconcile` reports zero drift — tested for a death before the commit and between the commit and the acknowledgement, and run for real: 200,000 events queued, the consumer `SIGKILL`ed with a batch unacknowledged, all 200,000 written once after restart, no drift. The repeatable version is `sim:chaos` in M7
-- [x] k6 baseline recorded in [`benchmarks.md`](benchmarks.md) — and failing its p99 threshold (570ms against 150ms), which stands until M8's tracing names the cause
+- [x] k6 baseline recorded in [`benchmarks.md`](benchmarks.md) — and failing its p99 threshold (570ms against 150ms); re-measured in M8, where tracing named the cause (an export inside the request) and p99 is 37.0ms
 - [x] `EXPLAIN (ANALYZE, BUFFERS)` of the hot queries in [`query-plans.md`](query-plans.md) — five captured, the invoice build provisional until M5, webhooks waiting for M6
 - [x] ADR-0002, ADR-0003, ADR-0004 accepted
 
