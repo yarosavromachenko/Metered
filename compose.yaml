@@ -266,6 +266,9 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      # Explore is where traces are read; a plain viewer is turned away from
+      # it. The dashboards are provisioned read-only, so nothing can be saved.
+      GF_USERS_VIEWERS_CAN_EDIT: "true"
       GF_AUTH_DISABLE_LOGIN_FORM: "true"
       GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/live-load.json
       GF_ANALYTICS_REPORTING_ENABLED: "false"
