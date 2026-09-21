@@ -300,11 +300,15 @@ services:
   # Scrapes the collector, keeps a week of metrics, and evaluates the alert
   # rules in docker/prometheus/rules, sending what fires to Alertmanager.
   # Read by Grafana; its own UI is on http://localhost:9090.
+  # Every process starts its counters under a new series; the collector's
+  # protobuf exposition carries when each started, and this flag records a
+  # zero there, so rate() counts a series' first increments too (ADR-0019).
   prometheus:
     image: prom/prometheus:v3.14.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=7d
+      - --enable-feature=created-timestamp-zero-ingestion
     volumes:
       - ./docker/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus

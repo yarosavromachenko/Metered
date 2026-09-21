@@ -58,7 +58,9 @@ COPY docker/app/entrypoint.sh /usr/local/bin/entrypoint
 RUN chmod +x /usr/local/bin/entrypoint
 
 ENTRYPOINT ["entrypoint"]
-CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080"]
+# A worker is replaced after 10,000 requests, not 500: each replacement
+# starts new metric series (ADR-0019).
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080", "--max-requests=10000"]
 
 # ---------------------------------------------------------------------------
 # Production: no dev dependencies, no simulation module, non-root.
@@ -99,4 +101,6 @@ HEALTHCHECK --interval=15s --timeout=3s --start-period=20s --retries=3 \
     CMD ["php", "-r", "exit(@file_get_contents('http://127.0.0.1:8080/health/live') === false ? 1 : 0);"]
 
 ENTRYPOINT ["entrypoint"]
-CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080"]
+# A worker is replaced after 10,000 requests, not 500: each replacement
+# starts new metric series (ADR-0019).
+CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080", "--max-requests=10000"]

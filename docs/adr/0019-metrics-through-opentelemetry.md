@@ -32,7 +32,13 @@ meter's reader is collected when something asks for it.
   Prometheus scrapes the collector and nothing else.
 - Temporality is cumulative. Each process reports its own totals under its own
   `service.instance.id`, which becomes the `instance` label; dashboards and
-  alerts aggregate over it.
+  alerts aggregate over it. The meter provider is built at boot, so an Octane
+  worker keeps one for its life rather than one per request.
+- Prometheus runs with `created-timestamp-zero-ingestion`. The collector's
+  protobuf exposition carries each series' start time, and Prometheus records
+  a zero there, so `rate()` and `increase()` count a new series' first
+  increments. Without it, a counter that a process increments once never
+  shows in a rate at all.
 - Application code records integers only — durations in nanoseconds — and the
   histogram's `Scale` decides how it is exported and bucketed, so the
   no-float rule for the application layers holds.
@@ -53,8 +59,11 @@ meter's reader is collected when something asks for it.
   receiving work stops exporting until its next idle point; Prometheus sees
   the last value it received.
 - Series churn: a worker that restarts (Octane's request limit, a Horizon
-  restart) starts a new `instance` series. `rate()` treats it as a reset; the
-  collector drops a silent instance after five minutes (`metric_expiration`).
+  restart) starts a new `instance` series, and the collector drops a silent
+  instance after five minutes (`metric_expiration`). Octane restarts a worker
+  after 10,000 requests rather than its default 500: FrankenPHP sends most of
+  the traffic to the first idle workers, and at 500 a busy one was replaced
+  every half minute.
 - The collector is on the metrics path: if it is down, metrics are lost for
   that time rather than buffered. It is one container with no state.
 - The gauges cost one set of queries per interval, not one per worker.
