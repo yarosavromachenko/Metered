@@ -16,8 +16,8 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M5 | Invoicing and ledger | L | ✅ done |
 | M6 | Webhooks | M | ✅ done |
 | M7 | Simulation, seed profiles and chaos | M | ✅ done |
-| M8 | Observability polish | S–M | 🔜 next |
-| M9 | Release polish | S | ⬜ |
+| M8 | Observability polish | S–M | ✅ done |
+| M9 | Release polish | S | 🔜 next |
 
 The admin panel is not a milestone of its own. It grows inside each milestone,
 next to the domain it exposes — otherwise it would always be one step behind the
@@ -167,20 +167,28 @@ simulation, each fixed with a test: tracing was switched on everywhere, a lost
 overlap lock held for a day, the client resent throttled usage too soon,
 removing a webhook endpoint during a delivery deadlocked, and Larastan in CI
 typed console input differently from a local run. The Grafana dashboard reads
-PostgreSQL; metrics from the processes come in M8.
+PostgreSQL.
 
 ## M8 — Observability polish
 
-Grafana dashboards (ingestion, stream lag, outbox lag, webhooks, billing),
-Prometheus alert rules committed to the repository, an end-to-end trace spanning
-HTTP → stream → consumer → database → outbox → queue → webhook. Health endpoints:
-`GET /health/live` (the process answers) and `GET /health/ready` (PostgreSQL,
-Redis and the ingestion backlog are within bounds), used by the compose
-healthchecks.
+Traces that carry across every asynchronous hop, metrics from the processes
+through OpenTelemetry, four Grafana dashboards next to the live-load one,
+Prometheus alert rules with Alertmanager delivering to Mailpit, and health
+endpoints: `GET /health/live` (the process answers) and `GET /health/ready`
+(PostgreSQL, Redis and the ingestion backlog are within bounds), used by the
+compose healthchecks. The whole stack starts with `make demo`.
 
-- [ ] Screenshots of the end-to-end trace and the dashboards in [`observability.md`](observability.md)
-- [ ] `/health/ready` fails when PostgreSQL or Redis is unreachable, or the backlog is past the backpressure threshold (test)
-- [ ] ADR-0012 accepted
+- [x] Screenshots of the end-to-end trace and the dashboards in [`observability.md`](observability.md)
+- [x] `/health/ready` fails when PostgreSQL or Redis is unreachable, or the backlog is past the backpressure threshold (test)
+- [x] Every alert rule has a `promtool` test; `WebhookBreakerOpen` reaches Mailpit during `sim:chaos failing-webhook`
+- [x] k6 p99 within 150ms: 37.0ms, the M3 tail traced to an export inside the request ([`benchmarks.md`](benchmarks.md))
+- [x] ADR-0012 accepted, ADR-0019 added
+
+Taking the traces and counting the metrics against k6 found three bugs:
+telemetry providers rebuilt for every Octane request (now a test), counters
+invisible to `rate()` until a series' second sample (checked against k6's
+request count), and anonymous Grafana viewers turned away from Explore, where
+the traces are.
 
 ## M9 — Release polish
 

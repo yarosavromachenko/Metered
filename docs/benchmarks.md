@@ -228,8 +228,7 @@ Deviations from the method, stated rather than buried:
 
 - **`pcov` was loaded** in both runs. It ships in the development image and the
   stack under test is the one `make up` builds, so the runs were made with the
-  extension present but not collecting. A run with it removed is owed here
-  before the final numbers in M9.
+  extension present but not collecting. No run has been made without it.
 - **The `protobuf` extension is not installed**, so with tracing on the OTLP
   payloads are serialised by the pure-PHP `google/protobuf` library. The
   extension would make the tracing-on figures cheaper, not dearer.
@@ -237,6 +236,6 @@ Deviations from the method, stated rather than buried:
   2026-07-11 the command did not exist yet; on 2026-09-21 the table had been
   filled by earlier runs and demos. The figure to trust is the row count, not
   the profile name.
-- **Run 1 does not report consumer batch write duration** — the consumer
-  timed its batches from M8 on — **and predates `usage_events_recent_index`**
+- **Run 1 does not report consumer batch write duration** — the consumer did
+  not time its batches when it was made — **and predates `usage_events_recent_index`**
   (`3960979`). Run 2 includes both.

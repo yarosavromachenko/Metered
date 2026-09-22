@@ -125,6 +125,7 @@ that did not hold. The Redis append is about a millisecond. The handler's
 slowest pass in 3,243 requests was 21.7ms. The median and the tail are both in
 the framework's middleware and in validating a fifty-event body. Redis, the
 consumer, Octane worker recycling, PHP's garbage collector and debug mode were
-each ruled out by changing only that one thing and measuring again. Naming the
-cause needs the request trace that M8 builds. Until then the baseline is recorded
-as failing rather than having its threshold moved.
+each ruled out by changing only that one thing and measuring again. The request
+trace named the cause: tracing, on by mistake, exported inside the request to a
+collector that did not exist. Export now happens after the response, and the
+re-measured p99 is 37.0ms ([`benchmarks.md`](../benchmarks.md)).
