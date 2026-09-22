@@ -121,6 +121,16 @@ expensive to miss.
 - SSRF guard: private address, loopback, link-local, metadata address, a redirect
   to any of those, and DNS rebinding between resolution and connection.
 
+**Telemetry and alerts**
+
+- Each asynchronous hop keeps the trace — stream, batch links, outbox, queue,
+  delivery — asserted on spans captured by `Tests\Support\InMemoryTracing`;
+  metrics are asserted through `Tests\Support\InMemoryMetrics`, not a scrape.
+- Every alert rule has a `promtool test rules` case in
+  `docker/prometheus/rules/metered.test.yml` — one series that fires it and
+  one that must not. `make alerts-test` runs them with the config checks; so does
+  the CI job `alerts`.
+
 ## Thresholds
 
 Line coverage ≥ 85% over `src/`, ≥ 90% over `Domain`. Mutation score ≥ 85 on

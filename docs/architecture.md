@@ -55,10 +55,13 @@ flowchart TD
     API -.->|OTLP| COL[OTel Collector]
     CONS -.->|OTLP| COL
     HZ -.->|OTLP| COL
+    OBS["metrics:observe<br/>gauges"] -.->|OTLP| COL
     COL --> TEMPO[Tempo]
-    COL --> PROM[Prometheus]
+    PROM[Prometheus] -->|scrape| COL
     TEMPO --> GRAF[Grafana]
     PROM --> GRAF
+    PROM --> AM[Alertmanager]
+    AM -->|email| MAIL[Mailpit]
 ```
 
 Note which arrows bypass PgBouncer: the daemons hold long-lived connections and
@@ -70,7 +73,7 @@ PostgreSQL directly. Only the stateless web tier is pooled
 
 | Module | Owns | Published contract |
 |---|---|---|
-| `Shared` | Clock, Money, UUIDv7, outbox, inbox, idempotency, audit log, tracing, problem+json | Used directly by everyone — it is the shared kernel |
+| `Shared` | Clock, Money, UUIDv7, outbox, inbox, idempotency, audit log, tracing, metrics, health checks, problem+json | Used directly by everyone — it is the shared kernel |
 | `Tenancy` | Organizations, projects, API keys, scopes, rate limits, admin users | `Tenancy\Application\Contract` |
 | `Usage` | Ingestion endpoint, stream consumer, partitions, aggregates, reconciliation | `Usage\Application\Contract` |
 | `Billing` | Meters, plans, versions, prices, customers, subscriptions, pricing calculator | `Billing\Application\Contract` |

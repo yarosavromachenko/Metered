@@ -106,7 +106,19 @@ surface, including what does not exist yet, so a client knows what to expect.
 | Invoices | `GET /invoices?status&customer_ref&limit` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | ✅ M5 |
 | Payments | `POST /invoices/{id}/pay` | ✅ M5 |
 | Webhooks | `POST/GET /webhook-endpoints` · `PATCH/DELETE /webhook-endpoints/{id}` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries?status&endpoint_id&limit` · `POST /webhook-deliveries/{id}/replay` | ✅ M6 |
-| Ops | `GET /health/live` · `GET /health/ready` | M8 |
+| Ops | `GET /health/live` · `GET /health/ready` | ✅ M8 |
+
+## Health, in detail
+
+Neither needs a key. `GET /health/live` answers `200` while the process is up
+and asks nothing else. `GET /health/ready` answers `200` when every check
+passes and `503` when any fails, naming each:
+
+```json
+{"status": "not_ready", "checks": {"database": {"status": "pass", "detail": "ok"}, "redis": {"status": "fail", "detail": "unreachable"}, "usage_backlog": {"status": "fail", "detail": "unreachable"}}}
+```
+
+The checks and what to do when one fails are in [`runbook.md`](runbook.md#health).
 
 ## Webhook endpoints, in detail
 

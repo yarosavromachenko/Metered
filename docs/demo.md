@@ -30,15 +30,17 @@ build and `composer install`.
 | | |
 |---|---|
 | Admin panel | <http://localhost:8080/admin> |
-| Grafana | <http://localhost:3000> — the "live load" dashboard |
+| Grafana | <http://localhost:3000> — dashboards for ingestion, processing, delivery and billing, the live load, and traces under Explore → Tempo |
+| Prometheus | <http://localhost:9090> |
+| Alertmanager | <http://localhost:9093> |
 | Webhook receiver | <http://localhost:8089> |
 | Horizon | <http://localhost:8080/horizon> |
 | Mailpit | <http://localhost:8025> |
 | API | <http://localhost:8080/api/v1> |
 
 If another project on your machine already holds one of those ports, set
-`APP_PORT`, `GRAFANA_PORT`, `WEBHOOK_RECEIVER_PORT`, `MAILPIT_WEB_PORT` and
-friends in `.env`; nothing inside the network cares which host port it is
+`APP_PORT`, `GRAFANA_PORT`, `WEBHOOK_RECEIVER_PORT`, `MAILPIT_WEB_PORT`,
+`PROMETHEUS_PORT`, `ALERTMANAGER_PORT` and friends in `.env`; nothing inside the network cares which host port it is
 reached on.
 
 ## Two ways in
@@ -131,8 +133,11 @@ the README.
 | `redis` | Cache, sessions, queues and the ingestion stream |
 | `mailpit` | Catches every outgoing message and shows it in a browser |
 | `webhook-receiver` | A stand-in for a tenant's system: receives, verifies and lists webhooks, with purpose-broken modes |
-| `grafana` | The live-load dashboard, read from PostgreSQL |
-| `otel-collector`, `tempo`, `prometheus` | Traces and metrics *(M8)* |
+| `grafana` | Five provisioned dashboards — four on Prometheus, the live-load one on PostgreSQL — and Tempo's traces under Explore |
+| `otel-collector`, `tempo` | Receive OTLP from every process; Tempo keeps the traces |
+| `prometheus` | Scrapes the collector and evaluates the alert rules |
+| `alertmanager` | Groups firing alerts and sends them as email to Mailpit |
+| `metrics-observer` | `metrics:observe`: reads the gauges — stream, outbox, queues, breakers, dead letters — every 15 seconds |
 | `k6` | Load scenarios, under the `load` profile |
 
 ## Requirements

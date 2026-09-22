@@ -46,7 +46,9 @@ first time. If something on the machine already holds a port, set `APP_PORT`
 |---|---|
 | Admin panel | <http://localhost:8080/admin> — sign in as `demo@metered.test` / `metered-demo` to look around the showcase (read-only), or **sign up**: you get a tenant of your own, seeded in seconds, that you can break and reset |
 | API | <http://localhost:8080/api/v1> — a key is issued in the panel under API keys |
-| Grafana | <http://localhost:3000> — the live load: events accepted per minute, rejections, outbox age, webhook outcomes, invoices |
+| Grafana | <http://localhost:3000> — dashboards for ingestion, processing, delivery and billing, the live load, and traces from Tempo under Explore |
+| Prometheus | <http://localhost:9090> — the metrics behind the dashboards and the alert rules' state |
+| Alertmanager | <http://localhost:9093> — firing alerts; they arrive as email in Mailpit |
 | Horizon | <http://localhost:8080/horizon> — queue throughput, failed jobs, retries |
 | Mailpit | <http://localhost:8025> — every message the application sends, caught locally |
 | Webhook receiver | <http://localhost:8089> — a stand-in for a tenant's system: what the webhooks delivered, and whether each signature checks out |
@@ -75,8 +77,10 @@ leaves the host, and the only account you create is in your own copy.
 - **Delivers webhooks** with HMAC signatures, secret rotation, exponential
   backoff with jitter, a circuit breaker per endpoint, a dead-letter queue with
   replay, and an SSRF guard.
-- **Explains itself**: one OpenTelemetry trace spans
-  `HTTP → Redis Stream → consumer → PostgreSQL → outbox → queue → webhook`.
+- **Explains itself**: OpenTelemetry traces carry across every asynchronous
+  hop — a request's trace follows the outbox, the queue and the webhook to the
+  receiver, and each consumer batch links back to the requests it wrote.
+  Metrics feed four Grafana dashboards and alert rules tested with `promtool`.
 
 ## Architecture
 
@@ -142,7 +146,8 @@ configurations beside it.
 | Architecture | Deptrac (layers + module boundaries), Pest Arch |
 | Tests | Pest: unit, feature, integration (real PostgreSQL/Redis), concurrency (`spatie/fork`), time-travel (`MockClock`), contract |
 | Coverage | ≥ 85% on `src/`, ≥ 90% on `Domain` |
-| Mutation | Pest's mutation testing on the four `Domain` layers: score ≥ 85 |
+| Mutation | Pest's mutation testing on the five `Domain` layers: score ≥ 85 |
+| Alerts | `promtool` config check and rule unit tests, `amtool` config check (`make alerts-test`) |
 | Security | `composer audit`, Trivy (filesystem + image) |
 
 Thresholds are never lowered to make a build pass — see
@@ -171,6 +176,9 @@ Honesty section; it will grow as the code lands.
   kept and reconciled, but not billed: there is no next invoice to carry it
   (assumptions, 26).
 - No tax calculation, no currency conversion, no dunning, no SSO.
+- No log aggregation. Logs are JSON on stdout, each line stamped with its
+  `trace_id` and `span_id`, read with `docker compose logs`; Loki would be one
+  more service in a stack that already runs sixteen.
 - The demo is local only. There is no hosted instance to abuse or to pay for.
 - No PostgreSQL row-level security. Tenant isolation is row scoping in the
   repositories, the panel's session scope, and composite foreign keys in the

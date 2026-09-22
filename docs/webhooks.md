@@ -205,6 +205,11 @@ redelivered event does nothing, writes one delivery per endpoint listening to
 it. `webhooks:dispatch` runs every ten seconds and queues an attempt for each
 delivery that is due, new or retried, on the `webhooks` queue.
 
+Each request also carries a W3C `traceparent` header with the trace of the
+change that caused the event, so a receiver that traces its own backend can
+join it. The header is not signed; verification uses only the headers in
+[Signature](#signature).
+
 An attempt leases its delivery — moves its next attempt a minute ahead — before
 the request goes out, and the request is made outside any database transaction.
 A worker that dies mid-request leaves the lease to run out, and the delivery is
