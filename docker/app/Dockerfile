@@ -1,7 +1,38 @@
 # syntax=docker/dockerfile:1
 
 # ---------------------------------------------------------------------------
-# Base: FrankenPHP with the extensions this application actually uses.
+# Runtime: the extensions and nothing to build them with. The upstream image
+# ships a C toolchain and kernel headers for compiling extensions; once they
+# are compiled, both are only attack surface and scanner findings, so they
+# are removed in the same layer. Production is built on this stage.
+# ---------------------------------------------------------------------------
+FROM dunglas/frankenphp:1-php8.4 AS runtime
+
+RUN install-php-extensions \
+        pdo_pgsql \
+        pgsql \
+        redis \
+        bcmath \
+        intl \
+        zip \
+        pcntl \
+        sockets \
+        opcache \
+    && apt-get purge -y --auto-remove \
+        gcc \
+        gcc-14 \
+        dpkg-dev \
+        libc6-dev \
+        libc-dev-bin \
+        libgcc-14-dev \
+        linux-libc-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ---------------------------------------------------------------------------
+# Base: FrankenPHP with the extensions, the headers and Composer — for
+# resolving dependencies and for development.
 # ---------------------------------------------------------------------------
 FROM dunglas/frankenphp:1-php8.4 AS base
 
@@ -63,16 +94,11 @@ ENTRYPOINT ["entrypoint"]
 CMD ["php", "artisan", "octane:frankenphp", "--host=0.0.0.0", "--port=8080", "--max-requests=10000"]
 
 # ---------------------------------------------------------------------------
-# Production: no dev dependencies, no simulation module, non-root.
+# App: the source with production dependencies and an authoritative
+# classmap, prepared where Composer exists.
 # ---------------------------------------------------------------------------
-FROM base AS production
+FROM base AS app
 
-ENV APP_ENV=production \
-    APP_DEBUG=false \
-    APP_DEMO=false
-
-COPY docker/app/php.ini /usr/local/etc/php/conf.d/99-metered.ini
-COPY docker/app/entrypoint.sh /usr/local/bin/entrypoint
 COPY --from=vendor /app/vendor ./vendor
 COPY . .
 
@@ -83,12 +109,29 @@ COPY . .
 # to the values present during the build — which is none of them — and the
 # runtime environment would then be silently ignored. The entrypoint caches it
 # on start instead, when the real environment exists.
-RUN chmod +x /usr/local/bin/entrypoint \
-    && rm -rf src/Simulation tests docs .github \
+RUN rm -rf src/Simulation tests docs .github \
     && composer dump-autoload --no-dev --optimize --classmap-authoritative
 
+# ---------------------------------------------------------------------------
+# Production: no dev dependencies, no simulation module, no toolchain, non-root.
+# ---------------------------------------------------------------------------
+FROM runtime AS production
+
+ENV APP_ENV=production \
+    APP_DEBUG=false \
+    APP_DEMO=false
+
+COPY docker/app/php.ini /usr/local/etc/php/conf.d/99-metered.ini
+COPY docker/app/entrypoint.sh /usr/local/bin/entrypoint
+COPY --from=app /app /app
+
+RUN chmod +x /usr/local/bin/entrypoint
+
+# Caddy keeps its autosaved config and its storage under XDG_CONFIG_HOME and
+# XDG_DATA_HOME (/config and /data in the upstream image); the process user
+# has to own them, or it logs an error for each on every start.
 RUN useradd --uid 10001 --create-home --shell /usr/sbin/nologin metered \
-    && chown -R 10001:10001 /app/storage /app/bootstrap/cache \
+    && chown -R 10001:10001 /app/storage /app/bootstrap/cache /config/caddy /data/caddy \
     && setcap -r /usr/local/bin/frankenphp || true
 
 USER 10001

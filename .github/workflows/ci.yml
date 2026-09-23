@@ -340,13 +340,16 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
 
-      - name: Build (and push on main/tags)
+      # A pull request builds into the local daemon instead of pushing, so the
+      # OS-package scan below judges the image before it reaches main.
+      - name: Build (push on main/tags, load on pull requests)
         uses: docker/build-push-action@v7
         with:
           context: .
           file: docker/app/Dockerfile
           target: production
           push: ${{ github.event_name != 'pull_request' }}
+          load: ${{ github.event_name == 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -359,7 +362,6 @@ jobs:
       # by an upstream release — blocking a build on those would train everyone
       # to ignore a red cross. They are reported and kept as an artifact instead.
       - name: Trivy (image, OS packages)
-        if: github.event_name != 'pull_request'
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
