@@ -495,5 +495,5 @@
       ]
     }
   ],
-  "description": "What make demo's traffic generator is doing to the system, read from PostgreSQL. Stream lag and latency percentiles come with Prometheus in M8."
+  "description": "What make demo's traffic generator is doing to the system, read from PostgreSQL. Stream lag and latency percentiles, from Prometheus, are on the Ingestion dashboard."
 }

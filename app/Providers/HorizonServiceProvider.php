@@ -16,9 +16,8 @@ final class HorizonServiceProvider extends HorizonApplicationServiceProvider
      * The dashboard lists job payloads, which is to say customer data and, in a
      * badly written job, secrets. It is therefore closed by default and opened
      * only where the whole stack is already local to the person looking at it.
-     *
-     * Once organisations have members and roles (M2), this becomes a check for
-     * the owner role instead of a check on the environment.
+     * Horizon spans every tenant, so no tenant role could open it safely: the
+     * check is on the environment, not on the user.
      */
     protected function gate(): void
     {

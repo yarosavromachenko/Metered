@@ -25,7 +25,7 @@ return new class extends Migration {
 
             $table->unique(['id', 'project_id']);
             $table->index(['project_id', 'customer_id']);
-            // The period close (M5) asks for every running subscription.
+            // The period close asks for every running subscription.
             $table->index(['project_id', 'status']);
 
             $table->foreign(['customer_id', 'project_id'])

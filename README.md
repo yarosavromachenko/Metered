@@ -5,16 +5,12 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: M6 complete — webhooks.** On top of the shared kernel (money that
-> refuses to be a float, a transactional outbox, a hash-chained audit log),
-> tenants with API keys and a Filament panel, usage ingestion through Redis
-> Streams into partitioned PostgreSQL, a catalog of versioned plans and
-> subscriptions, and invoicing with gapless numbering and an append-only
-> double-entry ledger: subscription and invoice events reach tenants' systems
-> as signed webhooks — retried with jitter, held back by a circuit breaker,
-> dead-lettered and replayable, and sent only to addresses on the public
-> internet, pinned against DNS rebinding. Simulation and seed profiles arrive
-> next ([`docs/roadmap.md`](docs/roadmap.md)).
+> **Status: 1.0 — every milestone on the [roadmap](docs/roadmap.md) is done.**
+> Usage ingestion through Redis Streams into partitioned PostgreSQL, four
+> pricing models, invoices with gapless numbering and an append-only
+> double-entry ledger, signed webhooks with retries, a circuit breaker and an
+> SSRF guard, a Filament admin panel scoped per tenant, a simulator that keeps
+> the demo under live load, and traces, metrics and alerts for all of it.
 
 Metered meters what customers consume, prices it, invoices it, books it into a
 double-entry ledger, and notifies the customer's systems over signed webhooks —
@@ -130,7 +126,7 @@ These three are the ones worth ten minutes:
    `SELECT ... FOR UPDATE SKIP LOCKED` relay and the inbox that makes consumers
    idempotent.
 
-Also worth a look today: [`tests/Concurrency/`](tests/Concurrency), where the
+Also worth a look: [`tests/Concurrency/`](tests/Concurrency), where the
 claims about races are settled by real parallel processes rather than by
 assertion, and [`tests/Architecture/`](tests/Architecture) with the two Deptrac
 configurations beside it.
@@ -154,8 +150,6 @@ Thresholds are never lowered to make a build pass — see
 [`docs/engineering-guidelines.md`](docs/engineering-guidelines.md).
 
 ## Trade-offs and what is deliberately not here
-
-Honesty section; it will grow as the code lands.
 
 - `202 Accepted` means "durably in Redis", not "in PostgreSQL". With
   `appendfsync everysec` a Redis crash can lose up to ~1s of events. Kafka and
@@ -184,7 +178,7 @@ Honesty section; it will grow as the code lands.
   repositories, the panel's session scope, and composite foreign keys in the
   schema — RLS was a stretch goal for defence in depth and did not land — ADR-0013.
 - Admin members are read-only: roles are enforced everywhere, but there is no
-  screen to invite somebody or change their role yet.
+  screen to invite somebody or change their role.
 - No password reset. There is no mail infrastructure behind one, and the demo
   sign-up says so on the form.
 

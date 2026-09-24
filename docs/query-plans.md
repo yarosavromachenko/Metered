@@ -8,10 +8,11 @@ date, so the history of a regression can be seen.
 ## The data these plans ran against
 
 A plan on an empty table tells you nothing: the planner picks a sequential scan
-and is right to. These plans were meant to be captured on the `heavy` seed
-profile, which arrives with the simulation module in M7. Until then they run
-on what the M3 load runs left behind, plus a spread written straight into the
-database with SQL so that the planner has some selectivity to work with:
+and is right to. These plans ran on what the ingestion load runs left
+behind, plus a spread written straight into the database with SQL so that the
+planner has some selectivity to work with. They have not been captured on the
+`heavy` seed profile (`sim:seed --profile=heavy`, [`demo.md`](demo.md)), which
+is the dataset to use when they are next captured:
 
 | | Rows | Shape |
 |---|---|---|
@@ -28,8 +29,8 @@ Two things about this data are worth keeping in mind. It is **one project**, so
 the plans show nothing about how a tenant filter prunes other tenants' rows;
 and the newest day is 4.85 million events of a single meter, which is
 adversarial for any query that filters by meter while walking time backwards
-(see 7c below). Both get better with the `heavy` profile, and the plans
-will be captured again on it in M7.
+(see 7c below). The `heavy` profile has many customers and meters per tenant,
+which removes the second and narrows the first.
 
 Environment: PostgreSQL 18.6 (Alpine image), `shared_buffers = 256MB`,
 `work_mem = 16MB`, the stack's own container, on the same machine as
@@ -281,7 +282,7 @@ so the rows read are that subscription's lines for that period and meter —
 the usage line and any late lines since — however many invoices the project
 has. Both were captured on invoices built for two customers of the spread
 in the appendix, on a plan pricing all four of its meters; the `heavy`
-profile in M7 is the real test of both.
+profile is the real test of both.
 
 ### 5. Outbox poll
 
@@ -294,7 +295,7 @@ SELECT id, aggregate_type, aggregate_id, type, payload, headers, occurred_at, at
    FOR UPDATE SKIP LOCKED
 ```
 
-Nothing publishes to the outbox in volume yet, so for this capture a
+Nothing published to the outbox in volume when this was captured, so a
 transaction inserted a million published messages and fifty unpublished ones,
 ran `ANALYZE`, captured the plan, and rolled back.
 

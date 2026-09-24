@@ -21,7 +21,7 @@ use Metered\Shared\Domain\Tenant\TenantContext;
  * History is appended to, never rewritten. A plan change closes the current
  * phase at the end of the period and opens the next one there — so every
  * period is billed on exactly one version, and there is nothing to prorate
- * (proration is a stretch goal of M5). For the same reason a change may not
+ * (proration is not implemented). For the same reason a change may not
  * alter the currency or the interval: either would change what a period is,
  * and that is a new subscription.
  */

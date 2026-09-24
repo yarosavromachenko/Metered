@@ -97,9 +97,6 @@ it('builds the domain on abstractions rather than on concrete parents', function
 });
 
 it('keeps repository interfaces in the domain and their implementations in the infrastructure', function (): void {
-    // Nothing matches yet: M1 introduced no aggregates and therefore no
-    // repositories. The rule is here because the milestone that writes the
-    // first one is the milestone where the convention is easiest to break.
     $misplaced = [];
 
     foreach (sourceSymbols() as $symbol) {

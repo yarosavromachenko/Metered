@@ -93,20 +93,19 @@ JSON number is a float in most clients.
 
 ## Surface
 
-Endpoints arrive with the milestone that owns them. The table shows the whole
-surface, including what does not exist yet, so a client knows what to expect.
+Every endpoint belongs to the module that owns its data.
 
-| Area | Endpoints | Available |
-|---|---|---|
-| Usage | `POST /usage/events` (batch of up to 100, returns `202`) · `GET /customers/{reference}/usage?meter&from&to` | ✅ M3 |
-| Meters | `POST /meters` · `GET /meters` | ✅ M4 |
-| Plans | `POST /plans` · `GET /plans` · `POST /plans/{id}/versions` | ✅ M4 |
-| Customers | `POST /customers` · `GET /customers` | ✅ M4 |
-| Subscriptions | `POST /subscriptions` · `POST /subscriptions/{id}/cancel` · `POST /subscriptions/{id}/change-plan` | ✅ M4 |
-| Invoices | `GET /invoices?status&customer_ref&limit` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` | ✅ M5 |
-| Payments | `POST /invoices/{id}/pay` | ✅ M5 |
-| Webhooks | `POST/GET /webhook-endpoints` · `PATCH/DELETE /webhook-endpoints/{id}` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries?status&endpoint_id&limit` · `POST /webhook-deliveries/{id}/replay` | ✅ M6 |
-| Ops | `GET /health/live` · `GET /health/ready` | ✅ M8 |
+| Area | Endpoints |
+|---|---|
+| Usage | `POST /usage/events` (batch of up to 100, returns `202`) · `GET /customers/{reference}/usage?meter&from&to` |
+| Meters | `POST /meters` · `GET /meters` |
+| Plans | `POST /plans` · `GET /plans` · `POST /plans/{id}/versions` |
+| Customers | `POST /customers` · `GET /customers` |
+| Subscriptions | `POST /subscriptions` · `POST /subscriptions/{id}/cancel` · `POST /subscriptions/{id}/change-plan` |
+| Invoices | `GET /invoices?status&customer_ref&limit` · `GET /invoices/{id}` · `GET /invoices/{id}/pdf` · `POST /invoices/{id}/void` |
+| Payments | `POST /invoices/{id}/pay` |
+| Webhooks | `POST/GET /webhook-endpoints` · `PATCH/DELETE /webhook-endpoints/{id}` · `POST /webhook-endpoints/{id}/rotate-secret` · `GET /webhook-deliveries?status&endpoint_id&limit` · `POST /webhook-deliveries/{id}/replay` |
+| Ops | `GET /health/live` · `GET /health/ready` |
 
 ## Health, in detail
 
@@ -276,7 +275,7 @@ Rejections*:
 | `malformed` | The message in the stream could not be read as an event at all |
 
 Events are never silently dropped. There is no API endpoint for reading
-rejections yet, only the panel.
+rejections; they are read in the panel.
 
 **Deduplication.** `event_id` is unique per project, and resending after a
 timeout is safe and recommended. Precisely:

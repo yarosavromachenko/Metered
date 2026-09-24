@@ -23,7 +23,7 @@ otherwise it is marketing.
 |---|---|
 | `ingest-steady` | Constant rate, batches of 50 events, single project |
 | `ingest-burst` | 10× spike for 30 seconds — does backpressure engage, and does it recover |
-| `mixed` | Ingestion plus management API reads, the realistic pattern — [`k6/mixed.js`](../k6/mixed.js), `make load SCENARIO=mixed` against a seeded tenant; no run recorded yet |
+| `mixed` | Ingestion plus management API reads, the realistic pattern — [`k6/mixed.js`](../k6/mixed.js), `make load SCENARIO=mixed` against a seeded tenant |
 | `close-periods` | 10,000 subscriptions closing at once — how long until the last invoice |
 
 ## Environment template
@@ -49,8 +49,7 @@ Commit:
 | 2026-09-21 | `ingest-steady`, tracing off | 41.4 | 31.4 ms | 34.6 ms | 36.6 ms | 0 | — |
 | 2026-07-11 | `ingest-steady` | 40.7 | 31.6 ms | 36.1 ms | 570 ms | 0 | 0 |
 
-`ingest-burst`, `mixed` and `close-periods` are not measured yet: the first two
-need the management API reads, which arrived with M4 and are not scripted yet, and the last needs invoicing.
+`ingest-burst` and `close-periods` have no script, and `mixed` has no recorded run.
 
 ### 2. `ingest-steady` — 2026-09-21
 

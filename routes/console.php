@@ -17,8 +17,8 @@ Artisan::command('inspire', function (): void {
 |
 | Every overlap lock is given a lifetime near its command's own interval.
 | The default is a day, and a scheduler restarted while a command holds its
-| lock would leave that command skipped for the rest of it — which is how
-| webhook delivery once stopped on a running stack (M7, `sim:chaos`).
+| lock would leave that command skipped for the rest of it — for webhook
+| delivery, that is every webhook stopping.
 |
 */
 
