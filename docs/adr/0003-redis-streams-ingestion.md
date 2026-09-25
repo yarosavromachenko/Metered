@@ -116,6 +116,12 @@ ago. Both are environment variables and nothing stops them being set apart at
 runtime. A test holds the configuration to at most half of the length, so the
 shipped values cannot drift apart without it failing.
 
+**Dead letters are read and replayed from the console.** `usage:dead-letters`
+lists them with their reason; `usage:dead-letters:replay` moves them back to
+the stream, atomically, and refuses `malformed`, which would only be set
+aside again. A replayed event keeps its id and timestamp, so
+replaying twice writes it once.
+
 **What the baseline showed about latency.** [`benchmarks.md`](../benchmarks.md)
 has the run: 2,031 events a second accepted, no errors, the consumer at zero
 lag, p50 31.6ms and p95 36.1ms. **The p99 is 570ms against a threshold of 150ms,

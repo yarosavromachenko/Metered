@@ -3,9 +3,6 @@
 Operational procedures. Written as if someone other than the author is on call,
 because that is the only way to find out whether they make sense.
 
-> Populated as each milestone lands. Procedures for components that do not exist
-> yet are marked as such rather than invented.
-
 ## Health
 
 | Check | Meaning |
@@ -146,13 +143,27 @@ Nothing is lost by design, but verify it rather than believing it:
 ## Messages in the dead-letter stream
 
 ```bash
-php artisan usage:dlq:list --limit=20
-php artisan usage:dlq:inspect <message-id>
-php artisan usage:dlq:replay <message-id>
+php artisan usage:dead-letters --limit=20        # newest first, with the reason
+php artisan usage:dead-letters:replay <id> <id>  # or --all
 ```
 
-A message is dead-lettered after N delivery attempts. The usual cause is a
-payload the consumer cannot parse — fix the cause first, then replay.
+The reason decides what to do:
+
+| Reason | Meaning | What to do |
+|---|---|---|
+| `too_many_deliveries` | Writing it failed five times in a row | Find why in the consumer's log (`Batch failed: …`), fix that, then replay |
+| `malformed` | The message could not be read as an event; the tenant sees a `malformed` rejection | Nothing to replay — the sender has to send it again, correctly. Replay refuses it |
+
+Replay is safe to repeat. It moves the message back to the ingestion stream and
+removes it from the dead-letter stream in one transaction, and the event keeps
+its id and `occurred_at`, so the database writes it once however often it is
+replayed. It also keeps the time it was first received, and the acceptance
+window is judged against that: an event that waited weeks in the dead-letter
+stream is still accepted. If its period has been invoiced since, it is billed
+as a late line on the next invoice.
+
+The command exits non-zero when any id was refused or not found, so a script
+replaying a list notices the ones that did not go back.
 
 ## Outbox is falling behind
 
@@ -216,9 +227,20 @@ closes after a day (`WEBHOOKS_ROTATION_GRACE_SECONDS`).
 
 ## Revoking an API key
 
-`php artisan key:revoke <prefix>`. Keys are cached for up to 30 seconds, so
-revocation takes effect within that window. If it must be immediate, flush the
-key cache: `php artisan cache:forget-api-keys`.
+Admin panel → API keys → Revoke. Keys are cached for up to 30 seconds
+(`API_KEY_CACHE_TTL_SECONDS`), so the key stops working within that window.
+Revocation cannot be undone.
+
+## Rotating an API key
+
+There is no in-place rotation: a key is replaced by a new one, and both work
+until the old one is revoked.
+
+1. Issue a new key in the panel, with the same scopes. Its secret is shown once.
+2. Switch the client to it.
+3. Watch the old key's *last used* in the panel stop moving — that is the proof
+   nothing still sends it.
+4. Revoke the old key.
 
 ## Verifying the audit log
 

@@ -36,6 +36,7 @@ use Metered\Usage\Infrastructure\Persistence\DatabaseUsageTotals;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
 use Metered\Usage\Infrastructure\Persistence\UsageSummaryReader;
+use Metered\Usage\Infrastructure\Redis\DeadLetters;
 use Metered\Usage\Infrastructure\Redis\DeferredStreamDepth;
 use Metered\Usage\Infrastructure\Redis\RedisDeduplicator;
 use Metered\Usage\Infrastructure\Redis\RedisEventStream;
@@ -43,7 +44,9 @@ use Metered\Usage\Infrastructure\Redis\StreamConsumer;
 use Metered\Usage\Infrastructure\Redis\StreamGauges;
 use Metered\Usage\Presentation\Console\ConsumeUsageCommand;
 use Metered\Usage\Presentation\Console\EnsurePartitionsCommand;
+use Metered\Usage\Presentation\Console\ListDeadLettersCommand;
 use Metered\Usage\Presentation\Console\ReconcileUsageCommand;
+use Metered\Usage\Presentation\Console\ReplayDeadLettersCommand;
 use Metered\Usage\Presentation\Http\IngestEventsController;
 use Metered\Usage\Presentation\Http\Middleware\MeasureIngestion;
 use Metered\Usage\Presentation\Http\ReadCustomerUsageController;
@@ -84,6 +87,16 @@ final class UsageServiceProvider extends ServiceProvider
             ),
         );
         $this->app->singleton(EventStream::class, RedisEventStream::class);
+
+        $this->app->singleton(
+            DeadLetters::class,
+            static fn(Application $app): DeadLetters => new DeadLetters(
+                self::redis($app),
+                self::configString($app, 'metered.usage.stream.key', 'usage:events'),
+                self::configString($app, 'metered.usage.stream.dead_letter_key', 'usage:events:dead'),
+                self::configInt($app, 'metered.usage.stream.max_length', 1_000_000),
+            ),
+        );
         $this->app->singleton(StreamDepth::class, RedisEventStream::class);
         $this->app->singleton(UsageTotals::class, DatabaseUsageTotals::class);
 
@@ -226,6 +239,8 @@ final class UsageServiceProvider extends ServiceProvider
                 EnsurePartitionsCommand::class,
                 ConsumeUsageCommand::class,
                 ReconcileUsageCommand::class,
+                ListDeadLettersCommand::class,
+                ReplayDeadLettersCommand::class,
             ]);
         }
 

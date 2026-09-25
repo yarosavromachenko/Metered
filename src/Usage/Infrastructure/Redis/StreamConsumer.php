@@ -156,7 +156,7 @@ final readonly class StreamConsumer
             // Unreadable, so redelivering it would fail the same way forever.
             // It goes to the dead-letter stream with its reason and is
             // acknowledged, and the rejection above is what a tenant sees.
-            $this->deadLetter($malformedIds, $deliveries, 'malformed');
+            $this->deadLetter($malformedIds, $deliveries, DeadLetters::MALFORMED);
             $outcome = $outcome->plus(new IngestionOutcome(rejected: count($malformedIds)));
         }
 
@@ -231,7 +231,7 @@ final readonly class StreamConsumer
             $this->deadLetter(
                 array_map(static fn(Delivery $delivery): string => $delivery->id, array_values($poison)),
                 $deliveries,
-                'too_many_deliveries',
+                DeadLetters::TOO_MANY_DELIVERIES,
             );
         }
 
@@ -266,9 +266,9 @@ final readonly class StreamConsumer
                 // with extra steps.
                 $pipe->xadd($key, '*', [
                     ...$delivery->fields,
-                    '_reason' => $reason,
-                    '_deliveries' => (string) $delivery->deliveries,
-                    '_dead_lettered_at' => $at,
+                    DeadLetters::REASON => $reason,
+                    DeadLetters::DELIVERIES => (string) $delivery->deliveries,
+                    DeadLetters::DEAD_LETTERED_AT => $at,
                 ]);
             }
         });
