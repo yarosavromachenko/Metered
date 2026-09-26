@@ -3,10 +3,8 @@
 declare(strict_types=1);
 
 use Rector\Config\RectorConfig;
-use Rector\Php84\Rector\Param\ExplicitNullableParamTypeRector;
 use Rector\Set\ValueObject\LevelSetList;
 use Rector\Set\ValueObject\SetList;
-use Rector\TypeDeclaration\Rector\ClassMethod\ReturnTypeFromStrictNewArrayRector;
 
 return RectorConfig::configure()
     ->withPaths([
@@ -27,10 +25,6 @@ return RectorConfig::configure()
         SetList::TYPE_DECLARATION,
         SetList::EARLY_RETURN,
         SetList::INSTANCEOF,
-    ])
-    ->withRules([
-        ExplicitNullableParamTypeRector::class,
-        ReturnTypeFromStrictNewArrayRector::class,
     ])
     ->withImportNames(importShortClasses: false, removeUnusedImports: true)
     ->withPhpSets(php84: true);

@@ -471,7 +471,7 @@
     {
       "type": "timeseries",
       "title": "Receiver latency p95, by endpoint",
-      "description": "How long each receiver takes to answer.",
+      "description": "How long each receiver takes to answer. The sender gives up after 10 seconds, and the histogram has no boundary between 10 and 30, so an endpoint that times out reads anywhere in that band: read it as a timeout, not as a latency.",
       "datasource": {
         "type": "prometheus",
         "uid": "metered-prometheus"
