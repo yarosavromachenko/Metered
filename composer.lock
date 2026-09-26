@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "da59ff1e5a70a56462a391e3921318aa",
+    "content-hash": "c0dfac6389df3b1c1197766bef0c5aa8",
     "packages": [
         {
             "name": "anourvalar/eloquent-serialize",
@@ -223,16 +223,16 @@
         },
         {
             "name": "brick/math",
-            "version": "0.18.0",
+            "version": "0.19.1",
             "source": {
                 "type": "git",
                 "url": "https://github.com/brick/math.git",
-                "reference": "82944324d1c1bdb2c2618e89978d4e2ad78d69ad"
+                "reference": "a89bc96a7cf3d7b59e725afe57ccb95eb03cf6ce"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/brick/math/zipball/82944324d1c1bdb2c2618e89978d4e2ad78d69ad",
-                "reference": "82944324d1c1bdb2c2618e89978d4e2ad78d69ad",
+                "url": "https://api.github.com/repos/brick/math/zipball/a89bc96a7cf3d7b59e725afe57ccb95eb03cf6ce",
+                "reference": "a89bc96a7cf3d7b59e725afe57ccb95eb03cf6ce",
                 "shasum": ""
             },
             "require": {
@@ -270,7 +270,7 @@
             ],
             "support": {
                 "issues": "https://github.com/brick/math/issues",
-                "source": "https://github.com/brick/math/tree/0.18.0"
+                "source": "https://github.com/brick/math/tree/0.19.1"
             },
             "funding": [
                 {
@@ -278,7 +278,7 @@
                     "type": "github"
                 }
             ],
-            "time": "2026-06-14T18:21:03+00:00"
+            "time": "2026-08-08T23:03:16+00:00"
         },
         {
             "name": "brick/money",

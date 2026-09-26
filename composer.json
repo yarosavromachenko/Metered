@@ -14,7 +14,7 @@
     "require": {
         "php": "^8.4.1",
         "ext-intl": "*",
-        "brick/math": "^0.18",
+        "brick/math": "^0.19",
         "brick/money": "^0.14",
         "dompdf/dompdf": "^3.1",
         "filament/filament": "^4.0",
