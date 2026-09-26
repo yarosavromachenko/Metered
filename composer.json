@@ -15,7 +15,7 @@
         "php": "^8.4.1",
         "ext-intl": "*",
         "brick/math": "^0.19",
-        "brick/money": "^0.14",
+        "brick/money": "^0.15",
         "dompdf/dompdf": "^3.1",
         "filament/filament": "^4.0",
         "guzzlehttp/guzzle": "^8.2",
