@@ -262,7 +262,7 @@ services:
   # Dashboards for the demo, provisioned from docker/grafana so a clean clone
   # gets them without a click. Anonymous visitors can view, not edit.
   grafana:
-    image: grafana/grafana:13.0.8
+    image: grafana/grafana:13.0.9
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
@@ -291,7 +291,7 @@ services:
   # to Tempo, metrics to a Prometheus endpoint on :8889. Nothing is published
   # on the host; the processes and Prometheus reach it by name.
   otel-collector:
-    image: otel/opentelemetry-collector-contrib:0.160.0
+    image: otel/opentelemetry-collector-contrib:0.161.0
     command: ["--config=/etc/otelcol/config.yaml"]
     volumes:
       - ./docker/otel-collector/config.yaml:/etc/otelcol/config.yaml:ro
@@ -307,7 +307,7 @@ services:
   # protobuf exposition carries when each started, and this flag records a
   # zero there, so rate() counts a series' first increments too (ADR-0019).
   prometheus:
-    image: prom/prometheus:v3.14.0
+    image: prom/prometheus:v3.15.0
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.retention.time=7d
