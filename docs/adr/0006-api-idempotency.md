@@ -79,3 +79,7 @@ One behaviour worth recording beyond the table above: a request that failed,
 including one that answered `5xx`, releases its key. Replaying a failure would
 be worse than useless, because nothing was carried out and the client deserves
 a real second attempt.
+
+Expiry is exact rather than eventual. A claim ignores a record past its 24
+hours, so the same key after the window is a new request whatever the table
+still holds, and `idempotency:purge` removes expired records every hour.

@@ -65,6 +65,10 @@ return [
 
         // How long the daemon waits when it finds nothing to do.
         'idle_sleep_seconds' => (float) env('OUTBOX_IDLE_SLEEP_SECONDS', 0.5),
+
+        // How long a published message is kept before `outbox:prune` removes
+        // it. Unpublished messages are never removed.
+        'retention_days' => (int) env('OUTBOX_RETENTION_DAYS', 7),
     ],
 
     /*

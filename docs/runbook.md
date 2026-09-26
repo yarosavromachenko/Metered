@@ -175,6 +175,10 @@ replaying a list notices the ones that did not go back.
 3. The relay uses `FOR UPDATE SKIP LOCKED`, so multiple relays are safe: scale it.
 4. Never delete an unpublished outbox row to clear a backlog. That drops an event whose state change already committed.
 
+Published rows are removed by `outbox:prune`, daily at 03:20, once they are
+older than `OUTBOX_RETENTION_DAYS` (7). `php artisan outbox:prune --days=N` runs
+it by hand; it never removes an unpublished row.
+
 ## Invoices are not being built
 
 A period is invoiced one grace window (an hour) after it ends, by
@@ -247,3 +251,4 @@ until the old one is revoked.
 
 `php artisan audit:verify` walks the hash chain. A failure means a row was
 altered outside the application, and the command reports the first broken link.
+The scheduler runs it daily at 03:50; a failed run is in the scheduler's log.

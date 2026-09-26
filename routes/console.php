@@ -2,13 +2,7 @@
 
 declare(strict_types=1);
 
-use Illuminate\Foundation\Inspiring;
-use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schedule;
-
-Artisan::command('inspire', function (): void {
-    $this->comment(Inspiring::quote());
-})->purpose('Display an inspiring quote');
 
 /*
 |--------------------------------------------------------------------------
@@ -88,5 +82,52 @@ Schedule::command('webhooks:dispatch')
 
 Schedule::command('tenancy:purge-idle-demos')
     ->dailyAt('03:40')
+    ->withoutOverlapping(60)
+    ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Idempotency records
+|--------------------------------------------------------------------------
+|
+| A key is remembered for 24 hours (ADR-0006). An expired record is already
+| ignored when its key comes back; the hourly purge keeps the table the size
+| of one window instead of every request ever made.
+|
+*/
+
+Schedule::command('idempotency:purge')
+    ->hourly()
+    ->withoutOverlapping(60)
+    ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Outbox
+|--------------------------------------------------------------------------
+|
+| Published messages are kept for a week, then removed (ADR-0005). The relay
+| never reads them again; unpublished messages are never removed.
+|
+*/
+
+Schedule::command('outbox:prune')
+    ->dailyAt('03:20')
+    ->withoutOverlapping(60)
+    ->onOneServer();
+
+/*
+|--------------------------------------------------------------------------
+| Audit chain
+|--------------------------------------------------------------------------
+|
+| A full walk of the hash chain, daily (ADR-0014): a broken link found during
+| the incident it would have explained is found too late. A break exits
+| non-zero, which the scheduler records as a failed run.
+|
+*/
+
+Schedule::command('audit:verify')
+    ->dailyAt('03:50')
     ->withoutOverlapping(60)
     ->onOneServer();

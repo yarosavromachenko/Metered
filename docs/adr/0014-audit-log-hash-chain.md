@@ -78,3 +78,6 @@ requirement rather than an optional hardening step.
 The encoding is pinned by a known-answer vector. Mutation testing showed that
 changing a JSON flag broke no test, which would have meant a future encoding
 change making every stored entry look tampered with.
+
+The scheduler runs `audit:verify` daily at 03:50; a broken chain exits
+non-zero, which the scheduler records as a failed run.

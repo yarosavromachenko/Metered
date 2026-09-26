@@ -85,3 +85,8 @@ concurrent processes.
 One change the tests forced. The inbox key is a name the handler declares, not
 its class name: a consumer key is persisted state, and renaming the class would
 have made every message it had already processed look new.
+
+Published rows are removed by `outbox:prune`, daily, once they are older than
+`OUTBOX_RETENTION_DAYS` (seven by default). It deletes in chunks and never
+touches an unpublished row. Inbox rows are kept: nothing prunes them, and one
+may only go once no copy of its message can be delivered again.

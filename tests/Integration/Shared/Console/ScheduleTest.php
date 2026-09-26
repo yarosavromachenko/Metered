@@ -25,6 +25,9 @@ it('gives every overlap lock a lifetime near its command\'s own interval', funct
     'period close, every five minutes' => ['billing:close-periods', 5],
     'partitions, daily' => ['usage:partitions:ensure', 60],
     'demo purge, daily' => ['tenancy:purge-idle-demos', 60],
+    'idempotency purge, hourly' => ['idempotency:purge', 60],
+    'outbox prune, daily' => ['outbox:prune', 60],
+    'audit verification, daily' => ['audit:verify', 60],
 ]);
 
 it('guards nothing it schedules with the default day-long lock', function (): void {

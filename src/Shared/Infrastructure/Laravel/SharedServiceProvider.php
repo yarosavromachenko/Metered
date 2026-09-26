@@ -40,6 +40,7 @@ use Metered\Shared\Infrastructure\Metrics\MeterProviderFactory;
 use Metered\Shared\Infrastructure\Metrics\OpenTelemetryMetrics;
 use Metered\Shared\Infrastructure\Outbox\DatabaseOutboxWriter;
 use Metered\Shared\Infrastructure\Outbox\OutboxGauges;
+use Metered\Shared\Infrastructure\Outbox\OutboxPruner;
 use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Outbox\QueueOutboxPublisher;
 use Metered\Shared\Infrastructure\Queue\QueueGauges;
@@ -48,6 +49,8 @@ use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 use Metered\Shared\Infrastructure\Tracing\TracerProviderFactory;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Shared\Presentation\Console\ObserveMetricsCommand;
+use Metered\Shared\Presentation\Console\PruneOutboxCommand;
+use Metered\Shared\Presentation\Console\PurgeIdempotencyKeysCommand;
 use Metered\Shared\Presentation\Console\RelayOutboxCommand;
 use Metered\Shared\Presentation\Console\VerifyAuditChainCommand;
 use Metered\Shared\Presentation\Http\IdempotencyScope;
@@ -187,6 +190,15 @@ final class SharedServiceProvider extends ServiceProvider
             ),
         );
 
+        $this->app->singleton(
+            OutboxPruner::class,
+            static fn(Application $app): OutboxPruner => new OutboxPruner(
+                $app->make(DatabaseManager::class),
+                $app->make(ClockInterface::class),
+                self::configString($app, 'metered.outbox.connection', 'pgsql_direct'),
+            ),
+        );
+
         // What every instance needs; modules tag what they need on top.
         $this->app->tag([DatabaseCheck::class, RedisCheck::class], ReadinessCheck::TAG);
 
@@ -230,6 +242,8 @@ final class SharedServiceProvider extends ServiceProvider
             $this->commands([
                 ObserveMetricsCommand::class,
                 RelayOutboxCommand::class,
+                PruneOutboxCommand::class,
+                PurgeIdempotencyKeysCommand::class,
                 VerifyAuditChainCommand::class,
             ]);
         }

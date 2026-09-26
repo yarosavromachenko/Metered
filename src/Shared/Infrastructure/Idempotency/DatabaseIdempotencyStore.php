@@ -39,6 +39,15 @@ final readonly class DatabaseIdempotencyStore implements IdempotencyStore
     {
         $now = $this->clock->now();
 
+        // A key is remembered for the retention window and no longer. The
+        // hourly purge keeps the table small; this keeps the promise exact,
+        // so a key reused after the window is a new request, not a replay.
+        $this->table()
+            ->where('scope', $scope)
+            ->where('idempotency_key', $key)
+            ->where('expires_at', '<', $now)
+            ->delete();
+
         $inserted = $this->table()->insertOrIgnore([
             'id' => $this->ids->generate()->value,
             'scope' => $scope,

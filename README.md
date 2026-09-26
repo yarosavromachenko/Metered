@@ -179,6 +179,9 @@ Thresholds are never lowered to make a build pass — see
   schema — RLS was a stretch goal for defence in depth and did not land — ADR-0013.
 - Admin members are read-only: roles are enforced everywhere, but there is no
   screen to invite somebody or change their role.
+- Inbox rows are never pruned. Published outbox rows go after a week and
+  idempotency records after a day, but an inbox row may only go once no copy of
+  its message can be delivered again, and nothing tracks that — ADR-0005.
 - No password reset. There is no mail infrastructure behind one, and the demo
   sign-up says so on the form.
 
