@@ -116,10 +116,22 @@ ago. Both are environment variables and nothing stops them being set apart at
 runtime. A test holds the configuration to at most half of the length, so the
 shipped values cannot drift apart without it failing.
 
+**Tenants in one read are written independently.** A read holds several
+tenants' messages, and each tenant is written in its own transaction. One
+tenant's failed write leaves only its own messages pending; the rest of the read
+is written and acknowledged, and the failure is raised once they are. Otherwise
+one failing tenant would hold every tenant read with it, and after five
+deliveries dead-letter them all.
+
+**A project deleted while its events wait is not a failure.** A demo tenant
+can be reset or purged with events still in the stream, and nothing is left
+for them to belong to — not even a rejection row, whose foreign key needs the
+project. The consumer sends them to the dead-letter stream as `project_gone`.
+
 **Dead letters are read and replayed from the console.** `usage:dead-letters`
 lists them with their reason; `usage:dead-letters:replay` moves them back to
-the stream, atomically, and refuses `malformed`, which would only be set
-aside again. A replayed event keeps its id and timestamp, so
+the stream, atomically, and refuses `malformed` and `project_gone`, which
+would only be set aside again. A replayed event keeps its id and timestamp, so
 replaying twice writes it once.
 
 **What the baseline showed about latency.** [`benchmarks.md`](../benchmarks.md)

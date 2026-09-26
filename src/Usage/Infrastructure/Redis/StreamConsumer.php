@@ -10,6 +10,7 @@ use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
+use Metered\Tenancy\Application\Contract\ProjectDirectory;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\IncomingEvent;
 use Metered\Usage\Application\Ingestion\IngestionOutcome;
@@ -37,7 +38,12 @@ use Throwable;
  * fails and is left unacknowledged, to be reclaimed after it has been idle
  * long enough; or it has failed so many times that it is moved to the
  * dead-letter stream and acknowledged, because one poison message must not
- * hold a tenant's ingestion behind it.
+ * hold a tenant's ingestion behind it. A message that cannot be read, or
+ * whose project no longer exists, goes to the dead-letter stream at once.
+ *
+ * Tenants are written independently: one tenant's failed write leaves its
+ * own messages pending and the others written and acknowledged. The failure
+ * is still thrown once the rest are done, so the daemon reports it.
  *
  * Each tenant's write is a span of its own trace, linked to the requests its
  * events came from rather than a child of any one of them (ADR-0012): one
@@ -55,6 +61,7 @@ final readonly class StreamConsumer
         private PhpRedisConnection $connection,
         private BatchProcessor $processor,
         private RejectionLog $rejections,
+        private ProjectDirectory $projects,
         private IdentifierGenerator $ids,
         private ClockInterface $clock,
         private string $key,
@@ -121,6 +128,8 @@ final readonly class StreamConsumer
         $outcome = new IngestionOutcome();
         $malformed = [];
         $malformedIds = [];
+        /** @var array<string, bool> $existing */
+        $existing = [];
 
         foreach ($deliveries as $delivery) {
             $envelope = StreamEnvelope::decode($delivery->fields);
@@ -129,7 +138,7 @@ final readonly class StreamConsumer
                 $malformedIds[] = $delivery->id;
                 $rejection = $this->rejectionFor($delivery);
 
-                if ($rejection instanceof Rejection) {
+                if ($rejection instanceof Rejection && $this->exists($rejection->tenant, $existing)) {
                     $malformed[] = $rejection;
                 }
 
@@ -160,8 +169,30 @@ final readonly class StreamConsumer
             $outcome = $outcome->plus(new IngestionOutcome(rejected: count($malformedIds)));
         }
 
+        $failure = null;
+
         foreach ($groups as $group) {
-            $outcome = $outcome->plus($this->processGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
+            // Deleted while its events waited — a demo reset or purge. There
+            // is nothing left for them to belong to, not even a rejection
+            // row, so the dead-letter entry is their only record.
+            if (! $this->exists($group['tenant'], $existing)) {
+                $this->deadLetter($group['ids'], $deliveries, DeadLetters::PROJECT_GONE);
+                $outcome = $outcome->plus(new IngestionOutcome(rejected: count($group['ids'])));
+
+                continue;
+            }
+
+            try {
+                $outcome = $outcome->plus($this->processGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
+            } catch (Throwable $groupFailure) {
+                // Left unacknowledged, to be redelivered on its own; the
+                // tenants after it are not made to wait for it.
+                $failure ??= $groupFailure;
+            }
+        }
+
+        if ($failure instanceof Throwable) {
+            throw $failure;
         }
 
         return $outcome;
@@ -382,6 +413,23 @@ final readonly class StreamConsumer
         }
 
         return $deliveries;
+    }
+
+    /**
+     * Whether the tenant still exists, asked once per tenant per pass.
+     *
+     * @param  array<string, bool>  $existing
+     */
+    private function exists(TenantContext $tenant, array &$existing): bool
+    {
+        $key = (string) $tenant;
+
+        if (! isset($existing[$key])) {
+            $found = $this->projects->find($tenant->projectId);
+            $existing[$key] = $found instanceof TenantContext && $found->equals($tenant);
+        }
+
+        return $existing[$key];
     }
 
     /**

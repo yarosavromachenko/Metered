@@ -153,6 +153,7 @@ The reason decides what to do:
 |---|---|---|
 | `too_many_deliveries` | Writing it failed five times in a row | Find why in the consumer's log (`Batch failed: …`), fix that, then replay |
 | `malformed` | The message could not be read as an event; the tenant sees a `malformed` rejection | Nothing to replay — the sender has to send it again, correctly. Replay refuses it |
+| `project_gone` | Its project was deleted (a demo reset or purge) before it was written | Nothing; there is nowhere for it to go. Replay refuses it |
 
 Replay is safe to repeat. It moves the message back to the ingestion stream and
 removes it from the dead-letter stream in one transaction, and the event keeps

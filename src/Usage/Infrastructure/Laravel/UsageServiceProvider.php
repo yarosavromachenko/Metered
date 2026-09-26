@@ -17,6 +17,7 @@ use Metered\Shared\Application\Metrics\GaugeSource;
 use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
+use Metered\Tenancy\Application\Contract\ProjectDirectory;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Command\IngestEventsHandler;
 use Metered\Usage\Application\Contract\UsageTotals;
@@ -184,6 +185,7 @@ final class UsageServiceProvider extends ServiceProvider
                 self::redis($app),
                 $app->make(BatchProcessor::class),
                 $app->make(RejectionLog::class),
+                $app->make(ProjectDirectory::class),
                 $app->make(IdentifierGenerator::class),
                 $app->make(ClockInterface::class),
                 self::configString($app, 'metered.usage.stream.key', 'usage:events'),

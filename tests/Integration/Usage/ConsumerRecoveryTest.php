@@ -6,7 +6,10 @@ use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\DB;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Tenancy\Application\Command\PurgeDemoOrganization;
+use Metered\Tenancy\Application\Command\PurgeDemoOrganizationHandler;
 use Metered\Tenancy\Domain\Scope;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
 use Metered\Usage\Application\Ingestion\Deduplicator;
@@ -381,4 +384,76 @@ it('loses nothing when a consumer dies between the claim and the commit', functi
     expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1)
         ->and(DB::table('usage_aggregates')->where('project_id', $tenant->projectId->value)->value('quantity'))
         ->toBe('2.500000');
+});
+
+/**
+ * @return array{tenant: TenantContext, headers: array<string, string>}
+ */
+function recoveryTenantCalled(string $slug, bool $demo = false): array
+{
+    $project = TenantFactory::tenant($slug, $demo);
+    CatalogFactory::meter($project->tenant(), 'api.requests');
+    CatalogFactory::customer($project->tenant(), 'cus_4471');
+    ['secret' => $secret] = TenantFactory::apiKey($project, [Scope::UsageWrite]);
+
+    return [
+        'tenant' => $project->tenant(),
+        'headers' => ['Authorization' => 'Bearer ' . $secret->reveal()],
+    ];
+}
+
+it('sets aside the events of a project deleted while they waited in the stream', function (): void {
+    ['tenant' => $gone, 'headers' => $goneHeaders] = recoveryTenantCalled('gone-demo', demo: true);
+    ['tenant' => $kept, 'headers' => $keptHeaders] = recoveryTenantCalled('still-here');
+    post($goneHeaders);
+    post($keptHeaders);
+
+    // A demo tenant reset or purged between accepting its events and the
+    // consumer reaching them: nothing is left for the events to belong to.
+    app(PurgeDemoOrganizationHandler::class)->handle(new PurgeDemoOrganization($gone->organizationId, Actor::system('test')));
+
+    runConsumer();
+
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
+
+    expect(deadLettered())->toHaveCount(1)
+        ->and(deadLettered()[0]['_reason'])->toBe('project_gone')
+        ->and(deadLettered()[0]['project_id'])->toBe($gone->projectId->value)
+        ->and(DB::table('usage_event_rejections')->where('project_id', $gone->projectId->value)->count())->toBe(0)
+        ->and(DB::table('usage_events')->where('project_id', $kept->projectId->value)->count())->toBe(1)
+        ->and(is_array($pending) ? $pending[0] : -1)->toBe(0);
+});
+
+it('writes and acknowledges the other tenants of a read when one tenant’s write fails', function (): void {
+    ['tenant' => $failing, 'headers' => $failingHeaders] = recoveryTenantCalled('failing');
+    ['tenant' => $healthy, 'headers' => $healthyHeaders] = recoveryTenantCalled('healthy');
+    post($failingHeaders);
+    post($healthyHeaders);
+
+    $real = app(EventWriter::class);
+    app()->bind(EventWriter::class, static fn(): EventWriter => new readonly class ($real, $failing) implements EventWriter {
+        public function __construct(private EventWriter $real, private TenantContext $failing) {}
+
+        public function write(TenantContext $tenant, array $events): WriteOutcome
+        {
+            return $tenant->projectId->equals($this->failing->projectId)
+                ? throw new RuntimeException('This tenant’s write fails.')
+                : $this->real->write($tenant, $events);
+        }
+    });
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    // The failure still surfaces, so the daemon logs it and the failed
+    // tenant's messages are redelivered — but it no longer takes the rest
+    // of the read down with it.
+    expect(static function (): void {
+        runConsumer();
+    })->toThrow(RuntimeException::class, 'write fails');
+
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
+
+    expect(DB::table('usage_events')->where('project_id', $healthy->projectId->value)->count())->toBe(1)
+        ->and(DB::table('usage_events')->where('project_id', $failing->projectId->value)->count())->toBe(0)
+        ->and(is_array($pending) ? $pending[0] : -1)->toBe(1);
 });

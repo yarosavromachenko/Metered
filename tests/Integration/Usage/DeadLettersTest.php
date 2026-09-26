@@ -176,7 +176,7 @@ it('replays every replayable entry with --all, and fails on the one it refused',
     ]]);
 
     expect(Artisan::call('usage:dead-letters:replay', ['--all' => true]))->toBe(1)
-        ->and(Artisan::output())->toContain('1 replayed, 0 not found, 1 refused as malformed.');
+        ->and(Artisan::output())->toContain('1 replayed, 0 not found, 1 refused as malformed, 0 refused because the project is gone.');
 
     consumeDeadLetterTest();
 
@@ -215,4 +215,15 @@ it('shows the dead letters as a table, and says when there are none', function (
 it('refuses a limit that is not a positive number', function (): void {
     expect(Artisan::call('usage:dead-letters', ['--limit' => '0']))->toBe(1)
         ->and(Artisan::call('usage:dead-letters', ['--limit' => 'ten']))->toBe(1);
+});
+
+it('refuses a message whose project was deleted, and leaves it where it is', function (): void {
+    $id = deadLetterRedis()->command('xadd', [UsageStream::deadLetter(), '*', [
+        'event_id' => 'evt_orphan',
+        DeadLetters::REASON => DeadLetters::PROJECT_GONE,
+    ]]);
+
+    expect(app(DeadLetters::class)->replay(is_string($id) ? $id : ''))->toBe(ReplayOutcome::ProjectGone)
+        ->and(app(DeadLetters::class)->list(10))->toHaveCount(1)
+        ->and(deadLetterRedis()->command('xlen', [UsageStream::key()]))->toBe(0);
 });

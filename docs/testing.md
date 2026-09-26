@@ -99,6 +99,8 @@ expensive to miss.
 - The same `event_id` submitted twice in one batch, and twice in different batches.
 - Redelivery after the consumer is killed between the database commit and `XACK`.
 - A poison message that fails parsing: dead-lettered, not blocking the group.
+- One tenant's failed write: the other tenants of the same read written and acknowledged.
+- Events of a project deleted while they waited: dead-lettered as `project_gone`, no rejection row.
 - A dead letter replayed twice: the event written once.
 - An event older than the acceptance window and one five minutes in the future.
 

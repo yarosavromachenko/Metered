@@ -17,4 +17,7 @@ enum ReplayOutcome: string
 
     /** Left where it is: the consumer could not read it, and would set it aside again at once. */
     case Malformed = 'malformed';
+
+    /** Left where it is: its project was deleted, and the event has nothing to belong to. */
+    case ProjectGone = 'project_gone';
 }

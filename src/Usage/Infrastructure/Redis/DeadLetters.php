@@ -28,6 +28,8 @@ final readonly class DeadLetters
 
     public const string TOO_MANY_DELIVERIES = 'too_many_deliveries';
 
+    public const string PROJECT_GONE = 'project_gone';
+
     public function __construct(
         private PhpRedisConnection $connection,
         private string $streamKey,
@@ -73,6 +75,10 @@ final readonly class DeadLetters
 
         if ($reason === self::MALFORMED) {
             return ReplayOutcome::Malformed;
+        }
+
+        if ($reason === self::PROJECT_GONE) {
+            return ReplayOutcome::ProjectGone;
         }
 
         $message = array_filter(

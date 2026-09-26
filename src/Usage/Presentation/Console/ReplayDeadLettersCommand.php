@@ -12,8 +12,9 @@ use Metered\Usage\Infrastructure\Redis\ReplayOutcome;
  * `usage:dead-letters:replay` — puts dead letters back on the ingestion
  * stream, by id or all of them.
  *
- * Replaying twice writes once (see `DeadLetters`). A malformed message is
- * refused and stays, since the consumer would set it aside again at once.
+ * Replaying twice writes once (see `DeadLetters`). A malformed message, and
+ * one whose project was deleted, is refused and stays: the consumer would set
+ * it aside again at once.
  * Exits non-zero when any id was refused or not found, so a script that
  * replays a list notices the ones that did not go.
  */
@@ -41,7 +42,7 @@ final class ReplayDeadLettersCommand extends Command
             $ids = $deadLetters->ids();
         }
 
-        $counts = ['replayed' => 0, 'not_found' => 0, 'malformed' => 0];
+        $counts = ['replayed' => 0, 'not_found' => 0, 'malformed' => 0, 'project_gone' => 0];
 
         foreach ($ids as $id) {
             $outcome = $deadLetters->replay($id);
@@ -51,14 +52,16 @@ final class ReplayDeadLettersCommand extends Command
                 ReplayOutcome::Replayed => $this->line(sprintf('%s  replayed', $id)),
                 ReplayOutcome::NotFound => $this->warn(sprintf('%s  not found — never there, or already replayed', $id)),
                 ReplayOutcome::Malformed => $this->warn(sprintf('%s  refused — malformed, the consumer would set it aside again', $id)),
+                ReplayOutcome::ProjectGone => $this->warn(sprintf('%s  refused — its project was deleted', $id)),
             };
         }
 
         $this->info(sprintf(
-            '%d replayed, %d not found, %d refused as malformed.',
+            '%d replayed, %d not found, %d refused as malformed, %d refused because the project is gone.',
             $counts['replayed'],
             $counts['not_found'],
             $counts['malformed'],
+            $counts['project_gone'],
         ));
 
         return $counts['replayed'] === count($ids) ? self::SUCCESS : self::FAILURE;

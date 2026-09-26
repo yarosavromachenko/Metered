@@ -56,8 +56,10 @@ final class ConsumeUsageCommand extends Command
             try {
                 $report = $consumer->consumeOnce($name);
             } catch (Throwable $failure) {
-                // Nothing was acknowledged, so nothing is lost: the batch will
-                // be reclaimed and tried again. Reporting and continuing beats
+                // The failed tenant's messages were not acknowledged, so
+                // nothing is lost: they will be reclaimed and tried again. The
+                // other tenants of the read were written and acknowledged
+                // before this was thrown. Reporting and continuing beats
                 // exiting, which would turn one bad batch into an outage.
                 $this->error('Batch failed: ' . $failure->getMessage());
                 report($failure);
