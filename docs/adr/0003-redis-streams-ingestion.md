@@ -88,13 +88,19 @@ a job fights the framework.
 The shape is as decided: the endpoint validates shape, appends to the stream in
 one pipelined round trip, and answers `202`. `usage:consume` is a daemon that
 reads 500 at a time with a two-second block. It acknowledges only after the
-commit, reclaims anything idle for a minute with `XAUTOCLAIM`, and after five
+commit, reclaims anything idle for a minute, and after five
 deliveries sends the message to `usage:events:dead`. On `SIGTERM` it finishes
 the batch it has. Redis runs `appendonly yes` with `appendfsync everysec`. The
 consumer and the relay connect to PostgreSQL directly, and the web tier goes
 through PgBouncer.
 
 What the building added:
+
+**Reclaiming reads the pending list, not `XAUTOCLAIM`.** `XPENDING` carries
+each message's delivery count and `XAUTOCLAIM` does not, and the count is how a
+poison message is recognised before it is processed a sixth time. So the
+consumer lists what has been idle for a minute, sets aside what has been
+delivered too often, and claims the rest with `XCLAIM`.
 
 **Existence is checked in the consumer, not the endpoint.** An unknown meter or
 customer gets a `202` and a stored rejection with a reason, as this decision

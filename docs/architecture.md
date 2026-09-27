@@ -173,7 +173,7 @@ rule behind the UI. See [`admin-ui.md`](admin-ui.md) and
 | Failure | What happens | Where it is verified |
 |---|---|---|
 | Redis dies briefly | API returns 503 with `Retry-After`; already-queued events survive AOF; consumer resumes from its group offset | `sim:chaos kill-redis-brief` |
-| Consumer killed mid-batch | Unacked messages are reclaimed by `XAUTOCLAIM`; the insert either committed or did not, so `usage:reconcile` reports zero drift | `sim:chaos kill-consumer` |
+| Consumer killed mid-batch | Unacked messages are reclaimed (`XPENDING`, then `XCLAIM`); the insert either committed or did not, so `usage:reconcile` reports zero drift | `sim:chaos kill-consumer` |
 | Process dies between commit and dispatch | The outbox row is already committed; the relay publishes it on its next pass | Integration test |
 | Customer endpoint down | Retries with backoff and jitter, then the circuit breaker opens; after ten attempts the delivery is dead-lettered and replayable | `sim:chaos failing-webhook` |
 | Duplicate event submitted | Redis dedup window catches it; otherwise the partitioned unique index does | Integration test |

@@ -17,15 +17,15 @@ that links back, so the reasoning at the time stays readable.
 | [0005](0005-transactional-outbox-inbox.md) | Transactional outbox and inbox | **Accepted** |
 | [0006](0006-api-idempotency.md) | Idempotency keys for mutating endpoints | **Accepted** |
 | [0007](0007-money-and-decimals.md) | Money and decimal arithmetic | **Accepted** |
-| [0008](0008-double-entry-ledger.md) | Append-only double-entry ledger | Accepted |
+| [0008](0008-double-entry-ledger.md) | Append-only double-entry ledger | **Accepted** |
 | [0009](0009-clock-injection.md) | Time through an injected clock | **Accepted** |
-| [0010](0010-period-close-and-invoice-numbering.md) | Period close, late events, invoice numbering | Accepted |
-| [0011](0011-webhook-delivery.md) | Webhook signing, retries, breaker, SSRF guard | Accepted |
-| [0012](0012-trace-context-propagation.md) | Trace context across async hops | Accepted (M8) |
+| [0010](0010-period-close-and-invoice-numbering.md) | Period close, late events, invoice numbering | **Accepted** |
+| [0011](0011-webhook-delivery.md) | Webhook signing, retries, breaker, SSRF guard | **Accepted** |
+| [0012](0012-trace-context-propagation.md) | Trace context across async hops | **Accepted** |
 | [0013](0013-multi-tenancy.md) | Multi-tenancy by row scoping | **Accepted** |
 | [0014](0014-audit-log-hash-chain.md) | Hash-chained audit log | **Accepted** |
-| [0015](0015-admin-ui-filament.md) | Admin panel on Filament | Proposed |
-| [0016](0016-demo-mode-and-seed-profiles.md) | Demo mode and seed profiles | Accepted (M7) |
+| [0015](0015-admin-ui-filament.md) | Admin panel on Filament | **Accepted** |
+| [0016](0016-demo-mode-and-seed-profiles.md) | Demo mode and seed profiles | **Accepted** |
 | [0017](0017-admin-authentication.md) | Admin authentication and authorization | **Accepted** |
 | [0018](0018-design-principles.md) | Design principles: earn every abstraction | **Accepted** |
 | [0019](0019-metrics-through-opentelemetry.md) | Export metrics through OpenTelemetry, and read gauges in one process | **Accepted** |

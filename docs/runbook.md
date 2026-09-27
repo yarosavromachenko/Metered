@@ -136,7 +136,7 @@ The alert is on accepted requests only; a slow 503 is still a 503.
 
 Nothing is lost by design, but verify it rather than believing it:
 
-1. Restart the consumer. `XAUTOCLAIM` reclaims messages idle for more than 60s.
+1. Restart the consumer. It reclaims messages idle for more than 60s (`XPENDING`, then `XCLAIM`).
 2. `php artisan usage:reconcile --from="-2 hours"` compares aggregates against raw events.
 3. Expect zero drift. A non-zero result is a bug worth an issue, not a manual correction.
 
@@ -164,7 +164,9 @@ stream is still accepted. If its period has been invoiced since, it is billed
 as a late line on the next invoice.
 
 The command exits non-zero when any id was refused or not found, so a script
-replaying a list notices the ones that did not go back.
+replaying a list notices the ones that did not go back. It checks the reason
+recorded when the message was set aside, not the project: an entry whose
+project was deleted since is replayed, and comes back as `project_gone`.
 
 ## Outbox is falling behind
 

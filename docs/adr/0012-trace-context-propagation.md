@@ -1,6 +1,6 @@
 # 0012. Trace context across asynchronous hops
 
-- **Status:** Accepted in M8
+- **Status:** Accepted
 - **Date:** 2026-05-30, accepted 2026-09-21
 
 ## Context

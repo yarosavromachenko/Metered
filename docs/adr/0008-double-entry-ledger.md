@@ -105,7 +105,7 @@ commits.
 an invoice is finalized once, paid once, credited once, and a retried job that
 tries to book a second time fails on the constraint.
 
-**No account rows, and no `FOR UPDATE` on them — for now.** An account is the
+**No account rows, and no `FOR UPDATE` on them.** An account is the
 pair of a customer and one of three names; there is no table of accounts to lock.
 The lock this decision describes exists to serialise applying a prepaid balance,
 and prepaid credit — the `customer_credit` account — is not in v1

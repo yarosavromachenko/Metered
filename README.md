@@ -121,7 +121,7 @@ These three are the ones worth ten minutes:
 1. `src/Billing/Domain/Pricing/` — the pricing calculator. Pure domain, table-driven
    tests on every tier boundary, no framework in sight.
 2. `src/Usage/Infrastructure/Stream/` — the consumer daemon: consumer groups,
-   `XAUTOCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown.
+   `XPENDING` + `XCLAIM` for stuck messages, dead-letter stream, graceful SIGTERM shutdown.
 3. `src/Shared/Infrastructure/Outbox/` — transactional outbox with
    `SELECT ... FOR UPDATE SKIP LOCKED` relay and the inbox that makes consumers
    idempotent.

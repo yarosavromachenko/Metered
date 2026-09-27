@@ -69,7 +69,7 @@ README.
 ## M3 — Usage ingestion
 
 Batch endpoint, Redis Stream producer, consumer daemon (groups, ack,
-`XAUTOCLAIM`, dead-letter stream, graceful shutdown), bulk insert with aggregates
+`XPENDING` + `XCLAIM` reclaiming, dead-letter stream, graceful shutdown), bulk insert with aggregates
 in one transaction, partition management, deduplication, backpressure,
 rejections, reconciliation, usage queries. Admin: usage explorer, rejections,
 aggregates, a stream-lag widget.

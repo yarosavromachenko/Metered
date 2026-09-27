@@ -1,6 +1,6 @@
 # 0016. Demo mode and seed profiles
 
-- **Status:** Accepted in M7
+- **Status:** Accepted
 - **Date:** 2026-05-31, accepted 2026-09-11
 
 ## Context

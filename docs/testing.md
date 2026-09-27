@@ -59,7 +59,7 @@ its clock on by its own millisecond.
 not the 31st.
 
 **Integration tests use the real thing.** A mocked Redis proves the mock works.
-The consumer's behaviour under redelivery, `XAUTOCLAIM` and dead-lettering only
+The consumer's behaviour under redelivery, reclaiming (`XPENDING` + `XCLAIM`) and dead-lettering only
 exists against a real stream, so CI runs service containers.
 
 **Nothing outside the suite names the database connection.** PHPUnit's
