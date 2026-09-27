@@ -43,7 +43,7 @@ migrate: ## Run database migrations
 
 .PHONY: fresh
 fresh: ## Drop everything and re-migrate (local only)
-	$(EXEC) php artisan migrate:fresh --seed
+	$(EXEC) php artisan migrate:fresh
 
 # --------------------------------------------------------------------------
 # Quality gates — `make check` must mirror the CI pipeline exactly
