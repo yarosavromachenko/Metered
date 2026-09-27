@@ -103,8 +103,13 @@ function raceAgainstClaim(array $rows, Closure $removal): array
         }
     };
 
+    // Fork keys each result by its task's position but fills the array in
+    // the order the tasks finish; under load the remover can finish first.
+    $results = Fork::new()->run($worker, $remover);
+    ksort($results);
+
     /** @var list<string> */
-    return Fork::new()->run($worker, $remover);
+    return array_values($results);
 }
 
 it('purges a tenant\'s endpoints while a delivery to one is being claimed', function () use (&$project): void {
