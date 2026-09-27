@@ -34,12 +34,14 @@ interface MeteredApi
     public function read(string $path, array $query = []): array;
 
     /**
-     * Usage events in batches, several requests at a time.
+     * Usage events in batches, several requests at a time. Batches are taken
+     * from the iterable a few at a time, so a generator never has to hold
+     * more than that in memory.
      *
-     * @param  list<list<array<string, string>>>  $batches  at most 100 events each
+     * @param  iterable<list<array<string, string>>>  $batches  at most 100 events each
      * @return int the events the API accepted
      *
      * @throws ApiRefused when a batch is refused for good
      */
-    public function ingest(array $batches): int;
+    public function ingest(iterable $batches): int;
 }

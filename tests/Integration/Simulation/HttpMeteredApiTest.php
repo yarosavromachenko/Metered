@@ -43,3 +43,24 @@ it('waits a second when the answer names no wait, and never more than a minute',
     'no Retry-After' => ['', 1],
     'an hour' => ['3600', 60],
 ]);
+
+it('sends batches as they are produced rather than taking them all first', function (): void {
+    Http::fake(['metered.test/api/v1/usage/events' => Http::response(['accepted' => 1], 202)]);
+    $sentWhenProduced = [];
+
+    // A seed's live day is a quarter of a million events: the client must
+    // be able to take them from a generator a window at a time, or the whole
+    // day has to sit in memory before the first request leaves.
+    $batches = (static function () use (&$sentWhenProduced): Generator {
+        foreach (range(1, 200) as $index) {
+            $sentWhenProduced[$index] = count(Http::recorded());
+
+            yield [['id' => 'event-' . $index]];
+        }
+    })();
+
+    expect(simulationClient()->ingest($batches))->toBe(200)
+        ->and($sentWhenProduced[200])->toBeGreaterThan(100);
+
+    Http::assertSentCount(200);
+});

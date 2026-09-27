@@ -102,14 +102,11 @@ final readonly class SeedTenantHandler
         $say('Settling invoices');
         [$paid, $voided] = $this->settle($api, $noise, $customers, $now);
 
-        $events = array_map(
-            static fn(SimulatedEvent $event): array => $event->toApi(),
-            iterator_to_array($this->usage($pattern, $customers, $liveFrom, $now), false),
-        );
-        $duplicates = array_values(array_filter($events, static fn(array $event, int $i): bool => $i % self::DUPLICATE_EVERY === 0, ARRAY_FILTER_USE_BOTH));
-        $rejects = $this->rejects($customers, $now);
-        $say(sprintf('Sending %d usage events from the last %d day(s)', count($events), $command->profile->liveDays()));
-        $accepted = $api->ingest(array_chunk([...$events, ...$duplicates, ...$rejects], self::BATCH));
+        $say(sprintf('Sending the usage of the last %d day(s) through the API', $command->profile->liveDays()));
+        $live = $this->liveBatches($this->usage($pattern, $customers, $liveFrom, $now), $this->rejects($customers, $now));
+        $accepted = $api->ingest($live);
+        ['events' => $events, 'duplicates' => $duplicates, 'rejects' => $rejects] = $live->getReturn();
+        $say(sprintf('Sent %d usage events, %d of them resent as duplicates', $events + $duplicates + $rejects, $duplicates));
 
         return new SeedReport(
             $provisioned?->organizationSlug,
@@ -122,10 +119,10 @@ final readonly class SeedTenantHandler
             $history->aggregates,
             $paid,
             $voided,
-            count($events) + count($duplicates) + count($rejects),
+            $events + $duplicates + $rejects,
             $accepted,
-            count($duplicates),
-            count($rejects),
+            $duplicates,
+            $rejects,
         );
     }
 
@@ -195,6 +192,45 @@ final readonly class SeedTenantHandler
                 $api->write(sprintf('/subscriptions/%s/cancel', $subscription), []);
             }
         }
+    }
+
+    /**
+     * The live usage as API batches, made as they are sent: a heavy tenant's
+     * day is a quarter of a million events, and holding it whole ran out of
+     * memory. Every hundredth event is kept to be resent at the end as a
+     * duplicate, followed by the events meant to be rejected.
+     *
+     * @param  iterable<SimulatedEvent>  $usage
+     * @param  list<array<string, string>>  $rejects
+     * @return Generator<int, list<array<string, string>>, mixed, array{events: int, duplicates: int, rejects: int}>
+     */
+    private function liveBatches(iterable $usage, array $rejects): Generator
+    {
+        $batch = [];
+        $duplicates = [];
+        $events = 0;
+
+        foreach ($usage as $event) {
+            $payload = $event->toApi();
+
+            if ($events % self::DUPLICATE_EVERY === 0) {
+                $duplicates[] = $payload;
+            }
+
+            ++$events;
+            $batch[] = $payload;
+
+            if (count($batch) === self::BATCH) {
+                yield $batch;
+                $batch = [];
+            }
+        }
+
+        foreach (array_chunk([...$batch, ...$duplicates, ...$rejects], self::BATCH) as $tail) {
+            yield $tail;
+        }
+
+        return ['events' => $events, 'duplicates' => count($duplicates), 'rejects' => count($rejects)];
     }
 
     /**

@@ -29,6 +29,12 @@ final readonly class HttpMeteredApi implements MeteredApi
 
     private const int CONCURRENCY = 8;
 
+    /**
+     * Batches taken from the caller at a time: enough to keep every
+     * connection busy, few enough that a day of usage never sits in memory.
+     */
+    private const int WINDOW = self::CONCURRENCY * 4;
+
     public function __construct(
         private Factory $http,
         private IdentifierGenerator $ids,
@@ -77,7 +83,27 @@ final readonly class HttpMeteredApi implements MeteredApi
         }
     }
 
-    public function ingest(array $batches): int
+    public function ingest(iterable $batches): int
+    {
+        $accepted = 0;
+        $window = [];
+
+        foreach ($batches as $batch) {
+            $window[] = $batch;
+
+            if (count($window) === self::WINDOW) {
+                $accepted += $this->ingestWindow($window);
+                $window = [];
+            }
+        }
+
+        return $window === [] ? $accepted : $accepted + $this->ingestWindow($window);
+    }
+
+    /**
+     * @param  list<list<array<string, string>>>  $batches
+     */
+    private function ingestWindow(array $batches): int
     {
         $accepted = 0;
         $pending = $batches;
