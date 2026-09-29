@@ -20,6 +20,8 @@ It exists as a portfolio project with two jobs: **be readable** (a reviewer
 understands the architecture in ten minutes) and **be runnable** (`make demo`
 gives that reviewer a working admin panel with a system under live load).
 
+![Signing in to the showcase, then the dashboard, usage events, an invoice with its working, webhook deliveries and the live-load dashboard in Grafana](docs/images/admin/walkthrough.gif)
+
 ---
 
 ## Quick start
@@ -48,6 +50,11 @@ first time. If something on the machine already holds a port, set `APP_PORT`
 | Horizon | <http://localhost:8080/horizon> — queue throughput, failed jobs, retries |
 | Mailpit | <http://localhost:8025> — every message the application sends, caught locally |
 | Webhook receiver | <http://localhost:8089> — a stand-in for a tenant's system: what the webhooks delivered, and whether each signature checks out |
+
+| | |
+|---|---|
+| ![Invoice with the working behind each line](docs/images/admin/invoice.png) | ![Webhook deliveries to the demo receiver's five behaviours](docs/images/admin/webhook-deliveries.png) |
+| ![The panel's dashboard](docs/images/admin/dashboard.png) | ![Grafana live-load dashboard](docs/images/admin/grafana-live.png) |
 
 `make demo-reset` deletes every demo tenant and seeds the showcase again.
 `make up` starts the stack without demo data, and `make check` runs every gate
@@ -81,7 +88,17 @@ leaves the host, and the only account you create is in your own copy.
 ## Architecture
 
 Modular monolith, four layers per module, dependency rules enforced in CI by
-Deptrac and Pest Arch.
+Deptrac and Pest Arch. From the outside:
+
+```mermaid
+flowchart LR
+    Dev["Tenant's backend"] -->|usage events, REST| M[Metered]
+    Ops["Operator"] -->|admin panel| M
+    M -->|signed webhooks| Dev
+    M -->|traces, metrics| O["Grafana stack"]
+```
+
+And inside, the path of a usage event:
 
 ```mermaid
 flowchart TD
@@ -174,6 +191,10 @@ Thresholds are never lowered to make a build pass — see
   `trace_id` and `span_id`, read with `docker compose logs`; Loki would be one
   more service in a stack that already runs sixteen.
 - The demo is local only. There is no hosted instance to abuse or to pay for.
+- No Kubernetes manifests. The demo is `docker compose`, and manifests nothing
+  runs in CI would drift from it unseen. The image is ready for an
+  orchestrator: separate liveness and readiness endpoints, a non-root user and a
+  `HEALTHCHECK`.
 - No PostgreSQL row-level security. Tenant isolation is row scoping in the
   repositories, the panel's session scope, and composite foreign keys in the
   schema — RLS was a stretch goal for defence in depth and did not land — ADR-0013.
@@ -189,7 +210,7 @@ Thresholds are never lowered to make a build pass — see
 
 | | |
 |---|---|
-| [`docs/architecture.md`](docs/architecture.md) | C4 diagrams, data flows, layering |
+| [`docs/architecture.md`](docs/architecture.md) | C4 context and container diagrams, data flows, layering |
 | [`docs/engineering-guidelines.md`](docs/engineering-guidelines.md) | The rules this codebase is held to, and how CI enforces them |
 | [`docs/domain.md`](docs/domain.md) | Glossary, invariants, state machines |
 | [`docs/adr/`](docs/adr/) | Architecture decision records |
@@ -202,6 +223,7 @@ Thresholds are never lowered to make a build pass — see
 | [`docs/observability.md`](docs/observability.md) | Metrics, traces, dashboards |
 | [`docs/runbook.md`](docs/runbook.md) | Operational procedures |
 | [`docs/roadmap.md`](docs/roadmap.md) | Milestone status |
+| [`CHANGELOG.md`](CHANGELOG.md) | What each release added, changed and fixed |
 
 ## License
 
