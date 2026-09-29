@@ -45,11 +45,109 @@ Commit:
 
 | Date | Scenario | RPS | p50 | p95 | p99 | Errors | Final lag |
 |---|---|---|---|---|---|---|---|
+| 2026-09-29 | `ingest-steady`, tracing on, heavy dataset | 41.3 | 32.3 ms | 35.6 ms | 38.6 ms | 0 | 0 |
+| 2026-09-29 | `mixed`: ingestion / dashboard reads | 52.0 | 15.0 / 11.5 ms | 17.0 / 20.8 ms | 19.7 / 25.0 ms | 0 | 0 |
 | 2026-09-21 | `ingest-steady`, tracing on | 41.4 | 31.7 ms | 34.9 ms | 37.0 ms | 0 | 49–100 |
 | 2026-09-21 | `ingest-steady`, tracing off | 41.4 | 31.4 ms | 34.6 ms | 36.6 ms | 0 | — |
 | 2026-07-11 | `ingest-steady` | 40.7 | 31.6 ms | 36.1 ms | 570 ms | 0 | 0 |
 
-`ingest-burst` and `close-periods` have no script, and `mixed` has no recorded run.
+`ingest-burst` and `close-periods` have no script.
+
+### 3. `ingest-steady` — 2026-09-29, the release
+
+```
+CPU:        AMD Ryzen 7 7435HS, 16 threads
+RAM:        15 GiB
+Disk:       Micron MTFDKCD512QFM NVMe SSD, 477 GB
+Docker:     29.8.1, compose 5.5.1, kernel 7.0.0-34-generic
+PHP:        8.4.26, FrankenPHP 1.12.7, Caddy 2.11.4, Octane 2.19.1, Laravel 13.32.0
+            OpenTelemetry PHP SDK 1.15.0
+PostgreSQL: 18.6 (behind PgBouncer 1.23.1, transaction pooling)
+Redis:      8.10.1
+Commit:     a1b2097
+```
+
+The final numbers, measured the way the method above asks and nothing else
+running on the machine: a clean clone, `make demo`, the showcase's traffic
+generator stopped, then `sim:seed --profile=heavy` — 1,000 customers and
+19.9 million events of history plus a live day through the API, 17 minutes —
+and three `small` tenants. `usage_events` held 22,204,207 rows before the
+series. Parameters as in run 1: `k6/ingest.js`, batches of 50 events, one
+customer and one meter of the heavy tenant, 30s warm-up at 2 VUs, then 5
+minutes at a constant 40 requests a second,
+`API_KEY_RATE_LIMIT_PER_MINUTE=1000000`, tracing on as `make demo` runs it.
+
+| Run | p50 | p90 | p95 | p99 | max | Requests | RPS | Errors | Shed (503) |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | 32.05 | 34.72 | 35.72 | 38.37 | 68.84 | 13,848 | 41.34 | 0 | 0 |
+| 2 | 32.29 | 34.83 | 36.00 | 40.52 | 64.35 | 13,804 | 41.20 | 0 | 0 |
+| 3 | 32.28 | 34.70 | 35.61 | 38.63 | 79.34 | 13,850 | 41.34 | 0 | 0 |
+
+After the series the consumer group had nothing pending and no lag. Over the
+last five minutes, from Prometheus: batch write p50 14 ms, p99 42 ms, about 40
+events a batch.
+
+Raw output of run 3, the median:
+
+```
+     ✓ answered as the API promises
+     ✓ never a server error
+     batch_size.....................: min=50      med=50      p(90)=50       p(95)=50       p(99)=50       max=50
+   ✓ checks.........................: 100.00% 27700 out of 27700
+     data_sent......................: 141 MB  422 kB/s
+     events_accepted................: 692500  2066.852393/s
+     http_req_duration..............: min=29.01ms med=32.16ms p(90)=34.6ms   p(95)=35.51ms  p(99)=38.59ms  max=79.34ms
+       { expected_response:true }...: min=29.01ms med=32.16ms p(90)=34.6ms   p(95)=35.51ms  p(99)=38.59ms  max=79.34ms
+     ✓ { phase:plateau }............: min=29.01ms med=32.28ms p(90)=34.7ms   p(95)=35.61ms  p(99)=38.63ms  max=79.34ms
+     http_req_failed................: 0.00%   0 out of 13850
+     http_req_waiting...............: min=28.86ms med=32ms    p(90)=34.43ms  p(95)=35.35ms  p(99)=38.38ms  max=79.24ms
+     http_reqs......................: 13850   41.337048/s
+     iterations.....................: 13850   41.337048/s
+     vus............................: 1       min=0              max=2
+```
+
+**Reading.** Both thresholds hold in all three runs. Against the 2026-09-27
+series at 17 million rows, the median p99 moved from 37.0 to 38.6 ms and p50
+from 31.7 to 32.3 ms, with 22 million rows and four other tenants in the
+tables: the hot path is Redis and serialisation, and the table under it is not
+in the request. That is the claim ADR-0003 makes, now held on the dataset it
+was meant for.
+
+### `mixed` — 2026-09-29
+
+Same environment and dataset, straight after the series above. `k6/mixed.js`:
+ingestion at 30 requests a second in batches of 20, while a dashboard reads at
+10 iterations a second — one customer's usage this month (spread over all
+1,000 customers), the latest invoices, the catalog — for 3 minutes, with the
+heavy tenant's key.
+
+```
+     ✓ ingestion answered as promised
+     █ customer usage this month
+       ✓ usage read
+     █ latest invoices
+       ✓ invoices read
+     █ catalog
+       ✓ catalog read
+   ✓ checks.........................: 100.00% 9364 out of 9364
+     data_sent......................: 19 MB   105 kB/s
+     group_duration.................: min=4.09ms  med=11.6ms  p(90)=17.6ms   p(95)=20.99ms  p(99)=25.19ms max=183.62ms
+     http_req_duration..............: min=4ms     med=14.51ms p(90)=16.46ms  p(95)=18.01ms  p(99)=23.54ms max=183.48ms
+       { expected_response:true }...: min=4ms     med=14.51ms p(90)=16.46ms  p(95)=18.01ms  p(99)=23.54ms max=183.48ms
+     ✓ { kind:ingest }..............: min=13.03ms med=15ms    p(90)=16.33ms  p(95)=16.99ms  p(99)=19.7ms  max=51.83ms
+     ✓ { kind:read }................: min=4ms     med=11.48ms p(90)=17.42ms  p(95)=20.81ms  p(99)=25ms    max=183.48ms
+     http_req_failed................: 0.00%   0 out of 9364
+     http_req_waiting...............: min=3.94ms  med=14.41ms p(90)=16.35ms  p(95)=17.91ms  p(99)=23.45ms max=183.41ms
+     http_reqs......................: 9364    52.015187/s
+     iterations.....................: 7202    40.0057/s
+     vus............................: 0       min=0            max=0
+```
+
+**Reading.** Reads that go to PostgreSQL stay quick while the consumer writes
+into the same tables — p99 25 ms, the usage read an index range over one
+customer's aggregates (see [`query-plans.md`](query-plans.md), 3) — and
+ingestion stays where it was, p99 19.7 ms for batches of 20. One run, not three:
+this scenario asks whether the two interfere, and at these rates they do not.
 
 ### 2. `ingest-steady` — 2026-09-21
 
