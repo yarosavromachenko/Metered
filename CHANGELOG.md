@@ -47,6 +47,9 @@ Release polish: the repository as a reviewer meets it.
   was built whole before it was sent. It is sent as it is generated.
 - A concurrency test compared results in the order processes finished.
 - `.env.example` named three ingestion settings nothing read.
+- `league/commonmark` upgraded to 2.10.3, past GHSA-3q6v-r5mr-hxv8 (quadratic
+  time on crafted GitHub Flavored Markdown) and GHSA-97jj-33gv-5xf9
+  (`DisallowedRawHtml` bypass).
 
 ### Removed
 - The framework skeleton's user model, factory and seeder.
