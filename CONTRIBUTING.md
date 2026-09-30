@@ -51,6 +51,20 @@ cp docs/adr/0000-template.md docs/adr/00NN-short-title.md
 Fill in Context, Decision, Consequences, and Alternatives. Alternatives is not
 optional — an ADR that lists no rejected option is a note, not a decision.
 
+## Releasing
+
+A release is a tag on `main`; CI does the rest.
+
+1. Move the changes under a new version heading in [`CHANGELOG.md`](CHANGELOG.md),
+   dated, and merge that to `main` with a green pipeline.
+2. Tag the merge commit and push the tag: `git tag -a v1.2.0 -m "v1.2.0"`, then
+   `git push origin v1.2.0`.
+3. The `v*` tag runs the full pipeline, and the build job pushes the production
+   image to GHCR as `ghcr.io/<owner>/<repository>:1.2.0` and `:1.2`, with OCI
+   labels for the source, revision, version and licence. The image scan gates it
+   like any other build.
+4. Create a GitHub release from the tag with that version's changelog section.
+
 ## Adding a dependency
 
 Justify it in the PR description: what it replaces, what it costs, why writing it
