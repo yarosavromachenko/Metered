@@ -127,7 +127,7 @@ the README.
 | `outbox-relay` | Publishes committed integration events to the queue |
 | `horizon` | Queue workers: `billing`, `webhooks`, `default`, each supervised separately |
 | `usage-consumer` | Redis Stream → PostgreSQL, with aggregates in the same transaction |
-| `scheduler` | Period close, partition creation, expiry and idle-demo sweeps |
+| `scheduler` | Period close, webhook dispatch, partition creation, the idle-demo sweep, and maintenance: expired idempotency keys, old outbox rows, audit chain verification |
 | `postgres` | PostgreSQL 18 |
 | `pgbouncer` | Transaction pooling for the web tier only; the daemons connect directly |
 | `redis` | Cache, sessions, queues and the ingestion stream |

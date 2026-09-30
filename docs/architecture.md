@@ -44,7 +44,8 @@ flowchart TD
     RELAY["outbox:relay<br/>daemon"] -->|FOR UPDATE SKIP LOCKED| PG
     RELAY -->|dispatch| HZ["Horizon workers<br/>billing · webhooks · default"]
 
-    SCHED[scheduler] -->|billing:close-periods<br/>usage:partitions:ensure| HZ
+    SCHED[scheduler] -->|billing:close-periods<br/>webhooks:dispatch| HZ
+    SCHED -->|usage:partitions:ensure<br/>idempotency:purge · outbox:prune<br/>audit:verify| PG
     HZ --> PG
     HZ -->|HTTPS + HMAC| CUST[Customer endpoint]
 

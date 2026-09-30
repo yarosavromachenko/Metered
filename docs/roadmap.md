@@ -17,7 +17,7 @@ Sizes are for one developer: S ≈ 1–2 days, M ≈ 3–5 days, L ≈ 1–2 wee
 | M6 | Webhooks | M | ✅ done |
 | M7 | Simulation, seed profiles and chaos | M | ✅ done |
 | M8 | Observability polish | S–M | ✅ done |
-| M9 | Release polish | S | 🔜 next |
+| M9 | Release polish | S | ✅ done |
 
 The admin panel is not a milestone of its own. It grows inside each milestone,
 next to the domain it exposes — otherwise it would always be one step behind the
@@ -197,8 +197,21 @@ numbers; the trade-offs and not-implemented section; a review of every ADR;
 [`runbook.md`](runbook.md); a recorded walkthrough of the admin panel; CHANGELOG;
 tag `v1.0.0`; image published to GHCR. Stretch: Kubernetes manifests.
 
-- [ ] Someone who has never seen the project starts it and understands the architecture within ten minutes
-- [ ] No `TODO`/`FIXME` without a linked issue, and no commented-out code
+- [x] Someone who has never seen the project starts it and understands the architecture within ten minutes — the README leads with a walkthrough, the context diagram and `make demo`, which comes up from a clean clone in about three minutes
+- [x] No `TODO`/`FIXME` without a linked issue, and no commented-out code
+
+The production image lost its compiler and headers, and pull requests now scan
+it. Every ADR was checked against the code; three scheduled jobs the decisions
+promised were missing and now run, and the dead-letter stream gained the
+commands its runbook named. Running the release for real found four bugs, each
+fixed with a test: signing in through the panel's form stored the wrong user
+id, an idempotency key never expired, one tenant's failed write held back the
+rest of a consumer read, and the `heavy` seed ran out of memory. Query plans
+and the release benchmark were captured on the `heavy` profile
+([`query-plans.md`](query-plans.md), [`benchmarks.md`](benchmarks.md)). The
+stretch goal, Kubernetes manifests, was not built; the README says why. `v1.0.0`
+is tagged on the merge, and CI publishes its image to GHCR
+([`CONTRIBUTING.md`](../CONTRIBUTING.md#releasing)).
 
 ---
 

@@ -249,6 +249,13 @@ until the old one is revoked.
    nothing still sends it.
 4. Revoke the old key.
 
+## Idempotency records
+
+A key is remembered for 24 hours (ADR-0006). `idempotency:purge` removes
+expired records every hour; `php artisan idempotency:purge` runs it by hand and
+prints how many went. An expired record is ignored when its key comes back
+whether or not it has been purged, so a late purge costs disk, not correctness.
+
 ## Verifying the audit log
 
 `php artisan audit:verify` walks the hash chain. A failure means a row was
