@@ -46,6 +46,7 @@ final readonly class AddMemberHandler
             $this->memberships->save(new Membership($this->ids->generate(), $organization->id, $userId, $command->role, $now));
 
             $this->audit->record(new AuditEntry(
+                organizationId: $organization->id,
                 actor: $command->actor->label,
                 action: 'member.added',
                 subjectType: 'organization',

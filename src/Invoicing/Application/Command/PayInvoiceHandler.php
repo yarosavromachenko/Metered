@@ -73,6 +73,7 @@ final readonly class PayInvoiceHandler
             $this->outbox->append(InvoiceMessages::about($this->ids->generate(), $paid, 'invoice.paid', $now, ['payment_reference' => $result->reference]));
 
             $this->audit->record(new AuditEntry(
+                organizationId: $command->tenant->organizationId,
                 actor: $command->actor->label,
                 action: 'invoice.paid',
                 subjectType: 'invoice',

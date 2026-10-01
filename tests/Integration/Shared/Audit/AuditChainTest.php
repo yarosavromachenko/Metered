@@ -2,18 +2,24 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Metered\Shared\Application\Audit\AuditLogger;
 use Metered\Shared\Application\Audit\ChainVerifier;
 use Metered\Shared\Domain\Audit\AuditEntry;
 use Metered\Shared\Domain\Audit\ChainHash;
+use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Psr\Clock\ClockInterface;
 
-function record(string $action, string $actor = 'user:test'): void
+const AUDIT_ACME = '01a0f4ad-54b4-701b-90f7-24a8c2eff77c';
+const AUDIT_GLOBEX = '01a0f4b0-8571-7068-9094-2817f79fd199';
+
+function record(string $action, ?string $organization = AUDIT_ACME, string $actor = 'user:test'): void
 {
     app(AuditLogger::class)->record(new AuditEntry(
+        organizationId: $organization === null ? null : Uuid::fromString($organization),
         actor: $actor,
         action: $action,
         subjectType: 'invoice',
@@ -171,6 +177,7 @@ it('catches a hash rewritten to match altered contents', function (): void {
             'inv-117',
             ['reason' => 'because'],
             new DateTimeImmutable(RowReader::string($values['occurred_at'] ?? null, 'occurred_at')),
+            AUDIT_ACME,
         );
 
         DB::table('audit_log')->where('sequence', $first)->update([
@@ -197,5 +204,108 @@ it('reports the outcome through the console command', function (): void {
         DB::table('audit_log')->where('sequence', $first)->update(['actor' => 'somebody else']);
     });
 
-    expect(Artisan::call('audit:verify'))->toBe(1);
+    expect(Artisan::call('audit:verify'))->toBe(1)
+        ->and(Artisan::output())->toContain('organization ' . AUDIT_ACME);
 });
+
+/**
+ * Each organization's entries as [prev_hash, hash] pairs, in order.
+ *
+ * @return list<array{prev: string, hash: string}>
+ */
+function chainOf(?string $organization): array
+{
+    $query = DB::table('audit_log')->orderBy('sequence');
+    $organization === null ? $query->whereNull('organization_id') : $query->where('organization_id', $organization);
+
+    $chain = [];
+
+    foreach ($query->get(['prev_hash', 'hash']) as $entry) {
+        $values = get_object_vars($entry);
+        $chain[] = [
+            'prev' => RowReader::string($values['prev_hash'] ?? null, 'prev_hash'),
+            'hash' => RowReader::string($values['hash'] ?? null, 'hash'),
+        ];
+    }
+
+    return $chain;
+}
+
+it('keeps a chain per organization, each starting from genesis', function (): void {
+    record('invoice.finalized', AUDIT_ACME);
+    record('invoice.finalized', AUDIT_GLOBEX);
+    record('invoice.paid', AUDIT_ACME);
+
+    $acme = chainOf(AUDIT_ACME);
+    $globex = chainOf(AUDIT_GLOBEX);
+
+    // Globex's entry came between Acme's two, and is not part of their chain.
+    expect($acme)->toHaveCount(2)
+        ->and($acme[0]['prev'])->toBe(ChainHash::GENESIS)
+        ->and($acme[1]['prev'])->toBe($acme[0]['hash'])
+        ->and($globex)->toHaveCount(1)
+        ->and($globex[0]['prev'])->toBe(ChainHash::GENESIS)
+        ->and(app(ChainVerifier::class)->verify()->entriesChecked)->toBe(3);
+});
+
+it('verifies the platform chain written before chains were per organization', function (): void {
+    // Entries from before 1.1.0 have no organization; they stay one chain,
+    // valid as written, next to the new ones.
+    record('organization.provisioned', null);
+    record('invoice.finalized', AUDIT_ACME);
+    record('member.added', null);
+
+    $result = app(ChainVerifier::class)->verify();
+
+    expect(chainOf(null)[1]['prev'] ?? null)->toBe(chainOf(null)[0]['hash'] ?? 'missing')
+        ->and($result->intact)->toBeTrue()
+        ->and($result->entriesChecked)->toBe(3);
+});
+
+it('names the chain that broke', function (): void {
+    record('invoice.finalized', AUDIT_ACME);
+    record('invoice.finalized', AUDIT_GLOBEX);
+    record('invoice.paid', AUDIT_GLOBEX);
+
+    $globexFirst = DB::table('audit_log')->where('organization_id', AUDIT_GLOBEX)->min('sequence');
+
+    tamper(static function () use ($globexFirst): void {
+        DB::table('audit_log')->where('sequence', $globexFirst)->update(['action' => 'invoice.refunded']);
+    });
+
+    $result = app(ChainVerifier::class)->verify();
+
+    expect($result->intact)->toBeFalse()
+        ->and($result->chain)->toBe(AUDIT_GLOBEX)
+        ->and($result->reason)->toContain('altered');
+});
+
+it('catches an entry moved into another organization’s chain', function (): void {
+    record('invoice.finalized', AUDIT_ACME);
+    record('invoice.paid', AUDIT_ACME);
+
+    $acmeLast = DB::table('audit_log')->where('organization_id', AUDIT_ACME)->max('sequence');
+
+    tamper(static function () use ($acmeLast): void {
+        DB::table('audit_log')->where('sequence', $acmeLast)->update(['organization_id' => AUDIT_GLOBEX]);
+    });
+
+    expect(app(ChainVerifier::class)->verify()->intact)->toBeFalse();
+});
+
+it('refuses, in the database, two entries claiming the same predecessor in one chain', function (?string $organization): void {
+    // The lock serialises writers; this is what holds if it ever does not.
+    record('invoice.finalized', $organization);
+
+    $first = DB::table('audit_log')->orderByDesc('sequence')->first();
+    $values = $first === null ? [] : get_object_vars($first);
+
+    expect(fn() => DB::table('audit_log')->insert([
+        ...array_diff_key($values, ['sequence' => true]),
+        'id' => Uuid::fromString('01a0f700-0000-7000-8000-000000000001')->value,
+        'hash' => str_repeat('f', 64),
+    ]))->toThrow(UniqueConstraintViolationException::class);
+})->with([
+    'an organization’s chain' => [AUDIT_ACME],
+    'the platform chain' => [null],
+]);

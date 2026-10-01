@@ -26,6 +26,7 @@ final readonly class EndpointAudit
     public function record(Actor $actor, string $action, Endpoint $endpoint): void
     {
         $this->audit->record(new AuditEntry(
+            organizationId: $endpoint->tenant->organizationId,
             actor: $actor->label,
             action: $action,
             subjectType: 'webhook_endpoint',

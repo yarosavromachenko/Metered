@@ -9,7 +9,8 @@ namespace Metered\Shared\Application\Audit;
  *
  * It names the first broken link rather than counting them: once one entry is
  * altered, every entry after it fails too, so a count would describe the
- * length of the tail rather than the size of the problem.
+ * length of the tail rather than the size of the problem. It names the chain
+ * too — an organization's id, or null for the platform chain (ADR-0020).
  */
 final readonly class VerificationResult
 {
@@ -18,6 +19,7 @@ final readonly class VerificationResult
         public int $entriesChecked,
         public ?int $brokenAtSequence = null,
         public ?string $reason = null,
+        public ?string $chain = null,
     ) {}
 
     public static function intact(int $entriesChecked): self
@@ -25,8 +27,8 @@ final readonly class VerificationResult
         return new self(true, $entriesChecked);
     }
 
-    public static function broken(int $entriesChecked, int $sequence, string $reason): self
+    public static function broken(int $entriesChecked, int $sequence, string $reason, ?string $chain): self
     {
-        return new self(false, $entriesChecked, $sequence, $reason);
+        return new self(false, $entriesChecked, $sequence, $reason, $chain);
     }
 }

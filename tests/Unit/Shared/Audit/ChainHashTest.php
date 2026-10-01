@@ -17,9 +17,10 @@ function hashFor(array $overrides = []): string
         'subjectId' => 'inv-117',
         'payload' => ['reason' => 'duplicate'],
         'occurredAt' => new DateTimeImmutable('2026-09-10T09:00:00.123456+00:00'),
+        'organizationId' => null,
     ];
 
-    /** @var array{previousHash: string, actor: string, action: string, subjectType: string, subjectId: ?string, payload: array<string, mixed>, occurredAt: DateTimeImmutable} $args */
+    /** @var array{previousHash: string, actor: string, action: string, subjectType: string, subjectId: ?string, payload: array<string, mixed>, occurredAt: DateTimeImmutable, organizationId: ?string} $args */
     $args = [...$defaults, ...$overrides];
 
     return ChainHash::compute(
@@ -30,6 +31,7 @@ function hashFor(array $overrides = []): string
         $args['subjectId'],
         $args['payload'],
         $args['occurredAt'],
+        $args['organizationId'],
     );
 }
 
@@ -47,7 +49,14 @@ it('changes when any part of the entry changes', function (string $field, mixed 
     'the subject id' => ['subjectId', 'inv-118'],
     'the payload' => ['payload', ['reason' => 'fraud']],
     'the instant' => ['occurredAt', new DateTimeImmutable('2026-09-10T09:00:00.123457+00:00')],
+    'the organization' => ['organizationId', '01a0f4ad-54b4-701b-90f7-24a8c2eff77c'],
 ]);
+
+it('tells one organization’s chain from another’s', function (): void {
+    // An entry cannot be moved into another chain and still verify.
+    expect(hashFor(['organizationId' => '01a0f4ad-54b4-701b-90f7-24a8c2eff77c']))
+        ->not->toBe(hashFor(['organizationId' => '01a0f4b0-8571-7068-9094-2817f79fd199']));
+});
 
 it('distinguishes a null subject from an empty one', function (): void {
     expect(hashFor(['subjectId' => null]))->not->toBe(hashFor(['subjectId' => '']));
@@ -90,7 +99,28 @@ it('pins the encoding with a known answer', function (): void {
         'inv-117',
         ['reason' => 'duplicate/refund', 'note' => 'café'],
         new DateTimeImmutable('2026-09-10T09:00:00.123456+00:00'),
+        null,
     );
 
+    // Entries written before chains were kept per organization carry none and
+    // hash exactly as they did: this vector is the one from before.
     expect($hash)->toBe('d9aaee37d6d143f5ab4d16281834674ebf243d8bd7815755999bdefa8053f5f3');
+});
+
+it('pins where the organization sits in the encoding', function (): void {
+    // The same entry in an organization's chain: the organization is the last
+    // field of the canonical JSON, which is what a hand-made sha256 of
+    // {"prev":…,"occurred_at":"…","organization_id":"01a0f4ad-…"} gives.
+    $hash = ChainHash::compute(
+        ChainHash::GENESIS,
+        'user:01932b1c',
+        'invoice.voided',
+        'invoice',
+        'inv-117',
+        ['reason' => 'duplicate/refund', 'note' => 'café'],
+        new DateTimeImmutable('2026-09-10T09:00:00.123456+00:00'),
+        '01a0f4ad-54b4-701b-90f7-24a8c2eff77c',
+    );
+
+    expect($hash)->toBe('61d079d95a43f2928d004ab81bdf02770b97c258e5ec2e511db959af7fcff382');
 });

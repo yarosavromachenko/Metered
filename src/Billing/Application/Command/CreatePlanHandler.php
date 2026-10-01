@@ -39,6 +39,7 @@ final readonly class CreatePlanHandler
         $this->plans->save($plan);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'plan.created',
             subjectType: 'plan',

@@ -55,6 +55,7 @@ final readonly class CreateProjectHandler
         $this->projects->save($project);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $project->organizationId,
             actor: $command->actor->label,
             action: 'project.created',
             subjectType: 'project',

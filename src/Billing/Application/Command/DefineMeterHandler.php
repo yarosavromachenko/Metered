@@ -58,6 +58,7 @@ final readonly class DefineMeterHandler
         $this->meters->save($meter);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'meter.defined',
             subjectType: 'meter',

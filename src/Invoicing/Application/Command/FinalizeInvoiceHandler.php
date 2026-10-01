@@ -65,6 +65,7 @@ final readonly class FinalizeInvoiceHandler
             $this->outbox->append(InvoiceMessages::about($this->ids->generate(), $invoice, 'invoice.finalized', $now));
 
             $this->audit->record(new AuditEntry(
+                organizationId: $command->tenant->organizationId,
                 actor: $command->actor->label,
                 action: 'invoice.finalized',
                 subjectType: 'invoice',

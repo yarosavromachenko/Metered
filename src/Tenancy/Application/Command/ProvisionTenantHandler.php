@@ -98,6 +98,7 @@ final readonly class ProvisionTenantHandler
             ));
 
             $this->audit->record(new AuditEntry(
+                organizationId: $organization->id,
                 actor: $command->actor->label,
                 action: 'organization.provisioned',
                 subjectType: 'organization',

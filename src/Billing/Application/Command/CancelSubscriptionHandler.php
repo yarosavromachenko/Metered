@@ -45,6 +45,7 @@ final readonly class CancelSubscriptionHandler
         });
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'subscription.canceled',
             subjectType: 'subscription',

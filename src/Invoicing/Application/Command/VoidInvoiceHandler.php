@@ -84,6 +84,7 @@ final readonly class VoidInvoiceHandler
     private function record(VoidInvoice $command, Invoice $invoice, string $action, array $payload): void
     {
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: $action,
             subjectType: 'invoice',

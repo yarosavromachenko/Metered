@@ -53,6 +53,7 @@ final readonly class AddPriceHandler
         $this->versions->save($version->withPrice($price));
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'price.added',
             subjectType: 'plan_version',

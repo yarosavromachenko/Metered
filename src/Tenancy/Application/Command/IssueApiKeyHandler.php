@@ -68,6 +68,7 @@ final readonly class IssueApiKeyHandler
         $this->keys->save($key);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $project->organizationId,
             actor: $command->actor->label,
             action: 'api_key.issued',
             subjectType: 'api_key',
