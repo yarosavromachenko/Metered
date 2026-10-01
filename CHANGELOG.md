@@ -5,7 +5,7 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
-## [Unreleased]
+## [1.1.0] - 2026-10-01
 
 ### Upgrading from 1.0.0
 Ingestion moves to the new `redis-usage` service, which starts empty.
