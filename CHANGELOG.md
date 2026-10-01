@@ -68,6 +68,9 @@ Ingestion moves to the new `redis-usage` service, which starts empty.
 - Webhook deliveries never go through a proxy named in the environment. A
   proxy resolves the host itself, so the address the guard checked and pinned
   would not have been the one reached.
+- The application image applies Debian's security updates when it is built,
+  instead of waiting for the upstream FrankenPHP image to be rebuilt; the
+  first to arrive this way is the pcre2 fix for CVE-2026-103111.
 
 ## [1.0.0] - 2026-09-30
 

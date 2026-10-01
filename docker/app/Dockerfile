@@ -5,10 +5,14 @@
 # ships a C toolchain and kernel headers for compiling extensions; once they
 # are compiled, both are only attack surface and scanner findings, so they
 # are removed in the same layer. Production is built on this stage.
+# Debian's security updates are applied at build time, so a fix published
+# before the upstream image is rebuilt still reaches this one.
 # ---------------------------------------------------------------------------
 FROM dunglas/frankenphp:1-php8.4 AS runtime
 
-RUN install-php-extensions \
+RUN apt-get update \
+    && apt-get upgrade -y --no-install-recommends \
+    && install-php-extensions \
         pdo_pgsql \
         pgsql \
         redis \
