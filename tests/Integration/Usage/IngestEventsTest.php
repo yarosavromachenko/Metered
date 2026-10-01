@@ -170,6 +170,8 @@ it('answers a malformed event with a pointer to the one that was wrong', functio
     'no event id' => [['meter_code' => 'api.requests', 'customer_ref' => 'cus_1', 'quantity' => '1', 'occurred_at' => '2026-09-22T11:00:00+00:00'], 'event_id'],
     'a quantity that is not a number' => [[...anEvent(), 'quantity' => 'many'], 'quantity'],
     'a negative quantity' => [[...anEvent(), 'quantity' => '-1'], 'negative'],
+    // Accepted, it would fail the write of every event batched with it.
+    'a quantity larger than an event can carry' => [[...anEvent(), 'quantity' => '100000000000000'], 'less than 100000000000000'],
     'a timestamp that is not one' => [[...anEvent(), 'occurred_at' => 'yesterday afternoon'], 'occurred_at'],
     'an event id with a space in it' => [[...anEvent(), 'event_id' => 'evt 1'], 'event id'],
     'nested properties' => [[...anEvent(), 'properties' => ['tags' => ['a']]], 'nested'],

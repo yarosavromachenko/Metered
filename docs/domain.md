@@ -30,7 +30,7 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | **Customer** | The end customer of the organization — the party being billed. Identified inside a project by its **reference**, the id the tenant already uses in their own system, which events carry as `customer_ref`. A reference cannot change once registered. |
 | **Meter** | The definition of something measurable: a `code` and an **aggregation**. The code is lowercase letters and digits with single `.`, `_` or `-` separators, is matched case-insensitively, and cannot change once defined. |
 | **Aggregation** | How a meter's events fold into one number: `sum` adds quantities, `count` counts events whatever their quantity, `max` keeps the highest quantity. All three are commutative, so the order events arrive in never matters. |
-| **Usage event** | One fact of consumption: `event_id`, `meter_code`, `customer_ref`, `quantity`, `occurred_at`, free-form `properties`, and the `received_at` it reached the API. Immutable. |
+| **Usage event** | One fact of consumption: `event_id`, `meter_code`, `customer_ref`, `quantity`, `occurred_at`, free-form `properties`, and the `received_at` it reached the API. Immutable. One event's quantity is below 10^14 (`EventQuantity`); totals have no such bound. |
 | **Acceptance window** | How far an event's `occurred_at` may sit from its `received_at` and still be counted: seven days back, five minutes ahead. |
 | **Rejection** | An accepted event the consumer could not count, stored with its reason (`unknown_meter`, `unknown_customer`, `too_old`, `in_the_future`, `malformed`) and shown in the panel. |
 | **Bucket** | The UTC hour an event's `occurred_at` falls in, and the key of its aggregate. |

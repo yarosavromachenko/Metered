@@ -244,7 +244,7 @@ The key needs the `usage:write` scope.
 | `event_id` | Required, up to 128 characters. The client's own identifier for this event, and the deduplication key |
 | `meter_code` | Required, up to 64 characters. The code the meter was defined with; matched case-insensitively |
 | `customer_ref` | Required, up to 128 characters. The reference the customer was registered with |
-| `quantity` | Required, a non-negative decimal. A string is preferred (`"2.5"`); a JSON number is accepted and converted before any arithmetic |
+| `quantity` | Required, a non-negative decimal with at most six decimal places, less than `100000000000000` (10^14, what one stored event holds). A string is preferred (`"2.5"`); a JSON number is accepted and converted before any arithmetic |
 | `occurred_at` | Required, RFC 3339. Any offset is accepted and converted to UTC |
 | `properties` | Optional object, stored with the event |
 

@@ -10,7 +10,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 use Metered\Shared\Domain\Exception\DomainException;
-use Metered\Shared\Domain\Quantity\Quantity;
 use Metered\Shared\Presentation\Http\Problem;
 use Metered\Shared\Presentation\Http\TenantRequest;
 use Metered\Usage\Application\Command\IngestEvents;
@@ -18,6 +17,7 @@ use Metered\Usage\Application\Command\IngestEventsHandler;
 use Metered\Usage\Application\Command\IngestionOverloaded;
 use Metered\Usage\Application\Command\SubmittedEvent;
 use Metered\Usage\Domain\EventId;
+use Metered\Usage\Domain\EventQuantity;
 use Metered\Usage\Domain\Properties;
 
 /**
@@ -51,9 +51,10 @@ final readonly class IngestEventsController
             'events.*.event_id' => ['required', 'string', 'max:128'],
             'events.*.meter_code' => ['required', 'string', 'max:64'],
             'events.*.customer_ref' => ['required', 'string', 'max:128'],
-            // A non-negative decimal. Send it as a string ("2.5") to keep its
-            // precision; a JSON number is accepted too, and is turned into a
-            // decimal string before anything adds it up.
+            // A non-negative decimal below 10^14, with at most six decimal
+            // places. Send it as a string ("2.5") to keep its precision; a
+            // JSON number is accepted too, and is turned into a decimal
+            // string before anything adds it up.
             'events.*.quantity' => ['required', 'numeric'],
             'events.*.occurred_at' => ['required', 'date'],
             /**
@@ -106,7 +107,7 @@ final readonly class IngestEventsController
             EventId::fromString($this->string($raw['event_id'] ?? null)),
             $this->string($raw['meter_code'] ?? null),
             $this->string($raw['customer_ref'] ?? null),
-            Quantity::fromString($this->string($raw['quantity'] ?? null)),
+            EventQuantity::fromString($this->string($raw['quantity'] ?? null)),
             // Whatever offset the client wrote, the instant travels in UTC:
             // the partition, the bucket and every comparison downstream are
             // UTC, and an offset that survived this far would render one
