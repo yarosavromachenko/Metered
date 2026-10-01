@@ -8,7 +8,7 @@ because that is the only way to find out whether they make sense.
 | Check | Meaning |
 |---|---|
 | `GET /health/live` | The process is up. Never touches dependencies. Always `200`. |
-| `GET /health/ready` | `200` when every check passes, `503` otherwise: `database` (a query on the web connection), `redis` (`PING`), `usage_backlog` (pending events below `USAGE_STREAM_BACKPRESSURE`). |
+| `GET /health/ready` | `200` when every check passes, `503` otherwise: `database` (a query on the web connection), `redis` (`PING` on the cache and queue Redis), `usage_backlog` (pending events below `USAGE_STREAM_BACKPRESSURE`; it reads the usage Redis, so that Redis being down shows here). |
 
 A liveness probe that checks dependencies restarts a healthy application when a
 database blips. Keep them separate.
@@ -125,8 +125,8 @@ application failing to accept a batch.
 1. The request span in Tempo (Grafana → Explore → Tempo, search
    `{ name = "POST /api/v1/usage/events" && status = error }`) carries the
    exception; its `trace_id` finds the log line: `docker compose logs app | grep <trace id>`.
-2. Almost always Redis: `curl localhost:8080/health/ready`. The stream is the
-   only thing ingestion writes to.
+2. Almost always the usage Redis: `curl localhost:8080/health/ready` (its state
+   shows under `usage_backlog`). The stream is the only thing ingestion writes to.
 3. A client retrying after a 5xx sends the same event ids, and the consumer
    counts each id once, so nothing is double-counted once it recovers.
 

@@ -34,7 +34,8 @@ flowchart TD
       API["app — Octane / FrankenPHP<br/>HTTP API + Filament admin"]
     end
 
-    API -->|XADD pipeline| RS[("Redis Streams<br/>usage:events")]
+    API -->|XADD pipeline| RS[("redis-usage<br/>usage:events + dedup keys")]
+    API -->|cache, sessions, rate limits| RD[("redis<br/>cache · sessions · queues")]
     API -->|reads, writes| PGB[PgBouncer]
     ADMIN_NOTE["Admin panel is served by the same container"] -.-> API
 
@@ -47,6 +48,7 @@ flowchart TD
     SCHED[scheduler] -->|billing:close-periods<br/>webhooks:dispatch| HZ
     SCHED -->|usage:partitions:ensure<br/>idempotency:purge · outbox:prune<br/>audit:verify| PG
     HZ --> PG
+    HZ --> RD
     HZ -->|HTTPS + HMAC| CUST[Customer endpoint]
 
     PGB --> PG
@@ -57,6 +59,7 @@ flowchart TD
     CONS -.->|OTLP| COL
     HZ -.->|OTLP| COL
     OBS["metrics:observe<br/>gauges"] -.->|OTLP| COL
+    OBS -->|XLEN · XPENDING · INFO memory| RS
     COL --> TEMPO[Tempo]
     PROM[Prometheus] -->|scrape| COL
     TEMPO --> GRAF[Grafana]
@@ -112,7 +115,7 @@ allow-list of value libraries (`brick/money`, `brick/math`, `psr/clock`,
 ```
 POST /api/v1/usage/events
   → authenticate API key (cached)
-  → validate shape only (not existence of meter/customer)
+  → validate shape only (not existence of meter/customer), and a quantity one event can store
   → XADD pipeline to Redis Stream
   → 202 Accepted {accepted, request_id}
 ```
@@ -120,8 +123,8 @@ POST /api/v1/usage/events
 The hot path never touches PostgreSQL. Heavy validation happens in the consumer,
 where a rejected event lands in `usage_event_rejections` with a reason instead of
 failing a request the client has already forgotten about. When the stream backs
-up beyond a threshold, the API answers `503` with `Retry-After` rather than
-silently accumulating lag.
+up beyond a threshold, or the usage Redis reaches its memory limit, the API
+answers `503` with `Retry-After` rather than silently accumulating lag.
 
 The consumer reads batches of 500, and in **one transaction** does:
 
@@ -135,6 +138,9 @@ RETURNING event_id, customer_id, meter_id, occurred_at, quantity;
 Delivery from the stream is at-least-once; aggregation is
 exactly-once-in-effect, because a redelivered event inserts nothing and therefore
 aggregates nothing ([ADR-0004](adr/0004-aggregation-exactly-once-effect.md)).
+When the database refuses a tenant's write for its data, the consumer writes the
+batch in halves until only the refusing event is left pending, and rejections are
+recorded once the write commits ([ADR-0003](adr/0003-redis-streams-ingestion.md)).
 
 ### 2. Period close and invoicing
 
@@ -173,8 +179,10 @@ rule behind the UI. See [`admin-ui.md`](admin-ui.md) and
 
 | Failure | What happens | Where it is verified |
 |---|---|---|
-| Redis dies briefly | API returns 503 with `Retry-After`; already-queued events survive AOF; consumer resumes from its group offset | `sim:chaos kill-redis-brief` |
+| The usage Redis dies briefly | API returns 503 with `Retry-After`; already-queued events survive AOF; consumer resumes from its group offset | `sim:chaos kill-redis-brief` |
+| The usage Redis reaches `maxmemory` | Writes are refused and the API answers 503 with `Retry-After`; Horizon, sessions and the panel keep working; an operator raises the limit | `UsageRedisMemoryHigh`, `IngestEventsTest` |
+| The database refuses one event | The consumer halves the batch; its neighbours are written and acknowledged, the one event reaches the dead-letter stream alone | `ConsumeUsageTest` |
 | Consumer killed mid-batch | Unacked messages are reclaimed (`XPENDING`, then `XCLAIM`); the insert either committed or did not, so `usage:reconcile` reports zero drift | `sim:chaos kill-consumer` |
 | Process dies between commit and dispatch | The outbox row is already committed; the relay publishes it on its next pass | Integration test |
 | Customer endpoint down | Retries with backoff and jitter, then the circuit breaker opens; after ten attempts the delivery is dead-lettered and replayable | `sim:chaos failing-webhook` |
-| Duplicate event submitted | Redis dedup window catches it; otherwise the partitioned unique index does | Integration test |
+| Duplicate event submitted | The usage Redis dedup window catches it; otherwise the partitioned unique index does | Integration test |

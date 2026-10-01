@@ -112,7 +112,7 @@ docker compose exec app php artisan sim:time-travel --by=P1M
 docker compose exec app php artisan sim:chaos kill-consumer
 ```
 
-`sim:chaos` breaks one part of the running stack — the consumer, Redis, the
+`sim:chaos` breaks one part of the running stack — the consumer, the usage Redis, the
 outbox relay, a webhook receiver — while traffic flows, and then checks the
 invariants: every accepted event stored exactly once, the aggregates agreeing
 with the events under them, every event published and every delivery
