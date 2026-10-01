@@ -27,6 +27,12 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
   batch. A miss used to be looked up again for every event that named it, so
   a client sending a misconfigured code cost one query per event.
 
+### Security
+- The webhook guard accepts IPv6 only from global unicast `2000::/3`, minus
+  `2001::/23`, `2001:db8::/32`, `2002::/16` and `3fff::/20`. It used to refuse
+  a list of ranges, which let 6to4, Teredo, local-use NAT64 and
+  IPv4-compatible addresses through to the IPv4 host they carry.
+
 ## [1.0.0] - 2026-09-30
 
 Release polish: the repository as a reviewer meets it.
