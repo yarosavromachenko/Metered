@@ -29,7 +29,11 @@ if [ "${APP_ENV:-local}" = "production" ]; then
     php artisan config:cache
     php artisan route:cache
     php artisan event:cache
-else
+elif [ "${GENERATES_APP_KEY:-false}" = "true" ]; then
+    # One writer. Every service shares the mounted .env and starts at the same
+    # moment, so if each of them seeded it, their writes would interleave into
+    # a key no cipher accepts. `make install` normally writes it before any
+    # container starts; this covers a bare `docker compose up`.
     if [ ! -f /app/.env ] && [ -f /app/.env.example ]; then
         cp /app/.env.example /app/.env
     fi
@@ -37,6 +41,19 @@ else
     if ! grep -q '^APP_KEY=base64:' /app/.env 2>/dev/null; then
         php artisan key:generate --force --no-interaction
     fi
+else
+    # Everyone else waits for the key the writer produces, and fails loudly
+    # rather than booting without one.
+    attempts=60
+
+    until grep -q '^APP_KEY=base64:' /app/.env 2>/dev/null; do
+        attempts=$((attempts - 1))
+        if [ "${attempts}" -le 0 ]; then
+            echo "entrypoint: /app/.env never got an APP_KEY; run \`make install\` or start the app service" >&2
+            exit 1
+        fi
+        sleep 1
+    done
 fi
 
 exec "$@"

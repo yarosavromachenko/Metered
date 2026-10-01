@@ -17,7 +17,7 @@ help: ## Show this help
 # --------------------------------------------------------------------------
 
 .PHONY: up
-up: ## Build and start the full stack (app, db, redis, workers, observability)
+up: env ## Build and start the full stack (app, db, redis, workers, observability)
 	$(DC) up -d --build
 	$(MAKE) migrate
 
@@ -137,6 +137,16 @@ security: ## Dependency and filesystem vulnerability scan
 install: ## Install PHP dependencies into the working tree (the app mounts it over the image's)
 	@test -f .env || cp .env.example .env
 	$(DC) run --rm --no-deps --entrypoint composer app install --no-interaction --no-progress
+	$(MAKE) env
+
+.PHONY: env
+# The application key is written here, once, before any container starts:
+# every service mounts the same .env, and several of them seeding it at the
+# same moment interleave their writes into a key no cipher accepts.
+env: ## Create .env from the example and give it an application key, if either is missing
+	@test -f .env || cp .env.example .env
+	@test -f vendor/autoload.php || $(MAKE) install
+	@grep -q '^APP_KEY=base64:' .env || $(DC) run --rm --no-deps -T --entrypoint php app artisan key:generate --force --no-interaction
 
 # The showcase every visitor can look around before signing up (ADR-0016).
 # Its read-only account is printed on the login page in demo mode; keep these
