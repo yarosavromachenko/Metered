@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\DB;
 use Metered\Shared\Domain\Metering\Aggregation;
@@ -218,6 +219,30 @@ it('rejects an event naming a meter or a customer that does not exist', function
 })->with([
     'an unknown meter' => ['meter_code', 'api.responses', 'unknown_meter'],
     'an unknown customer' => ['customer_ref', 'cus_9999', 'unknown_customer'],
+]);
+
+it('looks an unknown meter or customer up once per batch, not once per event', function (string $field, string $value, string $table): void {
+    ['tenant' => $tenant, 'headers' => $headers] = ingestionTenant();
+
+    send($headers, array_map(
+        static fn(int $index): array => usageEvent(['event_id' => 'evt_' . $index, $field => $value]),
+        range(1, 50),
+    ));
+
+    $lookups = 0;
+    DB::listen(static function (QueryExecuted $query) use ($table, &$lookups): void {
+        if (str_contains($query->sql, sprintf('from "%s"', $table))) {
+            ++$lookups;
+        }
+    });
+
+    consume();
+
+    expect($lookups)->toBe(1)
+        ->and(DB::table('usage_event_rejections')->where('project_id', $tenant->projectId->value)->count())->toBe(50);
+})->with([
+    'an unknown meter' => ['meter_code', 'api.responses', 'meters'],
+    'an unknown customer' => ['customer_ref', 'cus_9999', 'customers'],
 ]);
 
 it('rejects an event older than the acceptance window, and says why', function (): void {

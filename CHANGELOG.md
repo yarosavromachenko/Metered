@@ -23,6 +23,9 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
   ([ADR-0003](docs/adr/0003-redis-streams-ingestion.md)).
 - A batch's rejections are recorded once its write commits, so a failed write
   that is retried no longer records them once per attempt.
+- The consumer looks an unknown meter code or customer reference up once per
+  batch. A miss used to be looked up again for every event that named it, so
+  a client sending a misconfigured code cost one query per event.
 
 ## [1.0.0] - 2026-09-30
 

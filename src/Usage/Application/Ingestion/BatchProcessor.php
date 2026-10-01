@@ -55,7 +55,9 @@ final readonly class BatchProcessor
 
         // Resolved once per distinct code and reference rather than once per
         // event: a batch of five hundred is usually a handful of meters, and
-        // the difference is five hundred queries or five.
+        // the difference is five hundred queries or five. A miss is remembered
+        // too: a misconfigured client sends the same unknown code in every
+        // event of a batch.
         $meters = [];
         $customers = [];
 
@@ -70,7 +72,11 @@ final readonly class BatchProcessor
                 continue;
             }
 
-            $meter = $meters[$event->meterCode] ??= $this->meters->find($tenant, $event->meterCode);
+            if (! array_key_exists($event->meterCode, $meters)) {
+                $meters[$event->meterCode] = $this->meters->find($tenant, $event->meterCode);
+            }
+
+            $meter = $meters[$event->meterCode];
 
             if (! $meter instanceof MeterDescriptor) {
                 $rejections[] = $this->reject($tenant, $item, RejectionReason::UnknownMeter, sprintf(
@@ -81,10 +87,11 @@ final readonly class BatchProcessor
                 continue;
             }
 
-            $customer = $customers[$event->customerReference] ??= $this->customers->find(
-                $tenant,
-                $event->customerReference,
-            );
+            if (! array_key_exists($event->customerReference, $customers)) {
+                $customers[$event->customerReference] = $this->customers->find($tenant, $event->customerReference);
+            }
+
+            $customer = $customers[$event->customerReference];
 
             if (! $customer instanceof CustomerDescriptor) {
                 $rejections[] = $this->reject($tenant, $item, RejectionReason::UnknownCustomer, sprintf(
