@@ -114,10 +114,15 @@ final readonly class BatchProcessor
             );
         }
 
+        $written = $this->writeClaimed($tenant, $resolved, array_values($claimable));
+
+        // After the write, not before: until it commits the batch has not
+        // been dealt with and will be delivered again, and rejections
+        // recorded on an attempt that failed would be recorded once more on
+        // every retry.
         $this->rejections->record($rejections);
 
-        return $this->writeClaimed($tenant, $resolved, array_values($claimable))
-            ->plus(new IngestionOutcome(rejected: count($rejections)));
+        return $written->plus(new IngestionOutcome(rejected: count($rejections)));
     }
 
     /**

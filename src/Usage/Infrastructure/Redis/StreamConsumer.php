@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Usage\Infrastructure\Redis;
 
+use Illuminate\Database\QueryException;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
@@ -183,7 +184,7 @@ final readonly class StreamConsumer
             }
 
             try {
-                $outcome = $outcome->plus($this->processGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
+                $outcome = $outcome->plus($this->writeGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
             } catch (Throwable $groupFailure) {
                 // Left unacknowledged, to be redelivered on its own; the
                 // tenants after it are not made to wait for it.
@@ -196,6 +197,72 @@ final readonly class StreamConsumer
         }
 
         return $outcome;
+    }
+
+    /**
+     * Writes one tenant's events, and when the database refuses them for what
+     * one of them holds, writes them in halves until the refusal is down to
+     * the event that causes it.
+     *
+     * A write is one transaction, so a single event the database cannot
+     * store fails every event beside it, and they would reach the
+     * dead-letter stream together. Halving within the same pass writes and
+     * acknowledges the rest; the event that still fails on its own stays
+     * pending, and is set aside alone once it has been delivered too often.
+     *
+     * Only a refusal of the data is halved. A connection lost or a
+     * transaction aborted by a concurrent one would fail every half as well,
+     * and halving would only multiply the attempts that fail; the batch waits
+     * whole for its next delivery instead. Retrying a half is safe for the
+     * reasons any redelivery is: a claim with the same timestamp passes
+     * again, and the unique key decides (ADR-0002, ADR-0004).
+     *
+     * @param  list<IncomingEvent>  $events
+     * @param  list<string>  $ids  the stream ids of the events, in the same order
+     * @param  list<array<string, string>>  $traces
+     */
+    private function writeGroup(TenantContext $tenant, array $events, array $ids, array $traces): IngestionOutcome
+    {
+        try {
+            return $this->processGroup($tenant, $events, $ids, $traces);
+        } catch (QueryException $failure) {
+            if (count($events) < 2 || ! $this->refusesTheData($failure)) {
+                throw $failure;
+            }
+        }
+
+        $half = intdiv(count($events), 2);
+        $outcome = new IngestionOutcome();
+        $refusal = null;
+
+        foreach ([[0, $half], [$half, null]] as [$offset, $length]) {
+            try {
+                $outcome = $outcome->plus($this->writeGroup(
+                    $tenant,
+                    array_slice($events, $offset, $length),
+                    array_slice($ids, $offset, $length),
+                    $traces,
+                ));
+            } catch (Throwable $halfFailure) {
+                $refusal ??= $halfFailure;
+            }
+        }
+
+        if ($refusal instanceof Throwable) {
+            throw $refusal;
+        }
+
+        return $outcome;
+    }
+
+    /**
+     * SQLSTATE class 22 is a value its column cannot take, class 23 a row
+     * that breaks a constraint: both are about what was written, and the same
+     * event fails the same way on every attempt.
+     */
+    private function refusesTheData(QueryException $failure): bool
+    {
+        return in_array(substr((string) $failure->getCode(), 0, 2), ['22', '23'], true);
     }
 
     /**

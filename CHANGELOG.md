@@ -13,6 +13,16 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
   cipher accepts, so the app exited on boot. `make install` now writes the key
   once before any container starts; on a bare `docker compose up` only the
   `app` service writes it and the others wait.
+- A usage event whose quantity is too large to store (10^14 or more) is
+  refused with a `422` naming the event. It used to be accepted with a `202`,
+  then failed the write of every event of its tenant read with it, and all of
+  them reached the dead-letter stream together.
+- When the database refuses a tenant's write for its data, the consumer
+  writes the batch in halves until only the event that causes it is left
+  pending; its neighbours are written and acknowledged in the same pass
+  ([ADR-0003](docs/adr/0003-redis-streams-ingestion.md)).
+- A batch's rejections are recorded once its write commits, so a failed write
+  that is retried no longer records them once per attempt.
 
 ## [1.0.0] - 2026-09-30
 
