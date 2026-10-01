@@ -58,6 +58,7 @@ Organization ──< Project ──< Customer ──< Subscription ──< Subsc
 | **Webhook delivery** | One event on its way to one endpoint: its body, fixed when it is created, its status and how many attempts it has made. |
 | **Attempt** | One try at a delivery, logged with its status code, duration, error and the first kilobyte of the answer. |
 | **Audit log** | An append-only, hash-chained record of who did what. Verified by `audit:verify`. |
+| **Audit chain** | One organization's audit entries, each hash covering the one before it, so editing or removing an entry breaks every link after it. Entries from before chains were per organization form the platform chain (ADR-0020). |
 
 ## Invariants
 

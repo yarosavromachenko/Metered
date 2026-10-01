@@ -26,6 +26,12 @@ Ingestion moves to the new `redis-usage` service, which starts empty.
   and the alert `UsageRedisMemoryHigh` above 80%, with a runbook section.
 
 ### Changed
+- The audit log keeps one hash chain per organization, and appending locks
+  only that chain, so one tenant's audited write no longer waits for another's
+  transaction. Entries from before form the platform chain and verify as
+  written; `audit:verify` checks every chain and names the one that broke
+  ([ADR-0020](docs/adr/0020-audit-chains-per-organization.md)). Migration
+  `2026_10_01_000001_keep_audit_chains_per_organization`.
 - The ingestion stream and its deduplication keys live in a Redis of their
   own, `redis-usage`, with a memory limit (`REDIS_USAGE_MAXMEMORY`, 1 GB by
   default). Running out of room now stops ingestion and nothing else, until

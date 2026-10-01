@@ -282,6 +282,8 @@ whether or not it has been purged, so a late purge costs disk, not correctness.
 
 ## Verifying the audit log
 
-`php artisan audit:verify` walks the hash chain. A failure means a row was
-altered outside the application, and the command reports the first broken link.
+`php artisan audit:verify` walks every chain — one per organization, plus the
+platform chain of entries from before 1.1.0 (ADR-0020). A failure means a row
+was altered outside the application, and the command reports the first broken
+link and the chain it is in.
 The scheduler runs it daily at 03:50; a failed run is in the scheduler's log.
