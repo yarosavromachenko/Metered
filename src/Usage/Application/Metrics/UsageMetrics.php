@@ -53,4 +53,14 @@ final class UsageMetrics
     {
         return new Gauge('dlq.size', '{message}', 'Entries in the ingestion dead-letter stream');
     }
+
+    public static function redisMemoryUsed(): Gauge
+    {
+        return new Gauge('usage.redis.memory.used', 'By', 'Memory the usage Redis holds: the stream and the deduplication keys');
+    }
+
+    public static function redisMemoryLimit(): Gauge
+    {
+        return new Gauge('usage.redis.memory.limit', 'By', 'The usage Redis maxmemory; 0 when it has none');
+    }
 }

@@ -38,7 +38,7 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning}
             exp_annotations:
-              summary: Ingestion answers 503 because the stream backlog is past its threshold.
+              summary: Ingestion answers 503 because the stream backlog is past its threshold or the usage Redis is full.
               runbook: docs/runbook.md#ingestion-is-returning-503
       - eval_time: 10m
         alertname: IngestionErrors
@@ -106,6 +106,37 @@ tests:
     alert_rule_test:
       - eval_time: 5m
         alertname: UsageBacklogHigh
+        exp_alerts: []
+
+  - name: a usage Redis close to its memory limit
+    interval: 1m
+    input_series:
+      - series: 'usage_redis_memory_used_bytes{instance="observer"}'
+        values: '500000000x5 900000000x10'
+      - series: 'usage_redis_memory_limit_bytes{instance="observer"}'
+        values: '1000000000x15'
+    alert_rule_test:
+      - eval_time: 4m
+        alertname: UsageRedisMemoryHigh
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: UsageRedisMemoryHigh
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: The usage Redis has used over 80% of its maxmemory.
+              runbook: docs/runbook.md#the-usage-redis-is-running-out-of-memory
+
+  - name: a usage Redis with no memory limit
+    interval: 1m
+    input_series:
+      - series: 'usage_redis_memory_used_bytes{instance="observer"}'
+        values: '900000000x15'
+      - series: 'usage_redis_memory_limit_bytes{instance="observer"}'
+        values: '0x15'
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: UsageRedisMemoryHigh
         exp_alerts: []
 
   - name: dead letters that are new, not the ones already there

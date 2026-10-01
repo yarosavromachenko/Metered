@@ -46,6 +46,7 @@ http://localhost:9093.
 | `IngestionSheddingLoad` | any 503 in the last 5 min, for 1 min | [Ingestion is returning 503](#ingestion-is-returning-503) |
 | `IngestionLatencyHigh` | p99 of accepted requests above 150 ms, for 5 min | [Ingestion is slow](#ingestion-is-slow) |
 | `UsageBacklogHigh` | backlog above 250 000, half the backpressure threshold, for 2 min | [Ingestion is returning 503](#ingestion-is-returning-503) |
+| `UsageRedisMemoryHigh` | the usage Redis above 80% of its `maxmemory`, for 5 min | [The usage Redis is running out of memory](#the-usage-redis-is-running-out-of-memory) |
 | `UsageDeadLettersGrowing` | the dead-letter stream grew in the last 15 min | [Messages in the dead-letter stream](#messages-in-the-dead-letter-stream) |
 | `OutboxLagging` | the oldest unpublished message is over 2 min old, for 2 min | [Outbox is falling behind](#outbox-is-falling-behind) |
 | `WebhookBreakerOpen` | an endpoint's breaker is open, for 1 min (one line per endpoint) | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
@@ -80,7 +81,9 @@ Make the reset part of every deploy that changes a table's columns.
 
 ## Ingestion is returning 503
 
-Backpressure is working as designed: stream length or lag crossed its threshold.
+Backpressure is working as designed: the backlog crossed its threshold, or the
+usage Redis reached its `maxmemory` (the problem's detail says which; for the
+second, see [The usage Redis is running out of memory](#the-usage-redis-is-running-out-of-memory)).
 
 1. Grafana → Metered — Ingestion: the stream backlog against its threshold, and
    when the 503s started. `curl localhost:8080/health/ready` gives the backlog
@@ -92,6 +95,27 @@ Backpressure is working as designed: stream length or lag crossed its threshold.
 
 Do not raise the backpressure threshold to make the 503s stop. That converts a
 visible, retryable rejection into unbounded lag.
+
+## The usage Redis is running out of memory
+
+`redis-usage` holds the ingestion stream and one deduplication key per event
+for seven days (ADR-0002, "Capacity"). At its `maxmemory` it refuses writes,
+and ingestion answers 503 until there is room. The consumer stalls with it —
+its deduplication claims are writes too — so nothing frees memory by itself
+before keys expire; step 2 is what ends it. Nothing outside ingestion is
+affected.
+
+1. How full, and what fills it:
+   `docker compose exec redis-usage redis-cli info memory | grep -E 'used_memory_human|maxmemory_human'`,
+   then `redis-cli -n 2 xlen usage:events` for the stream. A long stream is a
+   consumer that is behind — [Ingestion is returning 503](#ingestion-is-returning-503).
+   A short stream means the deduplication keys: sustained traffic outgrew the limit.
+2. Raise the limit without a restart:
+   `docker compose exec redis-usage redis-cli config set maxmemory 2gb`, then
+   set `REDIS_USAGE_MAXMEMORY` in `.env` so the next start keeps it. Size it
+   from the table in ADR-0002 — events per second × 604 800 × 200 bytes.
+3. Do not delete `usage:dedup:*` keys or switch to an evicting policy to make
+   room. Every key removed lets a resent event be counted twice.
 
 ## Ingestion is failing with 5xx
 

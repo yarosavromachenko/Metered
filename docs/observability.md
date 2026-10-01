@@ -56,6 +56,7 @@ metric goes out over OTLP; Prometheus scrapes the collector and nothing else.
 |---|---|
 | `ingest_requests_total`, `ingest_duration_seconds` | The hot path, by status. Latency here is a client-visible promise. |
 | `usage_stream_length`, `usage_stream_pending` | Lag. Rising pending means consumers are behind, which is the earliest sign of trouble. |
+| `usage_redis_memory_used_bytes`, `usage_redis_memory_limit_bytes` | The Redis holding the stream and a week of deduplication keys; at the limit ingestion answers 503 (ADR-0002, "Capacity"). |
 | `usage_batch_write_duration_seconds`, `usage_batch_size` | Where ingestion capacity is actually spent, and how full the batches are. |
 | `usage_events_rejected_total` | By reason. A spike is a client integration breaking. |
 | `outbox_unpublished_age_seconds` | The age of the oldest unpublished row — a far better alarm than a count. |

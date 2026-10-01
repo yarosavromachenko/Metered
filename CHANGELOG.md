@@ -7,7 +7,30 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
 
 ## [Unreleased]
 
+### Upgrading from 1.0.0
+Ingestion moves to the new `redis-usage` service, which starts empty.
+1. Stop sending usage and wait for the backlog to drain:
+   `usage_stream_pending` at 0, or `curl localhost:8080/health/ready`.
+   Entries left in the old stream are not read again.
+2. Upgrade and start: `make up`.
+3. Optionally, carry the deduplication keys over with their TTLs, so that a
+   resend within the next seven days is still recognised:
+   ```sh
+   docker compose exec redis sh -c "redis-cli -n 2 --scan --pattern 'usage:dedup:*' | xargs -n 500 sh -c 'redis-cli -n 2 migrate redis-usage 6379 \"\" 2 5000 COPY KEYS \"\$@\"' _"
+   ```
+   Without it, the window starts again at the upgrade; the database's key still
+   stops an exact resend.
+
+### Added
+- Gauges `usage_redis_memory_used_bytes` and `usage_redis_memory_limit_bytes`,
+  and the alert `UsageRedisMemoryHigh` above 80%, with a runbook section.
+
 ### Changed
+- The ingestion stream and its deduplication keys live in a Redis of their
+  own, `redis-usage`, with a memory limit (`REDIS_USAGE_MAXMEMORY`, 1 GB by
+  default). Running out of room now stops ingestion and nothing else, until
+  an operator raises the limit. Sizing is in
+  [ADR-0002](docs/adr/0002-partitioning-and-deduplication.md).
 - A usage Redis at its memory limit is answered like a deep backlog: `503`
   with `Retry-After`, instead of a `500`.
 

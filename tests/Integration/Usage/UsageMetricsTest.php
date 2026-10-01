@@ -115,9 +115,25 @@ it('reads the stream\'s depth, length and dead letters', function (): void {
         $readings[$reading->gauge->name] = $reading->value;
     }
 
-    expect($readings)->toBe([
+    expect($readings)->toMatchArray([
         'usage.stream.pending' => 2,
         'usage.stream.length' => 2,
         'dlq.size' => 1,
     ]);
+});
+
+it('reads how much of its memory the usage Redis has used', function (): void {
+    $redis = app(RedisFactory::class)->connection('usage');
+    $limit = $redis->command('config', ['get', 'maxmemory']);
+    $limit = is_array($limit) && is_numeric($limit['maxmemory'] ?? null) ? (int) $limit['maxmemory'] : -1;
+    $readings = [];
+
+    foreach (app(StreamGauges::class)->read() as $reading) {
+        $readings[$reading->gauge->name] = $reading->value;
+    }
+
+    // The limit is whatever this Redis runs with: 0, "none", on a runner's
+    // service container; the configured maxmemory under compose.
+    expect($readings['usage.redis.memory.used'] ?? 0)->toBeGreaterThan(0)
+        ->and($readings['usage.redis.memory.limit'] ?? null)->toBe($limit);
 });
