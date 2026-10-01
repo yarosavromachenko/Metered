@@ -296,7 +296,10 @@ cannot enforce the second case.
 written, ingestion answers `503` `ingestion-overloaded` with `Retry-After`
 instead of accepting work it cannot drain. A queue that only grows is an outage
 with extra steps. The number counts events not yet written. It is not the
-stream's length, which includes events already written.
+stream's length, which includes events already written. The same `503` comes
+back when the Redis holding the stream has reached its memory limit; resend
+the whole batch after `Retry-After`, and events that had already landed are
+counted once.
 
 ## Reading usage
 

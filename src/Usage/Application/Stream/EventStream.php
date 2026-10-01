@@ -13,5 +13,8 @@ namespace Metered\Usage\Application\Stream;
  */
 interface EventStream
 {
+    /**
+     * @throws StreamFull when the stream has no memory left for the batch
+     */
     public function append(Batch $batch): void;
 }

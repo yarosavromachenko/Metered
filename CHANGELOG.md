@@ -7,6 +7,10 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
 
 ## [Unreleased]
 
+### Changed
+- A usage Redis at its memory limit is answered like a deep backlog: `503`
+  with `Retry-After`, instead of a `500`.
+
 ### Fixed
 - A first start no longer corrupts `APP_KEY`. Every service used to seed the
   shared `.env` at the same moment, and the interleaved writes left a key no

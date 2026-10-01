@@ -4,9 +4,18 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Redis\Connections\PhpRedisConnection;
+use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Shared\Domain\Quantity\Quantity;
+use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Scope;
+use Metered\Usage\Application\Command\SubmittedEvent;
+use Metered\Usage\Application\Stream\Batch;
+use Metered\Usage\Application\Stream\EventStream;
 use Metered\Usage\Application\Stream\StreamDepth;
+use Metered\Usage\Domain\EventId;
+use Metered\Usage\Domain\Properties;
+use Metered\Usage\Infrastructure\Redis\RedisEventStream;
 use Metered\Usage\Infrastructure\Redis\StreamEnvelope;
 
 use function Pest\Laravel\postJson;
@@ -263,4 +272,71 @@ it('sheds load with a Retry-After once the stream is deeper than it should be', 
         ->assertHeader('Content-Type', 'application/problem+json');
 
     expect(streamed())->toHaveCount(1);
+});
+
+/**
+ * A stream over a Redis that refuses every write the way it does once
+ * `maxmemory` is reached under `noeviction`. A shared Redis cannot be filled
+ * for one test without failing the others running beside it, so the refusal
+ * is scripted at the client: the one boundary this test does not cross.
+ */
+function refusingStream(string $error): RedisEventStream
+{
+    $client = new class ($error) extends Redis {
+        public function __construct(private readonly string $error)
+        {
+            parent::__construct();
+        }
+
+        public function pipeline(): Redis
+        {
+            return $this;
+        }
+
+        /**
+         * @param array<array-key, mixed> $values
+         */
+        public function xadd(string $key, string $id, array $values, int $maxlen = 0, bool $approx = false, bool $nomkstream = false): Redis
+        {
+            return $this;
+        }
+
+        public function exec(): never
+        {
+            throw new RedisException($this->error);
+        }
+
+        public function discard(): bool
+        {
+            return true;
+        }
+    };
+
+    return new RedisEventStream(new PhpRedisConnection($client), UsageStream::key(), UsageStream::group(), 1_000, Tracing::disabled());
+}
+
+it('sheds load with a Retry-After when the stream has no memory left', function (): void {
+    $project = TenantFactory::tenant();
+    app()->instance(EventStream::class, refusingStream("OOM command not allowed when used memory > 'maxmemory'."));
+
+    postJson('/api/v1/usage/events', ['events' => [anEvent()]], ingestionHeaders($project))
+        ->assertStatus(503)
+        ->assertHeader('Retry-After', '5')
+        ->assertHeader('Content-Type', 'application/problem+json');
+});
+
+it('lets any other Redis failure through as the failure it is', function (): void {
+    expect(fn() => refusingStream('Connection lost')->append(new Batch(
+        TenantFactory::tenant()->tenant(),
+        Uuid::fromString('01a0f4ad-55e6-720a-a4a8-0e65f7eeb4bc'),
+        new DateTimeImmutable('2026-09-22T11:00:00+00:00'),
+        [new SubmittedEvent(
+            EventId::fromString('evt_1'),
+            'api.requests',
+            'cus_4471',
+            Quantity::fromString('2.5'),
+            new DateTimeImmutable('2026-09-22T11:00:00+00:00'),
+            Properties::none(),
+        )],
+    )))->toThrow(RedisException::class, 'Connection lost');
 });
