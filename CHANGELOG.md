@@ -5,6 +5,15 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
+## [Unreleased]
+
+### Fixed
+- A first start no longer corrupts `APP_KEY`. Every service used to seed the
+  shared `.env` at the same moment, and the interleaved writes left a key no
+  cipher accepts, so the app exited on boot. `make install` now writes the key
+  once before any container starts; on a bare `docker compose up` only the
+  `app` service writes it and the others wait.
+
 ## [1.0.0] - 2026-09-30
 
 Release polish: the repository as a reviewer meets it.

@@ -27,7 +27,8 @@ services:
     # root. Override with DOCKER_UID/DOCKER_GID if yours are not 1000.
     user: "${DOCKER_UID:-1000}:${DOCKER_GID:-1000}"
     # Only process-level variables here. Everything Laravel reads comes from
-    # .env, which the entrypoint seeds from .env.example.
+    # .env, which `make install` seeds from .env.example; failing that, this
+    # service's entrypoint does, and the others wait for it.
     #
     # The application's own settings are deliberately NOT repeated here: a
     # variable present in the container's environment cannot be overridden by
@@ -37,6 +38,8 @@ services:
       HOME: /tmp
       XDG_CONFIG_HOME: /tmp/.config
       XDG_DATA_HOME: /tmp/.local/share
+      # The one service allowed to write APP_KEY into the shared .env.
+      GENERATES_APP_KEY: "true"
       # Raised for a load run, where the per-key limit would otherwise be
       # what is measured: API_KEY_RATE_LIMIT_PER_MINUTE=1000000 make up.
       API_KEY_RATE_LIMIT_PER_MINUTE: ${API_KEY_RATE_LIMIT_PER_MINUTE:-600}
