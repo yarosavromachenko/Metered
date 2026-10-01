@@ -5,7 +5,40 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
-## [Unreleased]
+## [1.1.0] - 2026-10-01
+
+### Upgrading from 1.0.0
+Ingestion moves to the new `redis-usage` service, which starts empty.
+1. Stop sending usage and wait for the backlog to drain:
+   `usage_stream_pending` at 0, or `curl localhost:8080/health/ready`.
+   Entries left in the old stream are not read again.
+2. Upgrade and start: `make up`.
+3. Optionally, carry the deduplication keys over with their TTLs, so that a
+   resend within the next seven days is still recognised:
+   ```sh
+   docker compose exec redis sh -c "redis-cli -n 2 --scan --pattern 'usage:dedup:*' | xargs -n 500 sh -c 'redis-cli -n 2 migrate redis-usage 6379 \"\" 2 5000 COPY KEYS \"\$@\"' _"
+   ```
+   Without it, the window starts again at the upgrade; the database's key still
+   stops an exact resend.
+
+### Added
+- Gauges `usage_redis_memory_used_bytes` and `usage_redis_memory_limit_bytes`,
+  and the alert `UsageRedisMemoryHigh` above 80%, with a runbook section.
+
+### Changed
+- The audit log keeps one hash chain per organization, and appending locks
+  only that chain, so one tenant's audited write no longer waits for another's
+  transaction. Entries from before form the platform chain and verify as
+  written; `audit:verify` checks every chain and names the one that broke
+  ([ADR-0020](docs/adr/0020-audit-chains-per-organization.md)). Migration
+  `2026_10_01_000001_keep_audit_chains_per_organization`.
+- The ingestion stream and its deduplication keys live in a Redis of their
+  own, `redis-usage`, with a memory limit (`REDIS_USAGE_MAXMEMORY`, 1 GB by
+  default). Running out of room now stops ingestion and nothing else, until
+  an operator raises the limit. Sizing is in
+  [ADR-0002](docs/adr/0002-partitioning-and-deduplication.md).
+- A usage Redis at its memory limit is answered like a deep backlog: `503`
+  with `Retry-After`, instead of a `500`.
 
 ### Fixed
 - A first start no longer corrupts `APP_KEY`. Every service used to seed the
@@ -13,6 +46,31 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
   cipher accepts, so the app exited on boot. `make install` now writes the key
   once before any container starts; on a bare `docker compose up` only the
   `app` service writes it and the others wait.
+- A usage event whose quantity is too large to store (10^14 or more) is
+  refused with a `422` naming the event. It used to be accepted with a `202`,
+  then failed the write of every event of its tenant read with it, and all of
+  them reached the dead-letter stream together.
+- When the database refuses a tenant's write for its data, the consumer
+  writes the batch in halves until only the event that causes it is left
+  pending; its neighbours are written and acknowledged in the same pass
+  ([ADR-0003](docs/adr/0003-redis-streams-ingestion.md)).
+- A batch's rejections are recorded once its write commits, so a failed write
+  that is retried no longer records them once per attempt.
+- The consumer looks an unknown meter code or customer reference up once per
+  batch. A miss used to be looked up again for every event that named it, so
+  a client sending a misconfigured code cost one query per event.
+
+### Security
+- The webhook guard accepts IPv6 only from global unicast `2000::/3`, minus
+  `2001::/23`, `2001:db8::/32`, `2002::/16` and `3fff::/20`. It used to refuse
+  a list of ranges, which let 6to4, Teredo, local-use NAT64 and
+  IPv4-compatible addresses through to the IPv4 host they carry.
+- Webhook deliveries never go through a proxy named in the environment. A
+  proxy resolves the host itself, so the address the guard checked and pinned
+  would not have been the one reached.
+- The application image applies Debian's security updates when it is built,
+  instead of waiting for the upstream FrankenPHP image to be rebuilt; the
+  first to arrive this way is the pcre2 fix for CVE-2026-103111.
 
 ## [1.0.0] - 2026-09-30
 

@@ -88,7 +88,11 @@ it('seeds a new tenant through the API, the way a client would', function (): vo
         ->and(DB::table('invoice_lines')->where('organization_id', $organization)->where('kind', 'usage')->where('amount_minor', '>', 0)->count())->toBeGreaterThan(5);
 
     // Written through the ordinary API: every change is audited as the key.
-    expect(DB::table('audit_log')->where('action', 'subscription.started')->where('actor', 'like', 'api-key:%')->count())->toBe(12);
+    expect(DB::table('audit_log')->where('action', 'subscription.started')->where('actor', 'like', 'api-key:%')->count())->toBe(12)
+        // Every act of the seed belongs to the organization, and lands in its
+        // chain: nothing it does is written to the platform chain (ADR-0020).
+        ->and(DB::table('audit_log')->whereNull('organization_id')->count())->toBe(0)
+        ->and(DB::table('audit_log')->where('organization_id', $organization)->count())->toBeGreaterThan(12);
 });
 
 it('seeds the tenant a key belongs to, and seeds the same data from the same seed', function (): void {

@@ -153,3 +153,39 @@ each ruled out by changing only that one thing and measuring again. The request
 trace named the cause: tracing, on by mistake, exported inside the request to a
 collector that did not exist. Export now happens after the response, and the
 re-measured p99 is 37.0ms ([`benchmarks.md`](../benchmarks.md)).
+
+## Amended in 1.1.0: one event the database refuses
+
+A review of 1.0.0 found a quantity of 10^15 accepted with a `202`. The column
+holds fourteen digits before the point, so the write failed, and because a
+tenant's events are written in one transaction, every event read with it
+failed too; five deliveries later they all sat in the dead-letter stream.
+
+**The endpoint refuses what an event cannot store.** A quantity of 10^14 or
+more is a `422` naming the event, like any other impossible value. That closes
+this cause, not the class: a message already in the stream when the check was
+added, or a value a column refuses that nothing upstream checks, still reaches
+the write.
+
+**A refused write is halved.** When the database refuses a tenant's write for
+its data (SQLSTATE class 22 or 23), the consumer writes the two halves
+separately in the same pass, and halves again until the refusal is down to the
+event that causes it. The rest are written and acknowledged; the one event
+stays pending and is set aside alone after its fifth delivery. Any other
+failure — a lost connection, a serialisation failure — leaves the whole batch
+pending as before, because every half would fail the same way.
+
+The cost is paid in failed transactions. One refused event in a batch of 500
+costs about eighteen more attempts; a batch in which every event is refused
+costs about a thousand short ones on each delivery, five times, before they
+are set aside. That worst case needs a stream full of events nothing can
+store, which the endpoint no longer admits, and the alternative is the one
+this replaced: every neighbour in the dead-letter stream.
+
+**Rejections are recorded after the write.** A batch's rejections (unknown
+meter, outside the window) used to be stored before its events were written,
+so a write that failed and was retried stored them once per attempt. They are
+now stored only once the write has committed. One window remains: a consumer
+that dies after storing them and before acknowledging stores them again on
+the redelivery, because a rejection has no natural key to conflict on. A
+duplicated rejection overstates what was refused and never what is billed.

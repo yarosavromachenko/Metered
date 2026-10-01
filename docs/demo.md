@@ -112,7 +112,7 @@ docker compose exec app php artisan sim:time-travel --by=P1M
 docker compose exec app php artisan sim:chaos kill-consumer
 ```
 
-`sim:chaos` breaks one part of the running stack — the consumer, Redis, the
+`sim:chaos` breaks one part of the running stack — the consumer, the usage Redis, the
 outbox relay, a webhook receiver — while traffic flows, and then checks the
 invariants: every accepted event stored exactly once, the aggregates agreeing
 with the events under them, every event published and every delivery
@@ -130,14 +130,15 @@ the README.
 | `scheduler` | Period close, webhook dispatch, partition creation, the idle-demo sweep, and maintenance: expired idempotency keys, old outbox rows, audit chain verification |
 | `postgres` | PostgreSQL 18 |
 | `pgbouncer` | Transaction pooling for the web tier only; the daemons connect directly |
-| `redis` | Cache, sessions, queues and the ingestion stream |
+| `redis` | Cache, sessions and queues |
+| `redis-usage` | The ingestion stream and the deduplication keys, with a memory limit of its own (ADR-0002) |
 | `mailpit` | Catches every outgoing message and shows it in a browser |
 | `webhook-receiver` | A stand-in for a tenant's system: receives, verifies and lists webhooks, with purpose-broken modes |
 | `grafana` | Five provisioned dashboards — four on Prometheus, the live-load one on PostgreSQL — and Tempo's traces under Explore |
 | `otel-collector`, `tempo` | Receive OTLP from every process; Tempo keeps the traces |
 | `prometheus` | Scrapes the collector and evaluates the alert rules |
 | `alertmanager` | Groups firing alerts and sends them as email to Mailpit |
-| `metrics-observer` | `metrics:observe`: reads the gauges — stream, outbox, queues, breakers, dead letters — every 15 seconds |
+| `metrics-observer` | `metrics:observe`: reads the gauges — stream, usage Redis memory, outbox, queues, breakers, dead letters — every 15 seconds |
 | `k6` | Load scenarios, under the `load` profile |
 
 ## Requirements

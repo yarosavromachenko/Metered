@@ -76,6 +76,7 @@ final readonly class PurgeDemoOrganizationHandler
             $this->users->removeUnaffiliated($memberIds);
 
             $this->audit->record(new AuditEntry(
+                organizationId: $organization->id,
                 actor: $command->actor->label,
                 action: 'organization.purged',
                 subjectType: 'organization',

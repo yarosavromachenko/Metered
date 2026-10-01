@@ -76,6 +76,7 @@ final readonly class StartSubscriptionHandler
         });
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'subscription.started',
             subjectType: 'subscription',

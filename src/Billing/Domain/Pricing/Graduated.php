@@ -26,47 +26,26 @@ final readonly class Graduated implements PricingModel
 
     public function charge(Quantity $quantity): Money
     {
-        $used = $quantity->toBigDecimal();
-        $floor = BigDecimal::zero();
-        $total = BigDecimal::zero();
-
-        foreach ($this->tiers->all() as $tier) {
-            $ceiling = $tier->limit?->toBigDecimal() ?? $used;
-            // Nothing once the usage has run out below this tier.
-            $inTier = BigDecimal::max(BigDecimal::min($used, $ceiling)->minus($floor), BigDecimal::zero());
-
-            $total = $total->plus($tier->unitPrice->toBigDecimal()->multipliedBy($inTier));
-            $floor = $ceiling;
-        }
-
-        return Money::rounded($total, $this->currency());
+        return $this->total($this->slices($quantity));
     }
 
     public function calculation(Quantity $quantity): array
     {
-        $used = $quantity->toBigDecimal();
-        $floor = BigDecimal::zero();
-        $steps = [];
+        $slices = $this->slices($quantity);
         $labels = $this->tiers->labels();
+        $steps = [];
 
-        foreach ($this->tiers->all() as $index => $tier) {
-            $ceiling = $tier->limit?->toBigDecimal() ?? $used;
-            $inTier = BigDecimal::min($used, $ceiling)->minus($floor);
-
-            if ($inTier->isPositive()) {
-                $steps[] = sprintf(
-                    '%s: %s × %s = %s',
-                    $labels[$index],
-                    Tiers::plain($inTier),
-                    Tiers::price($tier->unitPrice),
-                    Tiers::plain($tier->unitPrice->toBigDecimal()->multipliedBy($inTier)),
-                );
-            }
-
-            $floor = $ceiling;
+        foreach ($slices as $slice) {
+            $steps[] = sprintf(
+                '%s: %s × %s = %s',
+                $labels[$slice['index']],
+                Tiers::plain($slice['units']),
+                Tiers::price($slice['tier']->unitPrice),
+                Tiers::plain($slice['amount']),
+            );
         }
 
-        $steps[] = sprintf('total %s, rounded once', $this->charge($quantity));
+        $steps[] = sprintf('total %s, rounded once', $this->total($slices));
 
         return $steps;
     }
@@ -79,5 +58,51 @@ final readonly class Graduated implements PricingModel
     public function isUsageBased(): bool
     {
         return true;
+    }
+
+    /**
+     * The part of the usage each tier prices, walked once for both the charge
+     * and the calculation shown beside it, so the two cannot disagree. A tier
+     * the usage never reaches has no slice.
+     *
+     * @return list<array{index: int, tier: Tier, units: BigDecimal, amount: BigDecimal}>
+     */
+    private function slices(Quantity $quantity): array
+    {
+        $used = $quantity->toBigDecimal();
+        $floor = BigDecimal::zero();
+        $slices = [];
+
+        foreach ($this->tiers->all() as $index => $tier) {
+            $ceiling = $tier->limit?->toBigDecimal() ?? $used;
+            $units = BigDecimal::min($used, $ceiling)->minus($floor);
+
+            if ($units->isPositive()) {
+                $slices[] = [
+                    'index' => $index,
+                    'tier' => $tier,
+                    'units' => $units,
+                    'amount' => $tier->unitPrice->toBigDecimal()->multipliedBy($units),
+                ];
+            }
+
+            $floor = $ceiling;
+        }
+
+        return $slices;
+    }
+
+    /**
+     * @param list<array{index: int, tier: Tier, units: BigDecimal, amount: BigDecimal}> $slices
+     */
+    private function total(array $slices): Money
+    {
+        $total = BigDecimal::zero();
+
+        foreach ($slices as $slice) {
+            $total = $total->plus($slice['amount']);
+        }
+
+        return Money::rounded($total, $this->currency());
     }
 }

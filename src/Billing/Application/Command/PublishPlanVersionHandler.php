@@ -35,6 +35,7 @@ final readonly class PublishPlanVersionHandler
         $this->versions->save($published);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'plan_version.published',
             subjectType: 'plan_version',

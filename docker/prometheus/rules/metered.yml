@@ -24,7 +24,7 @@ groups:
         labels:
           severity: warning
         annotations:
-          summary: Ingestion answers 503 because the stream backlog is past its threshold.
+          summary: Ingestion answers 503 because the stream backlog is past its threshold or the usage Redis is full.
           runbook: docs/runbook.md#ingestion-is-returning-503
 
       - alert: IngestionLatencyHigh
@@ -47,6 +47,18 @@ groups:
         annotations:
           summary: The ingestion backlog is past half the backpressure threshold.
           runbook: docs/runbook.md#ingestion-is-returning-503
+
+      # The usage Redis holds the stream and every deduplication key for its
+      # TTL; at maxmemory ingestion answers 503 (ADR-0002, "Capacity"). A
+      # limit of 0 means none is set, and the comparison has nothing to fire on.
+      - alert: UsageRedisMemoryHigh
+        expr: max(usage_redis_memory_used_bytes) > 0.8 * max(usage_redis_memory_limit_bytes > 0)
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: The usage Redis has used over 80% of its maxmemory.
+          runbook: docs/runbook.md#the-usage-redis-is-running-out-of-memory
 
       - alert: UsageDeadLettersGrowing
         expr: max(dlq_size) > max(dlq_size offset 15m)

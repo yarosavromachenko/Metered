@@ -54,6 +54,7 @@ final readonly class DraftPlanVersionHandler
         $this->versions->save($version);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'plan_version.drafted',
             subjectType: 'plan_version',

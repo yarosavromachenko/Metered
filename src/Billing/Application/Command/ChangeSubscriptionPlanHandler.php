@@ -45,6 +45,7 @@ final readonly class ChangeSubscriptionPlanHandler
         $this->subscriptions->save($changed);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'subscription.plan_changed',
             subjectType: 'subscription',

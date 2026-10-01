@@ -81,3 +81,9 @@ change making every stored entry look tampered with.
 
 The scheduler runs `audit:verify` daily at 03:50; a broken chain exits
 non-zero, which the scheduler records as a failed run.
+
+## Amended in 1.1.0
+
+One chain per organization instead of one for the whole table, with the lock
+taken per chain: [ADR-0020](0020-audit-chains-per-organization.md). Entries
+written before it form the platform chain and verify as they did.

@@ -9,7 +9,9 @@ use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Usage\Application\Stream\Batch;
 use Metered\Usage\Application\Stream\EventStream;
 use Metered\Usage\Application\Stream\StreamDepth;
+use Metered\Usage\Application\Stream\StreamFull;
 use Redis;
+use RedisException;
 
 /**
  * The stream itself: one pipelined round trip per batch, and a backlog check
@@ -47,13 +49,23 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
         // One round trip for the whole batch. A hundred sequential XADDs would
         // be a hundred round trips, which at a millisecond each is most of the
         // latency budget of an endpoint on somebody's hot path.
-        $this->connection->pipeline(static function (Redis $pipe) use ($key, $messages, $maxLength): void {
-            foreach ($messages as $fields) {
-                // '*' lets Redis assign the id: an id here is a position in
-                // the stream, not an identity we have an opinion about.
-                $pipe->xadd($key, '*', $fields, $maxLength, true);
+        try {
+            $this->connection->pipeline(static function (Redis $pipe) use ($key, $messages, $maxLength): void {
+                foreach ($messages as $fields) {
+                    // '*' lets Redis assign the id: an id here is a position in
+                    // the stream, not an identity we have an opinion about.
+                    $pipe->xadd($key, '*', $fields, $maxLength, true);
+                }
+            });
+        } catch (RedisException $refused) {
+            // Under `noeviction`, a Redis at `maxmemory` refuses writes with
+            // an OOM error. That is a full stream, not a broken one.
+            if (str_starts_with($refused->getMessage(), 'OOM ')) {
+                throw StreamFull::because($refused);
             }
-        });
+
+            throw $refused;
+        }
     }
 
     /**

@@ -161,13 +161,20 @@ return [
          * and a consumer that never meet. Stream names are an operational
          * contract anyway: they are what an operator types into redis-cli and
          * what the lag widget reports on.
+         *
+         * Its own instance where one is configured (ADR-0002): the stream and
+         * the deduplication keys grow with traffic, and a Redis that runs out
+         * of memory for them should stop ingestion, not Horizon and sessions.
+         * Without REDIS_USAGE_HOST it shares the main Redis, as on a CI runner.
+         * REDIS_URL is inherited only then: a URL wins over host and port, and
+         * would quietly put ingestion back on the main Redis.
          */
         'usage' => [
-            'url' => env('REDIS_URL'),
-            'host' => env('REDIS_HOST', '127.0.0.1'),
+            'url' => env('REDIS_USAGE_URL', env('REDIS_USAGE_HOST') === null ? env('REDIS_URL') : null),
+            'host' => env('REDIS_USAGE_HOST', env('REDIS_HOST', '127.0.0.1')),
             'username' => env('REDIS_USERNAME'),
             'password' => env('REDIS_PASSWORD'),
-            'port' => env('REDIS_PORT', '6379'),
+            'port' => env('REDIS_USAGE_PORT', env('REDIS_PORT', '6379')),
             'database' => env('REDIS_USAGE_DB', '2'),
             'prefix' => '',
             'max_retries' => env('REDIS_MAX_RETRIES', 3),

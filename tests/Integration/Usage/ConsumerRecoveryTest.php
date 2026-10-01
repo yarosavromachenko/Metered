@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Illuminate\Contracts\Redis\Factory as RedisFactory;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\QueryException;
 use Illuminate\Redis\Connections\PhpRedisConnection;
 use Illuminate\Support\Facades\DB;
 use Metered\Shared\Domain\Access\Actor;
@@ -269,6 +270,128 @@ it('writes the event on the retry that follows a failed write', function (): voi
     runConsumer();
 
     expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1);
+});
+
+it('records a batch’s rejections once, on the attempt whose write commits', function (): void {
+    ['tenant' => $tenant, 'headers' => $headers] = recoveryTenant();
+    post($headers);
+    post($headers, ['event_id' => 'evt_2', 'meter_code' => 'no.such.meter']);
+
+    $real = app(EventWriter::class);
+    app()->bind(EventWriter::class, static fn(): EventWriter => new class implements EventWriter {
+        public function write(TenantContext $tenant, array $events): WriteOutcome
+        {
+            throw new RuntimeException('The database went away mid-batch.');
+        }
+    });
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    try {
+        runConsumer();
+    } catch (RuntimeException) {
+        // Expected: the batch stays pending, to be delivered again.
+    }
+
+    $rejections = static fn(): int => DB::table('usage_event_rejections')->where('project_id', $tenant->projectId->value)->count();
+
+    // The write failed, so the batch has not been dealt with: recording its
+    // rejection now would record it again on every retry.
+    expect($rejections())->toBe(0);
+
+    app()->bind(EventWriter::class, static fn(): EventWriter => $real);
+    config(['metered.usage.consumer.reclaim_idle_milliseconds' => 0]);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    runConsumer();
+
+    expect($rejections())->toBe(1)
+        ->and(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1);
+});
+
+/**
+ * Puts a message on the stream that the endpoint would refuse today, the way
+ * one written before the endpoint refused it would still be waiting: a copy
+ * of a real message with a quantity the column cannot store.
+ */
+function streamUnstorableCopyOf(string $eventId): void
+{
+    $entries = usageRedis()->command('xrange', [UsageStream::key(), '-', '+']);
+    $original = is_array($entries) ? (array) end($entries) : [];
+
+    usageRedis()->command('xadd', [UsageStream::key(), '*', [
+        ...$original,
+        'event_id' => $eventId,
+        'quantity' => '1000000000000000',
+    ]]);
+}
+
+it('writes the neighbours of an event the database cannot store, and leaves only that one pending', function (): void {
+    ['tenant' => $tenant, 'headers' => $headers] = recoveryTenant();
+    post($headers, ['event_id' => 'evt_1']);
+    post($headers, ['event_id' => 'evt_2']);
+    streamUnstorableCopyOf('evt_poison');
+    post($headers, ['event_id' => 'evt_3']);
+
+    // The poison still fails, and the failure is still thrown so the daemon
+    // reports it; what changes is that it fails alone.
+    expect(static function (): void {
+        runConsumer();
+    })->toThrow(QueryException::class, 'numeric field overflow');
+
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
+
+    expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->orderBy('event_id')->pluck('event_id')->all())
+        ->toBe(['evt_1', 'evt_2', 'evt_3'])
+        ->and(is_array($pending) ? $pending[0] : -1)->toBe(1);
+
+    // Delivered too often, it is set aside on its own.
+    config([
+        'metered.usage.consumer.reclaim_idle_milliseconds' => 0,
+        'metered.usage.consumer.max_deliveries' => 0,
+    ]);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    runConsumer();
+
+    expect(deadLettered())->toHaveCount(1)
+        ->and(deadLettered()[0]['event_id'])->toBe('evt_poison')
+        ->and(deadLettered()[0]['_reason'])->toBe('too_many_deliveries');
+});
+
+it('does not split a batch whose write failed for a reason its data cannot cause', function (): void {
+    ['headers' => $headers] = recoveryTenant();
+    post($headers, ['event_id' => 'evt_1']);
+    post($headers, ['event_id' => 'evt_2']);
+
+    $writer = new class implements EventWriter {
+        public int $attempts = 0;
+
+        public function write(TenantContext $tenant, array $events): WriteOutcome
+        {
+            $this->attempts++;
+
+            throw new RuntimeException('The database went away mid-batch.');
+        }
+    };
+    app()->bind(EventWriter::class, static fn(): EventWriter => $writer);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    try {
+        runConsumer();
+    } catch (RuntimeException) {
+        // Expected: the whole batch stays pending.
+    }
+
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
+
+    // Halving a batch during an outage would only multiply the attempts that
+    // fail; the batch waits whole for the next delivery instead.
+    expect($writer->attempts)->toBe(1)
+        ->and(is_array($pending) ? $pending[0] : -1)->toBe(2);
 });
 
 it('leaves no drift when a consumer dies between the commit and the acknowledgement', function (): void {

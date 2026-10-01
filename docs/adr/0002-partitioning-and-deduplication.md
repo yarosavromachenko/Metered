@@ -108,3 +108,67 @@ neither the primary key nor the reading index can return those in order. Without
 help, every page load sorted the whole table. `(project_id, occurred_at)` fixes
 that, and costs one more index descent per inserted row. The plans before and
 after, and the measured cost, are in [`query-plans.md`](../query-plans.md).
+
+## Amended in 1.1.0: capacity
+
+The Redis layer holds one key per event for the whole TTL, so its memory grows
+with traffic, not with the number of tenants. Measured on Redis 8: a key for a
+30-character `event_id` costs about 178 bytes, TTL bookkeeping included, and
+the cost grows with the id. Budget 200 bytes:
+
+```
+memory = events per second × TTL (604 800 s) × 200 B
+```
+
+| Sustained rate | Keys held | Memory |
+|---|---|---|
+| 10 events/s | 6 million | 1.2 GB |
+| 100 events/s | 60 million | 12 GB |
+| 1,000 events/s | 605 million | 121 GB |
+| 1,640 events/s (the benchmark's peak) | 990 million | 198 GB |
+
+The stream lives in the same Redis and adds at most `USAGE_STREAM_MAX_LENGTH`
+entries — about 300 bytes each, 0.3 GB at the default million.
+
+Before 1.1.0 the keys shared one Redis with the cache, the queues and the
+sessions, with no `maxmemory`. Running out would have taken Horizon and every
+signed-in session down with ingestion. Three changes:
+
+- **A Redis of its own.** The `usage` connection reads `REDIS_USAGE_HOST`
+  (falling back to `REDIS_HOST`); compose runs it as `redis-usage`, with the
+  same `appendfsync everysec` durability, `noeviction`, and
+  `maxmemory ${REDIS_USAGE_MAXMEMORY:-1gb}`. `noeviction` stays: evicting a
+  key would silently admit a duplicate, and evicting a stream entry would lose
+  an event.
+- **A full Redis is backpressure.** At `maxmemory`, XADD is refused with an
+  OOM error; the endpoint answers it as it answers a deep backlog — `503` with
+  `Retry-After`. Part of the batch may already be in the stream; the client
+  resends all of it and the claims drop what had landed. It does not clear by
+  itself: the consumer's claims are writes too, so it stalls with the endpoint,
+  and nothing frees memory until keys expire. An operator raises the limit
+  (runbook, "The usage Redis is running out of memory") — which is why the
+  alert fires at 80%, while there is still room to do that calmly.
+- **It is watched.** `usage_redis_memory_used_bytes` and
+  `usage_redis_memory_limit_bytes` come from `INFO memory`, and
+  `UsageRedisMemoryHigh` fires above 80% for five minutes.
+
+The main Redis keeps no `maxmemory`. What it holds — cache entries with a TTL,
+rate-limiter windows, sessions, Horizon's trimmed job history — is bounded by
+users and jobs, not by event volume; the keys that grew with traffic are the
+ones that moved. A limit there under `noeviction` would stop the queues, the
+sessions and the API's rate limiter at once, so it comes, if it is needed,
+together with a gauge and an alert of its own, and with the cache in an
+instance that may evict.
+
+The default gigabyte holds a full stream and about 3.5 million keys: some six
+events per second sustained for a week, ample for the demo (twenty a second for
+an hour) and for a benchmark run. A deployment sizes it from the table above.
+
+**Past roughly a hundred events per second sustained**, holding a week of keys
+in memory stops being reasonable. The two ways on are a shorter TTL, which
+narrows the window described under "The honest limitation", or moving the keys
+to a durable table in PostgreSQL — `(project_id, event_id)` with the timestamp,
+partitioned by day like the events and dropped after the window — which costs a
+write per event but turns memory into disk and survives losing Redis entirely.
+The second is the right step when the traffic arrives; it is not built ahead of
+it.

@@ -5,7 +5,7 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-> **Status: 1.0 — every milestone on the [roadmap](docs/roadmap.md) is done.**
+> **Status: 1.1 — every milestone on the [roadmap](docs/roadmap.md) is done.**
 > Usage ingestion through Redis Streams into partitioned PostgreSQL, four
 > pricing models, invoices with gapless numbering and an append-only
 > double-entry ledger, signed webhooks with retries, a circuit breaker and an
@@ -103,7 +103,7 @@ And inside, the path of a usage event:
 ```mermaid
 flowchart TD
     C[API client / sim:traffic / k6] -->|POST /api/v1/usage/events| API[Octane API]
-    API -->|XADD pipeline| RS[(Redis Stream)]
+    API -->|XADD pipeline| RS[("Redis Stream<br/>redis-usage")]
     API -->|202 Accepted| C
     RS -->|XREADGROUP batch| W[usage:consume daemon]
     W -->|bulk INSERT ON CONFLICT + aggregates, one tx| PG[(PostgreSQL, partitioned)]

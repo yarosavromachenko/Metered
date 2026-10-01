@@ -73,6 +73,7 @@ final readonly class ResetDemoOrganizationHandler
             ));
 
             $this->audit->record(new AuditEntry(
+                organizationId: $organizationId,
                 actor: $command->actor->label,
                 action: 'organization.demo_reset',
                 subjectType: 'organization',

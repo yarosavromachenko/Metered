@@ -36,20 +36,30 @@ final class ChainHash
         ?string $subjectId,
         array $payload,
         DateTimeImmutable $occurredAt,
+        ?string $organizationId,
     ): string {
         ksort($payload);
 
+        $fields = [
+            'prev' => $previousHash,
+            'actor' => $actor,
+            'action' => $action,
+            'subject_type' => $subjectType,
+            'subject_id' => $subjectId,
+            'payload' => $payload,
+            'occurred_at' => $occurredAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.uP'),
+        ];
+
+        // Only when there is one: entries of the platform chain, written before
+        // chains were per organization, hash exactly as they always did, and an
+        // organization's entry cannot be moved to another chain and still match.
+        if ($organizationId !== null) {
+            $fields['organization_id'] = $organizationId;
+        }
+
         try {
             $canonical = json_encode(
-                [
-                    'prev' => $previousHash,
-                    'actor' => $actor,
-                    'action' => $action,
-                    'subject_type' => $subjectType,
-                    'subject_id' => $subjectId,
-                    'payload' => $payload,
-                    'occurred_at' => $occurredAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.uP'),
-                ],
+                $fields,
                 JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE,
             );
         } catch (JsonException $e) {

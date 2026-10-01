@@ -9,8 +9,9 @@ use Metered\Shared\Application\Health\CheckResult;
 use Metered\Shared\Application\Health\ReadinessCheck;
 
 /**
- * Redis answers a PING. Queues, cache, rate limits and the ingestion stream
- * all live there; without it the application can serve nothing but errors.
+ * Redis answers a PING. Queues, cache, sessions and rate limits live there;
+ * without it the application can serve nothing but errors. The ingestion
+ * stream has a Redis of its own, which the backlog check reads.
  */
 final readonly class RedisCheck implements ReadinessCheck
 {

@@ -42,6 +42,7 @@ final readonly class ReplayDeliveryHandler
         });
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'webhook_delivery.replayed',
             subjectType: 'webhook_delivery',

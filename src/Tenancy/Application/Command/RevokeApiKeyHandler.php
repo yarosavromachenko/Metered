@@ -42,6 +42,7 @@ final readonly class RevokeApiKeyHandler
         $this->keys->save($revoked);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $key->tenant->organizationId,
             actor: $command->actor->label,
             action: 'api_key.revoked',
             subjectType: 'api_key',

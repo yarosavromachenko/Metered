@@ -35,6 +35,7 @@ final readonly class RemovePriceHandler
         $this->versions->save($changed);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'price.removed',
             subjectType: 'plan_version',

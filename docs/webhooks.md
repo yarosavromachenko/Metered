@@ -227,9 +227,16 @@ network to an address an attacker chooses. The guard therefore:
   private, loopback, link-local (where cloud metadata answers), carrier-grade
   NAT, multicast, documentation, benchmarking or reserved — IPv4-mapped and
   NAT64 IPv6 addresses are judged by the IPv4 address inside them;
+- accepts IPv6 only from global unicast (`2000::/3`), and inside it refuses
+  the blocks that are not an ordinary host: `2001::/23` (IETF assignments,
+  Teredo among them), 6to4 `2002::/16` and the documentation blocks
+  `2001:db8::/32` and `3fff::/20`. Anything outside `2000::/3`, including
+  space assigned in the future, is refused without being listed;
 - **connects to the address it validated** (curl's `CURLOPT_RESOLVE`), so a DNS
   server answering "public" to the check and `169.254.169.254` to the
   connection gets nowhere;
+- never uses a proxy, even one named in `https_proxy` or `ALL_PROXY`: a proxy
+  resolves the host itself, past the pinned address;
 - refuses redirects entirely;
 - keeps a kilobyte of the answer and stops reading it after a megabyte, and
   applies 5s connect and 10s total timeouts;

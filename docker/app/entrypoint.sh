@@ -20,6 +20,7 @@ wait_for() {
 if [ "${SKIP_DEPENDENCY_WAIT:-false}" != "true" ]; then
     wait_for "${DB_DIRECT_HOST:-postgres}" "${DB_DIRECT_PORT:-5432}" "PostgreSQL"
     wait_for "${REDIS_HOST:-redis}" "${REDIS_PORT:-6379}" "Redis"
+    wait_for "${REDIS_USAGE_HOST:-${REDIS_HOST:-redis}}" "${REDIS_USAGE_PORT:-${REDIS_PORT:-6379}}" "the usage Redis"
 fi
 
 if [ "${APP_ENV:-local}" = "production" ]; then

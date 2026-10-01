@@ -50,6 +50,7 @@ final readonly class RegisterCustomerHandler
         $this->customers->save($customer);
 
         $this->audit->record(new AuditEntry(
+            organizationId: $command->tenant->organizationId,
             actor: $command->actor->label,
             action: 'customer.registered',
             subjectType: 'customer',

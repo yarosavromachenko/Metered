@@ -7,8 +7,9 @@ namespace Metered\Usage\Application\Command;
 use RuntimeException;
 
 /**
- * The stream is deeper than the consumer is draining it, so ingestion stops
- * accepting rather than accepting work it is visibly failing to do.
+ * The stream is deeper than the consumer is draining it, or has no memory
+ * left, so ingestion stops accepting rather than accepting work it is
+ * visibly failing to do.
  *
  * Carries how long to wait, because a client that is told to back off without
  * being told for how long will retry immediately.
@@ -29,5 +30,10 @@ final class IngestionOverloaded extends RuntimeException
             $pending,
             $threshold,
         ));
+    }
+
+    public static function outOfMemory(int $retryAfterSeconds): self
+    {
+        return new self($retryAfterSeconds, 'Ingestion is shedding load: the usage stream has no memory left.');
     }
 }

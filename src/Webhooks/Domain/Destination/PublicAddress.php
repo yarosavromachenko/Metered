@@ -11,8 +11,10 @@ namespace Metered\Webhooks\Domain\Destination;
  * from inside the network to an address someone else picked. Anything that
  * is not plainly on the public internet is refused: private ranges, loopback,
  * link-local (where cloud metadata lives), carrier-grade NAT, multicast,
- * documentation and reserved blocks — and IPv6 forms that embed an IPv4
- * address are judged by the address they embed.
+ * documentation and reserved blocks. IPv4 is refused by range; IPv6 is
+ * allowed only inside global unicast, minus the blocks that tunnel to IPv4.
+ * The IPv6 forms that embed an IPv4 address are judged by the address they
+ * embed.
  */
 final class PublicAddress
 {
@@ -32,7 +34,7 @@ final class PublicAddress
             return ! self::inAny(substr($packed, 12), self::blockedV4());
         }
 
-        return ! self::inAny($packed, self::blockedV6());
+        return self::inAny($packed, self::globalV6()) && ! self::inAny($packed, self::blockedV6());
     }
 
     /**
@@ -96,18 +98,33 @@ final class PublicAddress
     }
 
     /**
+     * The only IPv6 space a webhook may reach. Everything outside it —
+     * loopback, unique local, link-local, multicast, the IPv4-compatible and
+     * local-use NAT64 forms, and whatever is assigned there later — is refused
+     * without having to be listed.
+     *
+     * @return list<string>
+     */
+    private static function globalV6(): array
+    {
+        return self::ranges(<<<'RANGES'
+            2000::/3          global unicast
+            RANGES);
+    }
+
+    /**
+     * Inside global unicast, the blocks that are not an ordinary host: the
+     * transition mechanisms carry an IPv4 address the guard would never see.
+     *
      * @return list<string>
      */
     private static function blockedV6(): array
     {
         return self::ranges(<<<'RANGES'
-            ::/128            unspecified
-            ::1/128           loopback
-            100::/64          discard
+            2001::/23         IETF protocol assignments, Teredo among them
             2001:db8::/32     documentation
-            fc00::/7          unique local
-            fe80::/10         link-local
-            ff00::/8          multicast
+            2002::/16         6to4
+            3fff::/20         documentation
             RANGES);
     }
 

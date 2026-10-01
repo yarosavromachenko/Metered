@@ -8,6 +8,7 @@ use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Usage\Application\Stream\Batch;
 use Metered\Usage\Application\Stream\EventStream;
 use Metered\Usage\Application\Stream\StreamDepth;
+use Metered\Usage\Application\Stream\StreamFull;
 use Psr\Clock\ClockInterface;
 
 /**
@@ -47,7 +48,11 @@ final readonly class IngestEventsHandler
             $command->events,
         );
 
-        $this->stream->append($batch);
+        try {
+            $this->stream->append($batch);
+        } catch (StreamFull) {
+            throw IngestionOverloaded::outOfMemory($this->retryAfterSeconds);
+        }
 
         return new IngestionReceipt($batch->size(), $batch->requestId);
     }

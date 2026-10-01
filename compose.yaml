@@ -43,10 +43,17 @@ services:
       # Raised for a load run, where the per-key limit would otherwise be
       # what is measured: API_KEY_RATE_LIMIT_PER_MINUTE=1000000 make up.
       API_KEY_RATE_LIMIT_PER_MINUTE: ${API_KEY_RATE_LIMIT_PER_MINUTE:-600}
+      # Where ingestion's stream lives — set here, like on every daemon, rather
+      # than in .env: a .env from before the split would otherwise send the
+      # endpoint's writes to one Redis while the consumer reads the other.
+      REDIS_USAGE_HOST: redis-usage
+      REDIS_USAGE_PORT: "6379"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-usage:
         condition: service_healthy
       pgbouncer:
         condition: service_started
@@ -91,10 +98,14 @@ services:
       OUTBOX_CONNECTION: pgsql
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_USAGE_HOST: redis-usage
+      REDIS_USAGE_PORT: "6379"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-usage:
         condition: service_healthy
     restart: unless-stopped
 
@@ -127,10 +138,14 @@ services:
       USAGE_CONNECTION: pgsql
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_USAGE_HOST: redis-usage
+      REDIS_USAGE_PORT: "6379"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-usage:
         condition: service_healthy
     # SIGTERM finishes the batch in hand; ten seconds is generous for a batch
     # of five hundred and short enough that a deploy does not crawl.
@@ -161,10 +176,14 @@ services:
       DB_PASSWORD: secret
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_USAGE_HOST: redis-usage
+      REDIS_USAGE_PORT: "6379"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-usage:
         condition: service_healthy
     restart: unless-stopped
 
@@ -195,10 +214,14 @@ services:
       DB_PASSWORD: secret
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_USAGE_HOST: redis-usage
+      REDIS_USAGE_PORT: "6379"
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-usage:
         condition: service_healthy
     restart: unless-stopped
 
@@ -230,11 +253,15 @@ services:
       DB_PASSWORD: secret
       REDIS_HOST: redis
       REDIS_PORT: "6379"
+      REDIS_USAGE_HOST: redis-usage
+      REDIS_USAGE_PORT: "6379"
     stop_grace_period: 5s
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      redis-usage:
         condition: service_healthy
       otel-collector:
         condition: service_started
@@ -471,9 +498,36 @@ services:
       timeout: 3s
       retries: 10
 
+  # The ingestion stream and the deduplication keys, apart from cache, queues
+  # and sessions (ADR-0002, "Capacity"). Same durability as the main Redis;
+  # at maxmemory it refuses writes and ingestion answers 503, which is the
+  # point of the separation: the rest of the system keeps working.
+  redis-usage:
+    image: redis:8-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - ${REDIS_USAGE_MAXMEMORY:-1gb}
+      - --maxmemory-policy
+      - noeviction
+    ports:
+      - "${REDIS_USAGE_PORT_HOST:-56380}:6379"
+    volumes:
+      - redis-usage-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
 volumes:
   postgres-data:
   redis-data:
+  redis-usage-data:
   mailpit-data:
   tempo-data:
   prometheus-data:
