@@ -235,6 +235,8 @@ network to an address an attacker chooses. The guard therefore:
 - **connects to the address it validated** (curl's `CURLOPT_RESOLVE`), so a DNS
   server answering "public" to the check and `169.254.169.254` to the
   connection gets nowhere;
+- never uses a proxy, even one named in `https_proxy` or `ALL_PROXY`: a proxy
+  resolves the host itself, past the pinned address;
 - refuses redirects entirely;
 - keeps a kilobyte of the answer and stops reading it after a megabyte, and
   applies 5s connect and 10s total timeouts;

@@ -85,6 +85,7 @@ it('delivers to a public address, pinned to the address it checked', function ()
         ->and($request instanceof RequestInterface ? (string) $request->getBody() : null)->toBe('{"id":"x"}')
         ->and($request instanceof RequestInterface ? $request->getHeaderLine('X-Metered-Signature') : null)->toBe('t=1,v1=a')
         ->and(sentOptions($history)['allow_redirects'] ?? null)->toBeFalse()
+        ->and(sentOptions($history)['proxy'] ?? null)->toBe('')
         ->and(sentOptions($history)['connect_timeout'] ?? null)->toBe(5.0)
         ->and(sentOptions($history)['timeout'] ?? null)->toBe(10.0);
 });
@@ -192,6 +193,33 @@ it('sends through cURL, with options cURL accepts, when no handler is given', fu
         ->and($result->error)->not->toContain('not supported')
         ->and($result->error)->not->toContain('stream handler')
         ->and($result->verdict())->toBe(Verdict::Retry);
+});
+
+it('connects directly even when the environment names a proxy', function (): void {
+    // A proxy resolves the host itself, so the pinned address would mean
+    // nothing. The real cURL handler, and two loopback addresses that both
+    // refuse at once: the error names whichever one cURL actually dialled —
+    // the receiver by its name, or the proxy by its address.
+    // No network, and no timeout racing the refusal.
+    $previous = getenv('https_proxy');
+    putenv('https_proxy=http://127.0.0.1:9');
+
+    try {
+        $transport = new GuardedTransport(
+            new ScriptedResolver([['127.0.0.3']]),
+            trusted: TrustedDestination::fromConfig('receiver.test:9', 'local'),
+            connectTimeout: 2.0,
+            timeout: 2.0,
+        );
+
+        $result = $transport->send(EndpointUrl::fromString('https://receiver.test:9/in'), [], '{}');
+    } finally {
+        putenv($previous === false ? 'https_proxy' : 'https_proxy=' . $previous);
+    }
+
+    expect($result->statusCode)->toBeNull()
+        ->and($result->error)->toContain('Failed to connect to receiver.test port 9')
+        ->and($result->error)->not->toContain('127.0.0.1');
 });
 
 it('lets the configured demo receiver through, still resolved once and pinned', function (): void {

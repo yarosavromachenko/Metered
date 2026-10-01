@@ -32,6 +32,9 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
   `2001::/23`, `2001:db8::/32`, `2002::/16` and `3fff::/20`. It used to refuse
   a list of ranges, which let 6to4, Teredo, local-use NAT64 and
   IPv4-compatible addresses through to the IPv4 host they carry.
+- Webhook deliveries never go through a proxy named in the environment. A
+  proxy resolves the host itself, so the address the guard checked and pinned
+  would not have been the one reached.
 
 ## [1.0.0] - 2026-09-30
 

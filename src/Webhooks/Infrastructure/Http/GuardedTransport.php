@@ -27,7 +27,8 @@ use RuntimeException;
  * nothing is sent. Otherwise the connection is pinned to the address that was
  * checked — curl is told the host's address instead of asking DNS again — so
  * a DNS server that answers "public" to the check and "169.254.169.254" to
- * the connection gets nowhere. Redirects are not followed; a kilobyte of the
+ * the connection gets nowhere. No proxy is used, even one named in the
+ * environment. Redirects are not followed; a kilobyte of the
  * answer is kept and reading stops after a megabyte; connect and total
  * timeouts are 5s and 10s.
  *
@@ -115,6 +116,9 @@ final readonly class GuardedTransport implements WebhookTransport
                 RequestOptions::HEADERS => $headers,
                 RequestOptions::BODY => $body,
                 RequestOptions::ALLOW_REDIRECTS => false,
+                // Never through a proxy, whatever the environment says: a
+                // proxy resolves the host itself, past the pinned address.
+                RequestOptions::PROXY => '',
                 RequestOptions::HTTP_ERRORS => false,
                 RequestOptions::CONNECT_TIMEOUT => $this->connectTimeout,
                 RequestOptions::TIMEOUT => $this->timeout,
