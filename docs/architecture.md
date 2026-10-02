@@ -81,8 +81,8 @@ PostgreSQL directly. Only the stateless web tier is pooled
 | `Tenancy` | Organizations, projects, API keys, scopes, rate limits, admin users | `Tenancy\Application\Contract` |
 | `Usage` | Ingestion endpoint, stream consumer, partitions, aggregates, reconciliation | `Usage\Application\Contract` |
 | `Billing` | Meters, plans, versions, prices, customers, subscriptions, pricing calculator | `Billing\Application\Contract` |
-| `Invoicing` | Period close, invoices, ledger, credit notes, payments, PDF | `Invoicing\Application\Contract` |
-| `Webhooks` | Endpoints, signing, delivery, retries, DLQ, circuit breaker, SSRF guard | `Webhooks\Application\Contract` |
+| `Invoicing` | Period close, invoices, ledger, credit notes, payments, PDF | Outbox events `invoice.finalized`, `invoice.paid`, `invoice.voided` |
+| `Webhooks` | Endpoints, signing, delivery, retries, DLQ, circuit breaker, SSRF guard | — (consumes the outbox, delivers to customer URLs) |
 | `Admin` | Filament panel shell, navigation, cross-module dashboards | — (presentation only) |
 | `Simulation` | Seeding, traffic generation, chaos scenarios, time travel | — (dev only, excluded from the production image) |
 
