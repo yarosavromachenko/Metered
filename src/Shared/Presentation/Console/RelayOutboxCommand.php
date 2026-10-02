@@ -9,11 +9,8 @@ use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 
 /**
- * The outbox relay, as a long-running process.
- *
- * It is a daemon rather than a scheduled command because the delay between a
- * state change and its event is latency a customer feels, and a minute of
- * scheduler granularity is a minute of it.
+ * A daemon, not a scheduled command: the scheduler's one-minute granularity
+ * would be added to every event's latency.
  */
 final class RelayOutboxCommand extends Command
 {
@@ -43,8 +40,7 @@ final class RelayOutboxCommand extends Command
                 return self::SUCCESS;
             }
 
-            // Only idle when there was nothing to do. A full batch probably
-            // means more is waiting, and sleeping on it just grows the lag.
+            // A full batch means more is waiting: no sleep.
             if ($published === 0) {
                 usleep($this->idleMicroseconds());
             }
@@ -83,8 +79,7 @@ final class RelayOutboxCommand extends Command
     }
 
     /**
-     * Finish the batch in flight, then exit. Killing a relay mid-transaction is
-     * safe — the claim rolls back — but a clean stop avoids the redelivery.
+     * Finishes the current batch, then exits.
      */
     private function listenForShutdown(): void
     {

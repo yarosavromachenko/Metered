@@ -9,15 +9,8 @@ use Metered\Shared\Domain\Decimal\Decimals;
 use Stringable;
 
 /**
- * An amount of something consumed.
- *
- * Quantities are decimals rather than integers because real meters produce
- * them: gigabyte-hours, fractional credits, per-second billing. Six decimal
- * places, matching the column that stores them.
- *
- * Quantities cannot be negative. Usage is something that happened; taking it
- * back is a credit note, which is a separate document with its own trail, not
- * a negative event quietly reducing a total.
+ * Consumed amount, six decimal places like its column (GB-hours, fractional
+ * credits). Never negative: usage is taken back with a credit note.
  */
 final readonly class Quantity implements Stringable
 {

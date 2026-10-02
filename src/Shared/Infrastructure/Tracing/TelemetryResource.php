@@ -10,12 +10,8 @@ use OpenTelemetry\SDK\Resource\ResourceInfoFactory;
 use OpenTelemetry\SemConv\ResourceAttributes;
 
 /**
- * Who is reporting: the service, the environment, and this process.
- *
- * The instance id is per process and shared by its traces and metrics.
- * Metrics are cumulative per process, so each process must be a series of
- * its own — two workers reporting the same counter under one identity would
- * overwrite each other's totals. Dashboards sum over the instances.
+ * Service, environment and a per-process instance id. Cumulative metrics need
+ * one series per process; dashboards sum over instances.
  */
 final class TelemetryResource
 {

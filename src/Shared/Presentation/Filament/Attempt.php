@@ -14,13 +14,9 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use RuntimeException;
 
 /**
- * Runs one handler from a panel action and says how it went.
- *
- * A refusal — a broken rule, a missing permission, something that is not
- * there — becomes a red notification in the handler's own words; anything
- * else is a bug and is left to fail loudly. Without a tenant in scope nothing
- * runs at all. The caller passes the tenant in: the kernel does not know
- * where the panel keeps it.
+ * Runs a handler from a panel action. Domain errors, permission denials and
+ * not-found become a danger notification with the exception message; other
+ * exceptions propagate. Nothing runs without a tenant.
  */
 final class Attempt
 {

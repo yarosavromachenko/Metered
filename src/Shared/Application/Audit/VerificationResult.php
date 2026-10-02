@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Metered\Shared\Application\Audit;
 
 /**
- * What a verification pass found.
- *
- * It names the first broken link rather than counting them: once one entry is
- * altered, every entry after it fails too, so a count would describe the
- * length of the tail rather than the size of the problem. It names the chain
- * too — an organization's id, or null for the platform chain (ADR-0020).
+ * The first broken link of a chain (every later one fails too, so there is no
+ * count). Chain: an organization id, or null for the platform (ADR-0020).
  */
 final readonly class VerificationResult
 {

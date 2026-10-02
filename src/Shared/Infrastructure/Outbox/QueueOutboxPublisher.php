@@ -10,11 +10,7 @@ use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Infrastructure\Queue\DeliverIntegrationEvent;
 
 /**
- * Puts a claimed message on the queue.
- *
- * This is the only step of the chain that is allowed to fail without losing
- * anything: the relay records the failure and the row stays unpublished, so the
- * next pass tries again.
+ * On failure the row stays unpublished and the next relay pass retries it.
  */
 final readonly class QueueOutboxPublisher implements OutboxPublisher
 {

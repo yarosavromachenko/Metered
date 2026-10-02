@@ -9,9 +9,8 @@ use Illuminate\Database\DatabaseManager;
 use Metered\Shared\Application\Transaction\Transactions;
 
 /**
- * The default connection's transaction, which is also the connection
- * repositories and the outbox writer use. Nothing here opens a connection of
- * its own — that is what keeps "the same transaction" true.
+ * Uses the default connection, the same one repositories and the outbox
+ * writer use.
  */
 final readonly class DatabaseTransactions implements Transactions
 {

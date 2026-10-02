@@ -15,12 +15,8 @@ use OpenTelemetry\SDK\Metrics\MeterProvider;
 use OpenTelemetry\SDK\Metrics\MetricReader\ExportingReader;
 
 /**
- * Builds the meter provider: OTLP to the collector, which Prometheus scrapes
- * (ADR-0019), or a no-op one when telemetry is switched off.
- *
- * Nothing exports on a timer — PHP has no thread for it. The reader is
- * collected at the idle points of long-running processes (TelemetryFlush)
- * and at shutdown.
+ * OTLP to the collector (ADR-0019), or no-op when telemetry is off. There is
+ * no export timer; TelemetryFlush collects at idle points and at shutdown.
  */
 final readonly class MeterProviderFactory
 {
@@ -37,8 +33,7 @@ final readonly class MeterProviderFactory
             return new NoopMeterProvider();
         }
 
-        // Cumulative: each process reports its totals since it started, the
-        // shape Prometheus stores. A restart is a reset rate() handles.
+        // Cumulative, as Prometheus expects.
         $exporter = new MetricExporter(
             new OtlpHttpTransportFactory()->create($this->endpoint . '/v1/metrics', 'application/x-protobuf'),
             Temporality::CUMULATIVE,

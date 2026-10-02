@@ -12,17 +12,9 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Psr\Clock\ClockInterface;
 
 /**
- * Claims (consumer, message) with an atomic insert and runs the handler only
- * for the caller that won.
- *
- * The claim is INSERT ... ON CONFLICT DO NOTHING against a unique constraint,
- * not a SELECT followed by an INSERT. Check-then-act has a window between the
- * two statements, and under concurrent redelivery that window is exactly where
- * the double processing happens.
- *
- * The handler runs inside the claiming transaction on purpose: if it throws,
- * the claim rolls back with it and the message can be delivered again. A claim
- * that outlived a failed handler would silently swallow the work.
+ * Claims (consumer, message) with INSERT ... ON CONFLICT DO NOTHING. The
+ * handler runs in the same transaction, so if it throws the claim is rolled
+ * back and the message can be redelivered.
  */
 final readonly class DatabaseInboxGuard implements InboxGuard
 {

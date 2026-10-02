@@ -10,8 +10,7 @@ use Metered\Shared\Application\Metrics\GaugeSource;
 use Metered\Shared\Application\Metrics\SharedMetrics;
 
 /**
- * Jobs waiting on each queue the workers serve. A queue that only grows is
- * one its workers have stopped draining.
+ * Pending jobs per queue.
  */
 final readonly class QueueGauges implements GaugeSource
 {

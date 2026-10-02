@@ -12,15 +12,9 @@ use Metered\Shared\Domain\Audit\ChainHash;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
 
 /**
- * Recomputes every link and stops at the first that does not match.
- *
- * Three things can be wrong, and the result says which: an entry whose
- * contents no longer produce its stored hash, an entry that does not point at
- * its predecessor, and a gap where a row was removed.
- *
- * Every organization's chain is checked in the same pass (ADR-0020): the rows
- * are read once in sequence order, and each chain's last hash is remembered,
- * so memory grows with the number of organizations, not of entries.
+ * Finds the first altered entry, broken link or missing row in each chain.
+ * One pass in sequence order over all chains (ADR-0020), keeping only each
+ * chain's last hash.
  */
 final readonly class DatabaseChainVerifier implements ChainVerifier
 {
@@ -33,16 +27,11 @@ final readonly class DatabaseChainVerifier implements ChainVerifier
 
     public function verify(): VerificationResult
     {
-        // One snapshot for every page. Chains commit independently, so an
-        // entry can become visible after the one written next to it in another
-        // chain; read in pages under READ COMMITTED, a page could miss it, or
-        // an offset shift read a row twice, and an untouched chain would look
-        // broken. In one snapshot a visible entry's predecessor is visible
-        // too: the chain's lock made it commit first.
+        // All pages from one snapshot. Under READ COMMITTED, entries of other
+        // chains committing between pages could be skipped or read twice.
         $connection = $this->db->connection();
 
-        // Inside a caller's transaction the isolation level is the caller's to
-        // set, and can no longer be changed.
+        // Inside a caller's transaction the isolation level can't be changed.
         if ($connection->transactionLevel() > 0) {
             return $this->walk();
         }

@@ -19,15 +19,8 @@ use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
 use Throwable;
 
 /**
- * Turns every failure into an RFC 9457 problem document.
- *
- * Framework exceptions included: a client that learns one error shape learns
- * all of them, and an endpoint that answers `{"message": "..."}` on one path
- * and a problem document on another teaches nobody anything.
- *
- * `type` is the stable part — a client branches on it. `detail` is free to be
- * reworded, and never carries an internal exception message unless the
- * application is in debug mode.
+ * Renders every exception, framework ones included, as RFC 9457. Internal
+ * exception messages appear in `detail` only in debug mode.
  */
 final class ProblemRenderer
 {
@@ -73,9 +66,7 @@ final class ProblemRenderer
                 'The credentials used are not allowed to perform this action.',
                 $instance,
             ),
-            // A module's own "no such thing" and "already taken", and a broken
-            // domain rule. Their messages are written for the caller, which is
-            // why these three may show them and the fallback below may not.
+            // These messages are written for the caller and are shown.
             $e instanceof NotFound => Problem::response('not-found', 'Not found', 404, $e->getMessage(), $instance),
             $e instanceof Conflict => Problem::response('conflict', 'Conflict', 409, $e->getMessage(), $instance),
             $e instanceof DomainException => Problem::response(
@@ -117,9 +108,6 @@ final class ProblemRenderer
     }
 
     /**
-     * Validation errors as JSON pointers, so a client can map a message back to
-     * the field that caused it without parsing prose.
-     *
      * @return list<array{pointer: string, detail: string}>
      */
     private static function pointers(ValidationException $e): array
@@ -163,8 +151,7 @@ final class ProblemRenderer
 
     private static function safeDetail(Throwable $e): string
     {
-        // An exception message can carry a query, a path, or a secret. It is
-        // shown only where somebody is already debugging.
+        // May contain a query or a secret: debug mode only.
         return config('app.debug') === true
             ? $e->getMessage()
             : 'Something went wrong on our side. The failure has been logged.';

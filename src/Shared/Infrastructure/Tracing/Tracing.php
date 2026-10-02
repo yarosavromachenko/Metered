@@ -17,14 +17,8 @@ use OpenTelemetry\Context\Propagation\ArrayAccessGetterSetter;
 use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 
 /**
- * The one place that knows how trace context enters and leaves this
- * application.
- *
- * Context crosses four asynchronous boundaries here — HTTP into a Redis
- * stream, stream into a batch consumer, database into the outbox relay, relay
- * into a queue worker — and each is a place where a trace is normally lost.
- * Keeping the carrier logic in a single object is what stops each of those
- * hops inventing its own header name.
+ * W3C trace context in and out of messages, for the async hops: HTTP to the
+ * stream, stream to the consumer, outbox to the relay, relay to the queue.
  */
 final readonly class Tracing
 {
@@ -34,8 +28,7 @@ final readonly class Tracing
     ) {}
 
     /**
-     * Tracing that records nothing, for the places that are built without
-     * the container: a span started here costs nothing and goes nowhere.
+     * For code built without the container.
      */
     public static function disabled(): self
     {
@@ -48,8 +41,6 @@ final readonly class Tracing
     }
 
     /**
-     * The current context as W3C headers, ready to travel with a message.
-     *
      * @return array<string, string>
      */
     public function carrier(?ContextInterface $context = null): array
@@ -62,8 +53,6 @@ final readonly class Tracing
     }
 
     /**
-     * Restores the context a message was published in.
-     *
      * @param  array<string, string>  $carrier
      */
     public function extract(array $carrier): ContextInterface
@@ -72,8 +61,7 @@ final readonly class Tracing
     }
 
     /**
-     * The span a message was published from, to link to rather than to
-     * continue. Invalid when the message carried no context.
+     * Span to link to; invalid when the message has no context.
      *
      * @param  array<string, string>  $carrier
      */
@@ -82,9 +70,6 @@ final readonly class Tracing
         return Span::fromContext($this->extract($carrier))->getContext();
     }
 
-    /**
-     * The trace a span belongs to, for logging beside it.
-     */
     public function traceIdOf(SpanInterface $span): string
     {
         return $span->getContext()->getTraceId();

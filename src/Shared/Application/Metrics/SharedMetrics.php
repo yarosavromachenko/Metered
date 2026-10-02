@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Metered\Shared\Application\Metrics;
 
 /**
- * The shared kernel's gauges, named once (docs/observability.md).
+ * See docs/observability.md.
  */
 final class SharedMetrics
 {

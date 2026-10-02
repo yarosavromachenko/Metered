@@ -8,9 +8,8 @@ use Illuminate\Http\Request;
 use Metered\Shared\Domain\Access\Actor;
 
 /**
- * Who an API request acts as. An admin key is not a person: its authority
- * was settled by the scope middleware before the controller ran, and the
- * audit log names the key that made each change.
+ * The actor for API requests: the API key, already authorised by the scope
+ * middleware.
  */
 final class ApiCaller
 {

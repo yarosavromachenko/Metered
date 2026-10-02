@@ -12,12 +12,8 @@ use Metered\Shared\Application\Metrics\SharedMetrics;
 use Psr\Clock\ClockInterface;
 
 /**
- * How far behind the relay is: the age of the oldest message it still has
- * to publish. Three rows waiting for a second is healthy; one waiting for an
- * hour is an incident, which a count would not tell apart.
- *
- * Messages that ran out of attempts are left out: the relay no longer tries
- * them, so counted here they would be a lag that never goes down.
+ * Relay lag: age of the oldest unpublished message. Messages out of attempts
+ * are excluded.
  */
 final readonly class OutboxGauges implements GaugeSource
 {
@@ -35,8 +31,7 @@ final readonly class OutboxGauges implements GaugeSource
             ->where('attempts', '<', $this->maxAttempts)
             ->min('occurred_at');
 
-        // The application's clock, not the database's: in a demo it can be
-        // moved forward, and the messages are stamped with it.
+        // App clock, not now(): messages are stamped with it, and the demo moves it.
         $age = is_string($oldest)
             ? max(0, $this->clock->now()->getTimestamp() - new DateTimeImmutable($oldest)->getTimestamp())
             : 0;

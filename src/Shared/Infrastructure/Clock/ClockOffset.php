@@ -7,12 +7,8 @@ namespace Metered\Shared\Infrastructure\Clock;
 use Illuminate\Contracts\Cache\Repository;
 
 /**
- * How far the demo's clock has been moved ahead of real time, in seconds.
- *
- * Kept in the shared cache rather than in a process, because every process of
- * the stack — the app, Horizon's workers, the consumer, the scheduler, a
- * console command — has to agree on what time it is, or a period would close
- * in one and its usage be refused as too new by another.
+ * Demo clock offset in seconds. Stored in the cache so every process of the
+ * stack sees the same time.
  */
 final readonly class ClockOffset
 {
@@ -24,8 +20,7 @@ final readonly class ClockOffset
     {
         $value = $this->cache->get(self::KEY);
 
-        // The Redis store keeps numbers unserialised and hands them back as
-        // strings; an array store hands back the int it was given.
+        // Redis returns the number as a string, the array store as an int.
         return match (true) {
             is_int($value) => $value,
             is_string($value) && preg_match('/^-?\d+$/', $value) === 1 => (int) $value,

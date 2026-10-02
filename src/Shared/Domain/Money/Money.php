@@ -13,16 +13,9 @@ use Metered\Shared\Domain\Exception\InvalidMoney;
 use Stringable;
 
 /**
- * An amount of money: integer minor units plus an ISO 4217 currency.
- *
- * There is no floating point anywhere in this type or beneath it. A billing
- * system that computes with floats eventually produces an invoice that is off
- * by a cent, and one wrong cent costs more trust than every correct figure
- * earns.
- *
- * Two amounts in different currencies cannot be combined. The system stores a
- * currency per project and never converts, so an attempt to add EUR to USD is
- * a bug rather than a request for a conversion rate.
+ * Integer minor units plus an ISO 4217 currency. Amounts in different
+ * currencies cannot be combined: a project has one currency and nothing is
+ * converted.
  */
 final readonly class Money implements Stringable
 {
@@ -108,12 +101,8 @@ final readonly class Money implements Stringable
     }
 
     /**
-     * An exact amount, rounded to the currency's minor unit — half up, once.
-     *
-     * The one place in the system where a decimal becomes money. A price times
-     * a quantity arrives here, and so does a graduated charge summed across its
-     * tiers: rounding each tier on its own would give a different total than
-     * the line prints (ADR-0007).
+     * Rounds half up to the minor unit. The only place a decimal becomes money;
+     * a graduated charge is summed across tiers first and rounded once (ADR-0007).
      */
     public static function rounded(BigDecimal $amount, string $currency): self
     {

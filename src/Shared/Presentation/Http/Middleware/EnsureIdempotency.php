@@ -15,21 +15,17 @@ use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
- * Makes a mutating endpoint safe to retry.
+ * IETF idempotency-key draft:
  *
- * Behaviour, following the IETF idempotency-key draft:
+ * | Situation                          | Answer                      |
+ * |------------------------------------|-----------------------------|
+ * | New key                            | execute, store the response |
+ * | Same key, same request, finished   | replay the stored response  |
+ * | Same key, first request still open | 409                         |
+ * | Same key, different request        | 422                         |
+ * | No key                             | 400                         |
  *
- * | Situation                          | Answer                          |
- * |------------------------------------|---------------------------------|
- * | New key                            | execute, store the response     |
- * | Same key, same request, finished   | stored response, replayed       |
- * | Same key, first request still open | 409, retry shortly              |
- * | Same key, different request        | 422, that is a client bug       |
- * | No key at all                      | 400                             |
- *
- * `Idempotent-Replayed` is not in the draft — it is Stripe's convention. It is
- * here because it is genuinely useful when debugging a client, and its
- * non-standard status is written down rather than implied.
+ * `Idempotent-Replayed` is Stripe's header, not part of the draft.
  */
 final readonly class EnsureIdempotency
 {
@@ -91,14 +87,12 @@ final readonly class EnsureIdempotency
         try {
             $response = $next($request);
         } catch (Throwable $e) {
-            // The request failed, so nothing was carried out and the client
-            // deserves a real retry rather than a replayed failure.
+            // Failed: release the key so a retry executes again.
             $this->store->release($scope, $key);
 
             throw $e;
         }
 
-        // A server error is not an outcome worth remembering either.
         if ($response->getStatusCode() >= 500) {
             $this->store->release($scope, $key);
 
@@ -127,8 +121,7 @@ final readonly class EnsureIdempotency
     }
 
     /**
-     * The request's identity: what was asked, of what, with what body. A retry
-     * of the same call matches; a different call carrying a reused key does not.
+     * Method, path and body.
      */
     private function fingerprint(Request $request): string
     {

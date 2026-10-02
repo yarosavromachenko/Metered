@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Metered\Shared\Domain\Idempotency;
 
-/**
- * The outcome of trying to claim a key, and the stored response when there is
- * one to replay.
- */
 final readonly class Claim
 {
     private function __construct(

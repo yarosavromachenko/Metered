@@ -14,8 +14,7 @@ use OpenTelemetry\API\Metrics\MeterInterface;
 use OpenTelemetry\API\Metrics\MeterProviderInterface;
 
 /**
- * The metrics port over an OpenTelemetry meter. Each instrument is created
- * once, on first use, and kept for the life of the process.
+ * Instruments are created on first use and cached for the process lifetime.
  */
 final class OpenTelemetryMetrics implements Metrics
 {

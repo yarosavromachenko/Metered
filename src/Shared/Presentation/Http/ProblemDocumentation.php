@@ -16,19 +16,9 @@ use Dedoc\Scramble\Support\Generator\Types\ObjectType;
 use Dedoc\Scramble\Support\Generator\Types\StringType;
 
 /**
- * Teaches the OpenAPI document what an error from this API looks like.
- *
- * The generator reads controllers, and two kinds of failure never pass
- * through one. A validation error is rendered by {@see ProblemRenderer}, and
- * the generator describes Laravel's own shape for it instead — a `message`
- * and a map of field names — which is not what a client receives. And the
- * 401, 403 and 429 answers come from the middleware in front of every route,
- * which the generator cannot see at all.
- *
- * Both are corrected here, in one place, so the document describes the
- * problem+json every failure is actually answered with.
- *
- * Only used where the generator is installed, which is development and CI.
+ * Fixes the generated OpenAPI errors: validation errors use the
+ * {@see ProblemRenderer} shape, not Laravel's, and 401/403/429 from the
+ * middleware are added to every route. Dev and CI only.
  */
 final readonly class ProblemDocumentation
 {
@@ -59,10 +49,6 @@ final readonly class ProblemDocumentation
         }
     }
 
-    /**
-     * What the authentication and rate-limiting middleware answer, on every
-     * route, before a controller runs.
-     */
     private function addEdgeResponses(Operation $operation, Reference $problem): void
     {
         $operation->addResponse($this->problemResponse(
@@ -92,8 +78,7 @@ final readonly class ProblemDocumentation
     }
 
     /**
-     * The generator's own factory is untyped; built by hand, the schema is
-     * one the analyser can follow.
+     * Built by hand because the generator's factory is untyped.
      */
     private function schema(ObjectType $type): Schema
     {

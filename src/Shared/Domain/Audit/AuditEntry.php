@@ -8,16 +8,9 @@ use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * One recorded act: who did what, to what, and when.
- *
- * Entries describe intent rather than the row that changed. "User X voided
- * invoice Y because Z" answers the question an incident actually raises;
- * "invoices.status changed to void" does not.
- *
- * Each organization's entries form a chain of their own (ADR-0020), so the
- * organization is part of every entry and has no default: one left out would
- * land in the platform chain without anyone noticing. Null is for an act that
- * belongs to no organization.
+ * Who did what to what, recorded as the action ("invoice.voided"), not the
+ * changed row. Each organization has its own chain (ADR-0020); a null
+ * organization means the platform chain, so there is no default.
  */
 final readonly class AuditEntry
 {

@@ -14,13 +14,8 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Reads every gauge source and reports what it read.
- *
- * Observable gauges rather than values set once: each collection reports
- * exactly the readings of the last pass, so an endpoint that was removed or a
- * breaker that closed stops being reported instead of repeating its last
- * value forever. A source that fails is logged and reports nothing for that
- * pass; the others are not held back by it.
+ * Observable gauges report only the last pass, so a removed endpoint stops
+ * being reported. A failing source is logged and skipped for that pass.
  */
 final class GaugeObserver
 {

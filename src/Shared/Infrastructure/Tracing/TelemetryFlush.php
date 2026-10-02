@@ -11,16 +11,9 @@ use OpenTelemetry\SDK\Metrics\MeterProviderInterface as ExportingMeterProvider;
 use OpenTelemetry\SDK\Trace\TracerProviderInterface as ExportingTracerProvider;
 
 /**
- * Sends what a long-running process has buffered: spans at most once a
- * second, metrics once every ten.
- *
- * PHP has no background thread: the SDK exports a batch of spans only when a
- * span ends after the batch's delay has passed, and collects metrics only
- * when asked. A process that goes quiet — a relay with nothing to publish, a
- * worker between jobs — would hold its last spans until the next piece of
- * work and never report its counters. So every long-running loop calls this
- * at its idle point: after a request is answered, on each pass of a queue
- * worker, on each pass of the daemons.
+ * Called at the idle point of every long-running loop: spans at most once a
+ * second, metrics every ten. Without it an idle process would hold its last
+ * spans, since PHP has no background export thread.
  */
 final class TelemetryFlush
 {

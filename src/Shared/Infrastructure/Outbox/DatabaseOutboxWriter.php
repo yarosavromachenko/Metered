@@ -12,17 +12,9 @@ use Metered\Shared\Infrastructure\Tracing\Tracing;
 use RuntimeException;
 
 /**
- * Writes the message on the default connection, which is deliberately the same
- * connection — and therefore the same transaction — as the state change that
- * produced it.
- *
- * Nothing here opens a connection of its own. That is the whole guarantee: if
- * the business transaction rolls back, the message goes with it.
- *
- * The trace context of whatever is writing — a request, a job — is added to
- * the message's headers here, so that producers stay free of tracing and the
- * relay can continue the trace that caused the event (ADR-0012). Headers the
- * producer set itself win.
+ * Writes on the default connection, inside the caller's transaction. Adds the
+ * current trace context to the headers (ADR-0012); headers set by the
+ * producer take precedence.
  */
 final readonly class DatabaseOutboxWriter implements OutboxWriter
 {

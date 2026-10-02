@@ -8,8 +8,7 @@ use Illuminate\Http\JsonResponse;
 use Metered\Shared\Application\Health\Readiness;
 
 /**
- * `GET /health/ready` — the instance can do its work: 200 when every check
- * passes, 503 with the failing ones named when any does not.
+ * 200 when every check passes, otherwise 503 listing the failures.
  */
 final readonly class ReadinessController
 {
