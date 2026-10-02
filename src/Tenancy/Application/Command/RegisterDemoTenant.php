@@ -15,7 +15,7 @@ final readonly class RegisterDemoTenant
         public string $name,
         public string $email,
         #[SensitiveParameter]
-        public string $password,
+        public string $plainPassword,
         public string $organizationName,
     ) {}
 }

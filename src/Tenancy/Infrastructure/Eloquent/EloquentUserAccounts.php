@@ -37,7 +37,7 @@ final readonly class EloquentUserAccounts implements UserAccounts
         string $name,
         string $email,
         #[SensitiveParameter]
-        string $password,
+        string $plainPassword,
         DateTimeImmutable $at,
     ): Uuid {
         $id = $this->ids->generate();
@@ -46,7 +46,7 @@ final readonly class EloquentUserAccounts implements UserAccounts
             'id' => $id->value,
             'name' => $name,
             'email' => $this->normalise($email),
-            'password' => $this->hasher->make($password),
+            'password' => $this->hasher->make($plainPassword),
             'created_at' => $at,
             'updated_at' => $at,
         ]);

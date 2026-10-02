@@ -21,7 +21,7 @@ final readonly class AddMember
         public string $name,
         public string $email,
         #[SensitiveParameter]
-        public string $password,
+        public string $plainPassword,
         public Role $role,
         public Actor $actor,
     ) {}

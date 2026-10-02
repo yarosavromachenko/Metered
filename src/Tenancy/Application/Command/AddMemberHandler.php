@@ -42,7 +42,7 @@ final readonly class AddMemberHandler
             }
 
             $now = $this->clock->now();
-            $userId = $this->users->register($command->name, $command->email, $command->password, $now);
+            $userId = $this->users->register($command->name, $command->email, $command->plainPassword, $now);
             $this->memberships->save(new Membership($this->ids->generate(), $organization->id, $userId, $command->role, $now));
 
             $this->audit->record(new AuditEntry(

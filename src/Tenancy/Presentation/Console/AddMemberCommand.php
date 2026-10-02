@@ -50,7 +50,7 @@ final class AddMemberCommand extends Command
                 organization: Slug::fromString((string) $this->argument('organization')),
                 name: is_string($name) && $name !== '' ? $name : ucfirst(explode('@', $email)[0]),
                 email: $email,
-                password: $password,
+                plainPassword: $password,
                 role: $role,
                 actor: Actor::system('console:org:member'),
             ));

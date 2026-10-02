@@ -60,7 +60,7 @@ final class RegisterTenant extends Register
         $registered = app(RegisterDemoTenantHandler::class)->handle(new RegisterDemoTenant(
             name: $this->text($data['name'] ?? null),
             email: $this->text($data['email'] ?? null),
-            password: $this->text($data['password'] ?? null),
+            plainPassword: $this->text($data['password'] ?? null),
             organizationName: $this->text($data['organization'] ?? null),
         ));
 

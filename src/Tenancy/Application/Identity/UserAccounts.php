@@ -9,13 +9,9 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use SensitiveParameter;
 
 /**
- * The people who can sign in, as far as the application layer is concerned.
- *
- * Not a repository over a domain entity, on purpose: a user here is an
- * identity the framework owns — a row, a password hash, a session. What the
- * domain models is Membership, which is what decides anything. Keeping the
- * account behind this port means password hashing stays in infrastructure,
- * where the library that does it lives.
+ * Sign-in accounts. The framework owns them (a row, a password hash, a
+ * session); the domain models Membership. register() takes the plaintext
+ * password, and the implementation hashes it.
  */
 interface UserAccounts
 {
@@ -23,7 +19,7 @@ interface UserAccounts
         string $name,
         string $email,
         #[SensitiveParameter]
-        string $password,
+        string $plainPassword,
         DateTimeImmutable $at,
     ): Uuid;
 

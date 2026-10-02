@@ -44,7 +44,7 @@ final readonly class RegisterDemoTenantHandler
             }
 
             $now = $this->clock->now();
-            $userId = $this->users->register($command->name, $command->email, $command->password, $now);
+            $userId = $this->users->register($command->name, $command->email, $command->plainPassword, $now);
             $actor = Actor::user($userId, $command->email);
 
             $tenant = $this->provisionTenant->handle(new ProvisionTenant(
