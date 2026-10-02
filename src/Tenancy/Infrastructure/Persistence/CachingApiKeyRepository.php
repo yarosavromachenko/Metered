@@ -11,25 +11,10 @@ use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 
 /**
- * Keeps the authentication lookup off the database on the hot path.
- *
- * Every ingestion request authenticates, and without this the first query of
- * every request would be the same one. Only findByPrefix is cached: it is the
- * lookup that runs per request, and it is keyed by something unique
- * platform-wide.
- *
- * The TTL is what bounds revocation. Writing through the repository drops the
- * entry immediately, so a key revoked in the panel stops working at once on
- * every node sharing the cache; the TTL is the guarantee that holds when that
- * invalidation is missed — a node with a local store, a cache flushed between
- * two writes, a revocation applied by a migration. That is the documented
- * promise: a revoked key stops working within the window, and never longer
- * (ADR-0017, docs/api.md).
- *
- * The cache key carries a version because what is stored is a serialized
- * domain object. Changing the shape of ApiKey while entries are live would
- * otherwise unserialize into the old shape; bumping the version retires them
- * instead.
+ * Caches findByPrefix, which runs on every authenticated request. Saving a
+ * key drops its entry; the TTL bounds revocation when that is missed
+ * (ADR-0017, docs/api.md). The cache key is versioned because it stores a
+ * serialized ApiKey: bump it when the class changes.
  */
 final readonly class CachingApiKeyRepository implements ApiKeyRepository
 {
@@ -45,8 +30,7 @@ final readonly class CachingApiKeyRepository implements ApiKeyRepository
     {
         $this->keys->save($key);
 
-        // After the write, not before: a reader racing this call must not be
-        // able to repopulate the entry from the row as it was.
+        // After the write, so a concurrent read cannot cache the old row.
         $this->cache->forget(self::KEY_PREFIX . $key->prefix);
     }
 
@@ -61,9 +45,7 @@ final readonly class CachingApiKeyRepository implements ApiKeyRepository
         $key = $this->keys->findByPrefix($prefix);
 
         if (!$key instanceof ApiKey) {
-            // Misses are not cached. A miss is what a random or expired token
-            // produces, and caching those would let anyone fill the store with
-            // entries of their choosing.
+            // Misses are not cached: random tokens would fill the cache.
             return null;
         }
 

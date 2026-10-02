@@ -7,7 +7,7 @@ namespace Metered\Tenancy\Application\Command;
 use Metered\Shared\Domain\Access\Actor;
 
 /**
- * Purge every demo organization, the showcase and visitors' tenants alike.
+ * Includes the showcase.
  */
 final readonly class PurgeAllDemos
 {

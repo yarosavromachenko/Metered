@@ -8,9 +8,7 @@ use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * Organizations are the top of the tenant tree, so this is the one repository
- * in the system whose methods do not take a tenant context: there is nothing
- * above an organization to scope it by.
+ * No tenant context: organizations are the top of the tenant tree.
  */
 interface OrganizationRepository
 {
@@ -21,15 +19,14 @@ interface OrganizationRepository
     public function findBySlug(Slug $slug): ?Organization;
 
     /**
-     * Deletes the organization row; its projects, keys and memberships follow
-     * it by cascade. Everything the other modules hold must be gone first.
+     * Projects, keys and memberships cascade. Other modules' rows must be
+     * deleted first.
      */
     public function remove(Uuid $id): void;
 
     /**
-     * Demo organizations, oldest first. Given a cutoff, only those nobody
-     * has signed in to since — a member who never signed in counts from when
-     * they registered.
+     * Oldest first. With a cutoff, only those without a sign-in since then (a
+     * member who never signed in counts from registration).
      *
      * @return list<Uuid>
      */

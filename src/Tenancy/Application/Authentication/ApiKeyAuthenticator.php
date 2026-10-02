@@ -13,15 +13,9 @@ use Psr\Clock\ClockInterface;
 use SensitiveParameter;
 
 /**
- * Turns the token on a request into the key it belongs to.
- *
- * This is where a tenant context enters the system: everything downstream is
- * scoped by what this returns, and nothing downstream may widen it.
- *
- * Whether the lookup is cached is not this class's business — it asks a
- * repository, and the caching decorator sits behind the same port. What is its
- * business is that a revoked key is refused against the clock it was given,
- * which is what makes the revocation window testable without waiting.
+ * Resolves the request token to its key; the tenant context of everything
+ * downstream comes from here. Caching is a repository decorator. Revocation
+ * is checked against the injected clock.
  */
 final readonly class ApiKeyAuthenticator
 {
@@ -57,12 +51,7 @@ final readonly class ApiKeyAuthenticator
     }
 
     /**
-     * Last use is recorded at most once per interval.
-     *
-     * A write on every authenticated request would double the write load of
-     * ingestion to maintain a column nobody reads to the second; what the
-     * column is for is answering "is this key still in use?" before revoking
-     * it, and a few minutes of resolution answers that.
+     * Last use is written at most once per interval, not on every request.
      */
     private function recordUsage(ApiKey $key, DateTimeImmutable $now): void
     {

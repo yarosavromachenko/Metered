@@ -28,8 +28,7 @@ interface UserAccounts
     public function recordSignIn(Uuid $userId, DateTimeImmutable $at): void;
 
     /**
-     * Deletes those of these accounts that belong to no organization any
-     * more. Somebody who is also a member elsewhere keeps their account.
+     * Deletes the given accounts that no longer belong to any organization.
      *
      * @param  list<Uuid>  $userIds
      */

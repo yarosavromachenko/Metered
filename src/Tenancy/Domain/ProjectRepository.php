@@ -12,9 +12,7 @@ interface ProjectRepository
     public function save(Project $project): void;
 
     /**
-     * Note the argument: a project is fetched by the pair that identifies it,
-     * not by its id alone. Asking for a project id that belongs to another
-     * organization returns nothing rather than someone else's project.
+     * By organization and project id, never by id alone.
      */
     public function find(TenantContext $tenant): ?Project;
 

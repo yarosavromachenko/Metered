@@ -12,11 +12,8 @@ interface ApiKeyRepository
     public function save(ApiKey $key): void;
 
     /**
-     * The one deliberately unscoped lookup in the system.
-     *
-     * Authentication is where a tenant context comes from, so it cannot
-     * require one. The prefix is unique platform-wide, and the row that comes
-     * back carries the tenant — every query after this point is scoped by it.
+     * Unscoped: authentication is where the tenant context comes from. The
+     * prefix is unique platform-wide.
      */
     public function findByPrefix(string $prefix): ?ApiKey;
 

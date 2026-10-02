@@ -9,18 +9,9 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Text\Name;
 
 /**
- * A tenant of the platform: the company that bills its own customers.
- *
- * An organization owns projects, members and invoice numbering, and nothing
- * else hangs off it directly — meters, plans and customers belong to a
- * project. That indirection is what lets a tenant keep a `test` environment
- * whose data can be wiped without touching anything a customer was charged
- * for.
- *
- * `demo` is decided when the organization is created and never afterwards: a
- * demo tenant is deleted, money history and all, a week after its people stop
- * coming back (ADR-0016), and nothing else ever may be. The database holds the
- * flag fixed, because the invoicing triggers trust it.
+ * A tenant. Owns projects, members and invoice numbering; everything else
+ * belongs to a project. `demo` is set at creation and cannot change (the
+ * database enforces it): only demo organizations may be purged (ADR-0016).
  */
 final readonly class Organization
 {

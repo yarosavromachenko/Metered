@@ -14,16 +14,9 @@ use Metered\Tenancy\Application\Identity\UserAccounts;
 use SensitiveParameter;
 
 /**
- * Accounts on top of the users table and the framework's hasher.
- *
- * The password is hashed here and nowhere else: the plaintext arrives as an
- * argument, becomes a hash, and ends with this method. It is never logged,
- * never returned and stored in no other form.
- *
- * Rows rather than Eloquent, like the other repositories in this module. The
- * User model exists because authentication and Filament need an
- * Authenticatable; writing through it as well would put the same mapping in
- * two places.
+ * The only place passwords are hashed. Writes rows through the query builder
+ * like the other repositories; the User model serves authentication and
+ * Filament.
  */
 final readonly class EloquentUserAccounts implements UserAccounts
 {

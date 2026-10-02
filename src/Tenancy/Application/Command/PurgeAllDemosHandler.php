@@ -8,15 +8,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Domain\OrganizationRepository;
 
 /**
- * `demo:reset`: a demo instance back to nothing but its real organizations,
- * so `make demo-reset` can seed the showcase again from a clean slate
- * (ADR-0016).
- *
- * Unlike the idle sweep it spares no demo — the showcase is purged to be
- * rebuilt — and like it, one transaction per organization: a purge that
- * fails leaves that tenant whole, and the rest still go. Organizations
- * created with `org:create` are not demos and are never touched; the
- * database refuses to delete their invoices even if asked.
+ * `demo:reset` (ADR-0016): purges every demo organization, the showcase
+ * included, one transaction each. Non-demo organizations are never touched.
  */
 final readonly class PurgeAllDemosHandler
 {

@@ -7,7 +7,7 @@ namespace Metered\Tenancy\Application\Command;
 use SensitiveParameter;
 
 /**
- * A stranger signing up on the demo instance: one form, one whole tenant.
+ * Demo sign-up form.
  */
 final readonly class RegisterDemoTenant
 {

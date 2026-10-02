@@ -10,10 +10,7 @@ use Metered\Tenancy\Application\Command\PurgeIdleDemos;
 use Metered\Tenancy\Application\Command\PurgeIdleDemosHandler;
 
 /**
- * The daily sweep that keeps a demo instance from growing without end:
- * demo tenants nobody has signed in to for a week are deleted, invoices and
- * all. Organizations created with `org:create` are never demos and never
- * touched.
+ * Daily.
  */
 final class PurgeIdleDemosCommand extends Command
 {

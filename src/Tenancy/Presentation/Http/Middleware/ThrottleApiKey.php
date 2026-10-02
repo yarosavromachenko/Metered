@@ -13,15 +13,9 @@ use Metered\Shared\Presentation\Http\TenantRequest;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Rate limits per API key, in a fixed window of one minute.
- *
- * Per key rather than per IP: tenants sit behind shared egress addresses, and
- * one noisy tenant must not exhaust the budget of everyone sharing its NAT.
- *
- * The headers are the ones docs/api.md documents — the IETF draft spelling
- * (`RateLimit-Limit`), not Laravel's `X-RateLimit-*`. They are written here
- * rather than by the framework's throttle middleware precisely so the
- * published names and the produced names cannot drift apart.
+ * Per API key (not per IP, tenants share NAT), fixed one-minute window.
+ * Headers use the IETF draft names from docs/api.md (`RateLimit-Limit`), not
+ * Laravel's `X-RateLimit-*`.
  */
 final readonly class ThrottleApiKey
 {
@@ -68,11 +62,7 @@ final readonly class ThrottleApiKey
     }
 
     /**
-     * The key when there is one, the caller's address when there is not.
-     *
-     * An unauthenticated route reaching this middleware is a routing mistake,
-     * but the fallback keeps it a limited mistake rather than an unlimited
-     * one.
+     * Falls back to the IP if a route without authentication uses this.
      */
     private function bucketFor(Request $request): string
     {

@@ -17,13 +17,7 @@ use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 
 /**
- * Revoking a key from the panel.
- *
- * Hidden from anyone who may not manage the tenant, and refused again by the
- * handler — the button is a courtesy, the check is the control. The record is
- * resolved by the table's scoped query, so a key from another tenant never
- * reaches this code; if one somehow did, the handler's scoped lookup would not
- * find it either.
+ * Hidden without ManageTenant; the handler checks again.
  */
 final class RevokeKeyAction
 {

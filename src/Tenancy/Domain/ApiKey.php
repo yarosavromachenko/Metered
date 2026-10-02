@@ -11,17 +11,11 @@ use Metered\Shared\Domain\Text\Name;
 use Metered\Tenancy\Domain\Exception\InvalidApiKey;
 
 /**
- * A machine's credential for one project.
+ * Stores the prefix and the hash; the plaintext lives only in
+ * {@see ApiKeySecret}. Revocation is a timestamp, so validity at a given
+ * moment can be checked.
  *
- * The key holds a prefix and a hash, never a secret: {@see ApiKeySecret}
- * exists for the instant between generating a token and handing it to whoever
- * asked for it, and the key that outlives it cannot reconstruct it.
- *
- * Revocation is a timestamp rather than a flag. "Was this key valid at the
- * moment that request arrived?" is a question an audit answers by looking at a
- * row, and a boolean throws away the only part of the answer that matters.
- *
- * @see Scope for what a key may do
+ * @see Scope
  */
 final readonly class ApiKey
 {
@@ -98,12 +92,7 @@ final readonly class ApiKey
     }
 
     /**
-     * Whether the presented token is this key's.
-     *
-     * hash_equals rather than `===`: the comparison runs on every
-     * authenticated request against a value an attacker chooses, which is the
-     * textbook setting for a timing oracle. Both operands are hex of the same
-     * length, so there is nothing else for the timing to reveal.
+     * Constant-time comparison (hash_equals).
      */
     public function matches(ApiKeySecret $presented): bool
     {
@@ -123,8 +112,7 @@ final readonly class ApiKey
 
     public function revoke(DateTimeImmutable $at): self
     {
-        // Revoking twice is not an error, and the second call must not move
-        // the moment the key stopped being valid.
+        // Idempotent: a second revoke keeps the first timestamp.
         return $this->revokedAt instanceof DateTimeImmutable ? $this : $this->with(revokedAt: $at);
     }
 

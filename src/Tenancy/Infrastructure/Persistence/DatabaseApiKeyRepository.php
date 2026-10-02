@@ -35,9 +35,7 @@ final readonly class DatabaseApiKeyRepository implements ApiKeyRepository
             'revoked_at' => $key->revokedAt,
             'last_used_at' => $key->lastUsedAt,
         ], ['id'], [
-            // Only the columns that a key's life can change. Its prefix, hash
-            // and tenant are what it is; an update that rewrote them would be
-            // a different key wearing the same id.
+            // Prefix, hash and tenant never change.
             'name',
             'revoked_at',
             'last_used_at',

@@ -10,12 +10,7 @@ use Metered\Tenancy\Domain\Slug;
 use RuntimeException;
 
 /**
- * Raised when a command names something the caller's tenant cannot see.
- *
- * "Not found" rather than "forbidden", deliberately: the lookups are scoped,
- * so a key belonging to another organization is indistinguishable from one
- * that never existed — and telling those apart would confirm the existence of
- * rows the caller has no business knowing about.
+ * Also for another tenant's rows: "forbidden" would confirm they exist.
  */
 final class TenantNotFound extends RuntimeException
 {

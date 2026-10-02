@@ -17,13 +17,7 @@ use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Filament\Resources\Projects\Pages\ListProjects;
 
 /**
- * The organization's projects.
- *
- * Reads its own module's Eloquent model directly, which ADR-0015 allows on the
- * query side. The one rule that matters here is the query itself: it is scoped
- * to the organization in the current panel scope, and a scope that resolves to
- * nothing yields a query that matches nothing rather than a query without a
- * filter.
+ * Filtered by the organization in the panel scope (ADR-0015).
  */
 final class ProjectResource extends Resource
 {
@@ -41,9 +35,7 @@ final class ProjectResource extends Resource
 
         $query = parent::getEloquentQuery();
 
-        // No scope means nothing to show. A query with the filter left off
-        // would show every tenant's projects, so the empty case is spelled
-        // out: the column is NOT NULL, so this matches no row at all.
+        // Without a scope, null matches no row (NOT NULL column).
         return $query->where('organization_id', $tenant?->organizationId->value);
     }
 

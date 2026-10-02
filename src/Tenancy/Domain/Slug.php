@@ -9,19 +9,9 @@ use Stringable;
 use Transliterator;
 
 /**
- * The name an organization or a project is addressed by.
- *
- * Slugs appear in URLs, in the panel's project switcher and in seeded demo
- * data, so they are constrained to what survives all three: lowercase ASCII,
- * digits, and single hyphens between them. The upper bound is 63 characters,
- * the length of a DNS label — the system does not use subdomains today, and
- * choosing a limit that forecloses them costs nothing.
- *
- * {@see self::fromName()} is the path a human takes: they type "Acme, Inc."
- * and the slug is derived. {@see self::fromString()} is the path a stored or
- * explicitly chosen slug takes, and it validates rather than repairs — a slug
- * read back from the database in the wrong shape is a bug to see, not to fix
- * silently.
+ * Lowercase ASCII letters, digits and single hyphens, at most 63 characters
+ * (a DNS label). {@see self::fromName()} derives one from a display name;
+ * {@see self::fromString()} only validates.
  */
 final readonly class Slug implements Stringable
 {
@@ -61,10 +51,7 @@ final readonly class Slug implements Stringable
     {
         $latin = self::toLowercaseLatin($name);
 
-        // Every run of anything else becomes one separator, which is what
-        // turns "North Wind  Billing" and "Acme, Inc." into single hyphens.
-        // Truncate first and trim once: cutting at the limit can leave a
-        // hyphen at either end, and one trim afterwards deals with both.
+        // Other characters become one hyphen; trim after truncating.
         $separated = (string) preg_replace('/[^a-z0-9]+/', '-', $latin);
         $slug = trim(substr($separated, 0, self::MAX_LENGTH), '-');
 
@@ -81,20 +68,14 @@ final readonly class Slug implements Stringable
     }
 
     /**
-     * Folds accents and non-Latin scripts down to lowercase ASCII, so that
-     * "Überwald GmbH" becomes "uberwald gmbh" instead of losing the character
-     * altogether. Without the fold, a name written in one script would slug to
-     * nothing at all, and the sign-up form would reject it with no explanation
-     * a person could act on.
+     * Transliterates to lowercase ASCII: "Überwald GmbH" → "uberwald gmbh".
      */
     private static function toLowercaseLatin(string $name): string
     {
         $transliterator = Transliterator::create('Any-Latin; Latin-ASCII; Lower()');
         $latin = $transliterator?->transliterate($name);
 
-        // ICU returns false on malformed UTF-8 rather than throwing. Falling
-        // back to the raw name keeps the failure inside the slug rules, which
-        // reject it with a message about the name instead of about encoding.
+        // ICU returns false on malformed UTF-8; the slug rules then reject it.
         return is_string($latin) ? $latin : strtolower($name);
     }
 }

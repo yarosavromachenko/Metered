@@ -18,12 +18,8 @@ use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 
 /**
- * "Reset demo data": for the owner of a demo tenant who has changed enough
- * to want the seeded one back (ADR-0016). Everything the tenant made goes —
- * invoices and ledger included — and the small profile is seeded again in
- * the background; people, projects and keys stay.
- *
- * Offered only in a demo organization, to someone who manages it.
+ * Deletes the tenant's data and reseeds the small profile in the background;
+ * members, projects and keys stay (ADR-0016). Demo organizations only.
  */
 final class ResetDemoDataAction
 {

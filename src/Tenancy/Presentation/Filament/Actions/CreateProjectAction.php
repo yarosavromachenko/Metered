@@ -19,9 +19,7 @@ use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 
 /**
- * Opening another project, through the handler rather than through a form
- * save (ADR-0015). The rules about slugs, currencies and who may do this live
- * behind that call, where the API will meet the same ones.
+ * Calls CreateProjectHandler (ADR-0015).
  */
 final class CreateProjectAction
 {

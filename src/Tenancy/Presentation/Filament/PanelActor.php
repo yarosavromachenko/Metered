@@ -11,15 +11,7 @@ use Metered\Tenancy\Infrastructure\Eloquent\User;
 use RuntimeException;
 
 /**
- * The signed-in person, as the actor a command carries.
- *
- * Every panel write names one, and it is read from the guard rather than from
- * anything the browser sent: an actor taken from a form field would be a
- * request to act as somebody else.
- *
- * The model is matched by type rather than by reading properties off whatever
- * the guard returned. An Eloquent model's columns are attributes, not declared
- * properties, so a duck-typed check passes nothing and fails everyone.
+ * The signed-in user as an Actor, from the auth guard, never from request input.
  */
 final class PanelActor
 {
@@ -31,8 +23,6 @@ final class PanelActor
             throw new RuntimeException('This action needs a signed-in user and there is none.');
         }
 
-        // Attributes, read as what they are: the model's columns arrive
-        // untyped, and this is the boundary where they stop being untyped.
         $id = $user->getAttribute('id');
         $email = $user->getAttribute('email');
 

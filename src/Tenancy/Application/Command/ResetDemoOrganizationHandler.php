@@ -19,13 +19,9 @@ use Metered\Tenancy\Domain\Scope;
 use Psr\Clock\ClockInterface;
 
 /**
- * "Reset demo data" in the panel: the purge's first half, without the second.
- *
- * Every module removes its rows exactly as it does for a purge — the demo
- * flag and the declared purge are what let invoices and the ledger go
- * (ADR-0008) — but the organization, its members, projects and keys stay,
- * so the owner is not signed out of a tenant that no longer exists. A key is
- * issued for filling it again, and returned to whoever asks for the data.
+ * "Reset demo data" in the panel: the module purgers run as for a purge
+ * (ADR-0008), but the organization, members, projects and keys stay. Issues
+ * a key for refilling.
  */
 final readonly class ResetDemoOrganizationHandler
 {

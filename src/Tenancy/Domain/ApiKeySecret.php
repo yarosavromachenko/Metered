@@ -10,23 +10,13 @@ use SensitiveParameter;
 use SensitiveParameterValue;
 
 /**
- * The credential a client sends, in the one place it is allowed to exist.
+ * Token format `mk_<environment>_<prefix>_<secret>`. The prefix is stored in
+ * clear for lookup, the token as SHA-256; the plaintext is returned once, on
+ * creation (ADR-0017). SHA-256 is enough because the secret is 192 random
+ * bits, and a slow hash would run on every request.
  *
- * Format: `mk_<environment>_<prefix>_<secret>`. The prefix is stored in the
- * clear and is what a lookup finds; the secret is stored only as a SHA-256
- * hash, and the plaintext exists exactly once — in the response that created
- * the key (ADR-0017).
- *
- * A fast hash is right here, unlike for a password. The secret is 192 bits of
- * randomness rather than something a human chose, so there is no dictionary to
- * try and nothing for a slow hash to defend; what a slow hash would buy instead
- * is a KDF on the hot path of every authenticated request.
- *
- * The plaintext is wrapped in SensitiveParameterValue, so print_r, var_export,
- * var_dump and json_encode cannot reach it and serialize() refuses outright —
- * a secret that reaches a queue payload, a session or a cache entry has been
- * stored, which is precisely what must never happen. Reading it back takes
- * reveal(), a name chosen to stand out in review.
+ * Held in SensitiveParameterValue: hidden from dumps and json_encode, and
+ * serialize() throws. Read it with reveal().
  */
 final readonly class ApiKeySecret
 {
@@ -66,8 +56,7 @@ final readonly class ApiKeySecret
         return new self(
             Environment::from($matches[1]),
             $matches[2],
-            // The whole token is hashed, not the secret alone, so a hash is
-            // bound to the environment and prefix it was issued with.
+            // The whole token, so the hash is bound to environment and prefix.
             hash('sha256', $token),
             new SensitiveParameterValue($token),
         );
@@ -92,9 +81,7 @@ final readonly class ApiKeySecret
     {
         $token = $this->token->getValue();
 
-        // The wrapper hands back mixed; it was constructed from the string
-        // this class validated, so anything else is a broken invariant rather
-        // than an empty token to hand out.
+        // The wrapper returns mixed; anything but a string is a bug.
         return is_string($token)
             ? $token
             : throw new LogicException('An API key secret lost its token.');

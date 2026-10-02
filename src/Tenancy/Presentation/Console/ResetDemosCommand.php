@@ -10,9 +10,7 @@ use Metered\Tenancy\Application\Command\PurgeAllDemos;
 use Metered\Tenancy\Application\Command\PurgeAllDemosHandler;
 
 /**
- * Deletes every demo organization — the showcase and every visitor's
- * tenant — with everything they held. `make demo-reset` runs it and then
- * seeds the showcase again. Organizations created with `org:create` stay.
+ * Run by `make demo-reset` before the showcase is seeded again.
  */
 final class ResetDemosCommand extends Command
 {

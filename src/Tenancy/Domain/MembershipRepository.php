@@ -13,9 +13,6 @@ interface MembershipRepository
     public function find(Uuid $organizationId, Uuid $userId): ?Membership;
 
     /**
-     * Every organization this person belongs to — the list behind the panel's
-     * organization switcher.
-     *
      * @return list<Membership>
      */
     public function forUser(Uuid $userId): array;

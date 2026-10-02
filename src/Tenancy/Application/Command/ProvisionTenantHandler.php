@@ -21,22 +21,9 @@ use Metered\Tenancy\Domain\Slug;
 use Psr\Clock\ClockInterface;
 
 /**
- * Brings a whole tenant into existence: organization, first project, first
- * key, and the person who owns it when there is one.
- *
- * All of it inside one transaction. An organization without a project, or a
- * project without a key, is a tenant nobody can use and nobody can finish —
- * the kind of state that is repaired by hand at an inconvenient hour.
- *
- * Nothing is checked against a membership here, because this is the operation
- * that creates the organization a membership could refer to. The authority to
- * run it comes from outside: an operator at a console, or a sign-up form that
- * demo mode has opened. The owner membership is written before the key is
- * issued, so the key is issued by somebody who is already allowed to have one.
- *
- * It delegates the key to IssueApiKeyHandler rather than repeating it. There
- * is one way to issue a key in this system, and the sign-up path must not
- * become a second one that forgets the audit entry.
+ * One transaction. No permission check: the organization does not exist yet;
+ * callers are the console and the demo sign-up. The owner membership is
+ * written before the key is issued through IssueApiKeyHandler.
  */
 final readonly class ProvisionTenantHandler
 {
@@ -91,8 +78,7 @@ final readonly class ProvisionTenantHandler
             $issued = $this->issueApiKey->handle(new IssueApiKey(
                 $project->tenant(),
                 'Default key',
-                // The first key can do everything the API offers: it is the
-                // one the tenant has until they issue narrower ones.
+                // The first key gets every scope.
                 [Scope::UsageWrite, Scope::Admin],
                 $command->actor,
             ));
@@ -120,10 +106,8 @@ final readonly class ProvisionTenantHandler
     }
 
     /**
-     * Organization slugs are unique platform-wide, and on the demo instance
-     * strangers pick the names. A taken slug gets a short random suffix
-     * instead of an error: "acme" and "acme-3f9b" are both addressable, and
-     * the second visitor to type Acme is not asked to rename their company.
+     * Organization slugs are unique platform-wide; a taken one gets a short
+     * random suffix ("acme-3f9b") instead of an error.
      */
     private function availableSlug(string $name): Slug
     {

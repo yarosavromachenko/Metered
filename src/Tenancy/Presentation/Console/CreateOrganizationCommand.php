@@ -13,15 +13,8 @@ use Metered\Tenancy\Application\Command\ProvisionTenantHandler;
 use Metered\Tenancy\Domain\Environment;
 
 /**
- * Bootstraps a tenant from the command line: organization, first project,
- * first key.
- *
- * This is how an operator creates the tenant that has nobody to create it —
- * the first one on a fresh installation, and every tenant on an instance that
- * does not run in demo mode.
- *
- * It prints the token once. There is no second chance and the command says so,
- * because a secret that could be printed again would have to be stored.
+ * Organization, first project and first key; the only way to create a tenant
+ * outside demo mode. The token is printed once.
  */
 final class CreateOrganizationCommand extends Command
 {
@@ -39,9 +32,7 @@ final class CreateOrganizationCommand extends Command
     {
         $demo = $this->option('demo') === true;
 
-        // A demo organization is deleted, money history and all, when it is
-        // idle or the demo is reset. Only an instance that is a demo may
-        // create one, so a stray flag cannot doom a real tenant.
+        // --demo only on a demo instance: demo organizations get purged.
         if ($demo && $config->get('metered.demo.enabled') !== true) {
             $this->components->error('Demo organizations exist only in demo mode (APP_DEMO=true).');
 
@@ -66,16 +57,13 @@ final class CreateOrganizationCommand extends Command
                 demo: $demo,
             ));
         } catch (DomainException $failure) {
-            // A rule the domain refused — an empty name, an unknown currency.
-            // The operator needs the reason, not a stack trace.
             $this->components->error($failure->getMessage());
 
             return self::INVALID;
         }
 
         if ($this->option('json') === true) {
-            // For tooling that provisions a tenant and goes on to use it — the
-            // demo seed above all. Still the only time the secret is shown.
+            // Machine-readable output for the demo seed.
             $this->line(json_encode([
                 'organization' => ['id' => $tenant->organization->id->value, 'slug' => $tenant->organization->slug->value],
                 'project' => ['id' => $tenant->project->id->value, 'slug' => $tenant->project->slug->value, 'currency' => $tenant->project->currency],
