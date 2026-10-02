@@ -10,7 +10,7 @@ use Metered\Shared\Application\Metrics\Histogram;
 use Metered\Shared\Application\Metrics\Scale;
 
 /**
- * The ingestion path's instruments, named once (docs/observability.md).
+ * See docs/observability.md.
  */
 final class UsageMetrics
 {

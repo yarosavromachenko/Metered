@@ -6,10 +6,6 @@ namespace Metered\Usage\Infrastructure\Redis;
 
 use Metered\Usage\Application\Ingestion\IngestionOutcome;
 
-/**
- * What one pass over the stream did, for the daemon's log line and the
- * metrics behind the panel's widget.
- */
 final readonly class ConsumeReport
 {
     public function __construct(

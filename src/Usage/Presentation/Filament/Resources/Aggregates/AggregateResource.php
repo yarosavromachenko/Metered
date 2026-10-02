@@ -19,15 +19,7 @@ use Metered\Usage\Presentation\Filament\Resources\Events\UsageEventResource;
 use UnitEnum;
 
 /**
- * The hourly aggregates — what an invoice will actually be built from.
- *
- * Worth a screen of its own precisely because it is derived: when a tenant
- * disputes a number, this is where the conversation starts, and being able to
- * see the bucket next to the events that produced it turns "the invoice is
- * wrong" into a question with an answer.
- *
- * The query selects a synthetic key, because the real one is four columns and
- * a table needs one string per row.
+ * Hourly aggregates, the input of invoices. The query selects a synthetic key.
  */
 final class AggregateResource extends Resource
 {
@@ -49,9 +41,7 @@ final class AggregateResource extends Resource
             ->where('project_id', $tenant?->projectId->value)
             ->where('organization_id', $tenant?->organizationId->value);
 
-        // Four columns identify a row and a table needs one string, so the
-        // query manufactures one. Through the underlying query builder, where
-        // a raw select is a declared method rather than a forwarded call.
+        // Synthetic key; via the base builder, where selectRaw is declared.
         $query->getQuery()->selectRaw(
             "usage_aggregates.*, usage_aggregates.customer_id::text || ':' "
             . "|| usage_aggregates.meter_id::text || ':' "

@@ -8,13 +8,8 @@ use Closure;
 use Metered\Usage\Application\Stream\StreamDepth;
 
 /**
- * A stream depth that builds the real one on first use.
- *
- * Building {@see RedisEventStream} opens its Redis connection. The readiness
- * check is built when the probe is first answered, outside the guard that
- * turns a failed check into "unreachable", so with Redis down a fresh worker
- * would answer the probe with a 500 instead of a 503. Deferred, the
- * connection is opened inside the check, where its failure is reported.
+ * Builds {@see RedisEventStream} (which connects) on first use, so with Redis
+ * down the readiness check reports 503 instead of failing with 500.
  */
 final class DeferredStreamDepth implements StreamDepth
 {

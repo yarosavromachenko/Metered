@@ -17,23 +17,9 @@ use Metered\Usage\Domain\Properties;
 use Throwable;
 
 /**
- * How one event is written to the stream, and read back off it.
- *
- * A stream message is a flat map of strings, and the shape below is the
- * contract between the endpoint and the consumer — the one place where a
- * change breaks messages already in flight. Hence the version field: a
- * consumer that meets a version it does not know refuses the message rather
- * than guessing, which turns a deploy ordering mistake into a dead-lettered
- * message instead of a silently mis-parsed one.
- *
- * Everything travels as a string, including the quantity. A number that goes
- * through a JSON float on the way to a billing calculation is a rounding
- * error with a customer's name on it.
- *
- * The request's trace context rides along as the W3C fields `traceparent` and
- * `tracestate` (ADR-0012). They are optional within version 1: a message
- * written before they existed, or with tracing off, simply has none, and the
- * consumer links to nothing rather than refusing it.
+ * Stream message format: a flat string map with a version field; unknown
+ * versions are rejected. The quantity is a string, never a float.
+ * `traceparent` and `tracestate` are optional (ADR-0012).
  */
 final readonly class StreamEnvelope
 {
@@ -81,13 +67,7 @@ final readonly class StreamEnvelope
     }
 
     /**
-     * Reads a message back, or returns null when it is not one.
-     *
-     * Total on purpose. The consumer meets whatever is in the stream —
-     * a message from a future version, a truncated write, something a person
-     * added by hand while debugging — and none of those may throw their way
-     * out of a batch of five hundred. A message that cannot be read is
-     * rejected as malformed, with itself as the evidence.
+     * Never throws; null for anything unreadable.
      *
      * @param  array<string, string>  $fields
      */
@@ -118,8 +98,6 @@ final readonly class StreamEnvelope
                 self::traceFields($fields),
             );
         } catch (Throwable) {
-            // Deliberately broad: every failure here has the same answer, and
-            // that answer is never "stop consuming".
             return null;
         }
     }
@@ -138,9 +116,7 @@ final readonly class StreamEnvelope
         try {
             return json_encode($properties->all(), JSON_THROW_ON_ERROR);
         } catch (JsonException) {
-            // Properties were validated as scalars at the edge, so this cannot
-            // happen with data that got this far — and if it somehow did, an
-            // event without its labels beats a batch that could not be sent.
+            // Validated at the endpoint; unreachable in practice.
             return '{}';
         }
     }
@@ -156,9 +132,7 @@ final readonly class StreamEnvelope
     {
         $utc = new DateTimeZone('UTC');
 
-        // Converted, not merely constructed: an offset inside the string wins
-        // over the zone passed beside it, and a value that keeps +03:00 is the
-        // same instant rendered as a different one.
+        // Converted to UTC: an offset in the string overrides the zone argument.
         return new DateTimeImmutable($value, $utc)->setTimezone($utc);
     }
 }

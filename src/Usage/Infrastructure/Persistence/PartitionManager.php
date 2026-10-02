@@ -14,18 +14,9 @@ use RuntimeException;
 use stdClass;
 
 /**
- * Creates the day partitions `usage_events` is written into, and drops the
- * ones past retention.
- *
- * Daily ranges, because the acceptance window is seven days: a client may
- * still send yesterday's usage, so a week of partitions has to stay writable,
- * and a week is a comfortable number of objects. Monthly ranges would make
- * each partition large enough for index maintenance to slow inserts down,
- * which is the thing partitioning was supposed to prevent (ADR-0002).
- *
- * Every operation is idempotent. This runs on a schedule, and a scheduler that
- * fires twice — a retry, an overlapping run, an operator running it by hand —
- * must be a no-op rather than an error.
+ * Creates and drops daily partitions of `usage_events` (ADR-0002). All
+ * operations are idempotent, since the scheduler or an operator may run them
+ * twice.
  */
 final readonly class PartitionManager
 {
@@ -39,12 +30,8 @@ final readonly class PartitionManager
     ) {}
 
     /**
-     * Makes sure every day in [today - $daysBack, today + $daysAhead] has a
-     * partition, and returns the ones it had to create.
-     *
-     * The window reaches backwards as well as forwards because the acceptance
-     * window does: an event from six days ago is legitimate, and it needs
-     * somewhere to land that is not the default partition.
+     * Ensures a partition for every day in [today - $daysBack,
+     * today + $daysAhead]; returns those created.
      *
      * @return list<string>
      */
@@ -70,10 +57,7 @@ final readonly class PartitionManager
     }
 
     /**
-     * Drops every partition whose whole range is older than the given
-     * instant. Detach first, then drop: detaching takes a brief lock and
-     * leaves a plain table behind, so a mistake is recoverable for as long as
-     * it takes to notice.
+     * Drops partitions entirely older than $before (detach, then drop).
      *
      * @return list<string>
      */
@@ -100,7 +84,7 @@ final readonly class PartitionManager
     }
 
     /**
-     * Every partition the table has, oldest first, with the default last.
+     * Oldest first, default last.
      *
      * @return list<Partition>
      */
@@ -160,10 +144,8 @@ final readonly class PartitionManager
         $next = $day->add(new DateInterval('P1D'));
 
         if ($this->defaultHolds($day, $next)) {
-            // PostgreSQL will not carve a range out from under rows that are
-            // already in the default partition, so those rows have to move
-            // first. That is data movement under a lock, which is a decision
-            // rather than a repair the scheduler makes on its own.
+            // Rows for this day are in the default partition; moving them takes
+            // a lock, so it is left to an operator.
             if (! $rescueStrandedRows) {
                 throw new RuntimeException(sprintf(
                     'Cannot create partition %s: the default partition already holds rows for %s. '
@@ -179,8 +161,7 @@ final readonly class PartitionManager
         }
 
         try {
-            // IF NOT EXISTS as well as the check above: two schedulers, or a
-            // scheduler and an operator, may arrive at the same second.
+            // IF NOT EXISTS too: concurrent runs.
             $this->db->connection($this->connection)->statement(sprintf(
                 "CREATE TABLE IF NOT EXISTS %s PARTITION OF %s FOR VALUES FROM ('%s') TO ('%s')",
                 $name,
@@ -200,13 +181,8 @@ final readonly class PartitionManager
     }
 
     /**
-     * Moves a day's stranded rows out of the default partition and attaches
-     * them as that day's partition.
-     *
-     * Copy, delete, attach — in one transaction, so a failure leaves the rows
-     * where they were rather than in two places or in none. Attaching builds
-     * the child indexes from the parent's, which is why the new table is
-     * created empty of them.
+     * Copies a day's rows out of the default partition, deletes them there and
+     * attaches the copy, in one transaction. Attaching creates the indexes.
      */
     private function rescue(string $name, DateTimeImmutable $day, DateTimeImmutable $next): void
     {

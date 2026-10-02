@@ -21,17 +21,9 @@ use Metered\Usage\Presentation\Filament\Resources\Events\Pages\ListUsageEvents;
 use UnitEnum;
 
 /**
- * The usage explorer: the raw events, newest first.
- *
- * Deliberately read-only — there is no action on this screen and no route to
- * one. An event is a fact that already happened; correcting it is another
- * event or a credit note, never an edit.
- *
- * The default sort is `occurred_at` descending, which the recent-events
- * index hands back in order from every partition, so a page reads the rows it
- * shows and no others. Pagination is simple — next and previous, no page
- * count — because a total would be a `count(*)` over every event the project
- * ever sent, repeated on every page load (docs/query-plans.md).
+ * Read-only usage explorer. Sorted by `occurred_at` desc, served by the
+ * recent-events index; simple pagination avoids a `count(*)`
+ * (docs/query-plans.md).
  */
 final class UsageEventResource extends Resource
 {
@@ -67,13 +59,10 @@ final class UsageEventResource extends Resource
                     ->dateTime('Y-m-d H:i:s')
                     ->label('Received')
                     ->toggleable(isToggledHiddenByDefault: true)
-                    // The gap between the two is the story a late-event
-                    // investigation is about.
                     ->tooltip('When this reached us, as opposed to when it happened'),
             ])
             ->filters([
-                // By the code rather than by a relationship: meters belong to
-                // Billing, and this screen reads only its own module's tables.
+                // By code: meters belong to Billing.
                 SelectFilter::make('meter_code')
                     ->label('Meter')
                     ->options(static fn(): array => UsageEventResource::meterCodes())
@@ -89,11 +78,7 @@ final class UsageEventResource extends Resource
     }
 
     /**
-     * The meters this project has defined, from the catalog.
-     *
-     * Not the codes the events were sent under: finding those is a
-     * `distinct` over every event the project has, on every page load, and
-     * the answer differs only by the meters that have not been used yet.
+     * From the catalog, not a `distinct` over the events.
      *
      * @return array<string, string>
      */

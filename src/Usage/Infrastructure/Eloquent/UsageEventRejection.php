@@ -10,8 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Metered\Usage\Domain\RejectionReason;
 
 /**
- * The read side of a rejection — the screen a tenant opens when their totals
- * look short.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

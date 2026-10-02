@@ -10,17 +10,9 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Usage\Application\Command\SubmittedEvent;
 
 /**
- * One accepted request, on its way to the stream.
- *
- * `receivedAt` is stamped once, here, and travels with the events. It is what
- * the consumer judges the acceptance window against — not the time it happens
- * to read the message. Judging at consumption would mean a stream that fell
- * ten minutes behind started rejecting events for being ten minutes too old,
- * which is our backlog punishing the client for our problem.
- *
- * `requestId` is what the client is given in the 202. It is the handle for
- * "what happened to the batch I sent?", and it travels into every rejection
- * the batch produces.
+ * `receivedAt` is stamped here; the consumer checks the acceptance window
+ * against it. `requestId` is returned in the 202 and stored on every
+ * rejection from the batch.
  */
 final readonly class Batch
 {

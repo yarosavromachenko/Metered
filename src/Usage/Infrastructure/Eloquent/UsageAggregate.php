@@ -8,17 +8,8 @@ use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * The read side of an aggregate.
- *
- * Its key is (project, customer, meter, bucket) — four columns, which
- * Eloquent does not model. The screen that lists these needs one string per
- * row, so the query selects one: a synthetic `id` built from the four, which
- * exists nowhere in the table and is never written back.
- *
- * That is honest for a read model and would be unacceptable for a write one,
- * which is why there is no write path here at all: aggregates are only ever
- * changed by the consumer's upsert, in the transaction that inserted the
- * events they were folded from.
+ * Read model. The key is four columns, so queries select a synthetic `id`.
+ * Aggregates are written only by the consumer's upsert.
  *
  * @property string $id
  * @property string $organization_id
@@ -47,10 +38,7 @@ final class UsageAggregate extends Model
     protected $guarded = [];
 
     /**
-     * The key is manufactured in the select list, so it exists as an output
-     * name and not as a column. Anything that qualifies it with the table
-     * name — which is what a table's tie-breaking ORDER BY does by default —
-     * would ask PostgreSQL for a column that is not there.
+     * Unqualified: `id` exists only in the select list, not in the table.
      */
     public function getQualifiedKeyName(): string
     {

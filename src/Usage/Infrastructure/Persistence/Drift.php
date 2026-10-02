@@ -5,15 +5,8 @@ declare(strict_types=1);
 namespace Metered\Usage\Infrastructure\Persistence;
 
 /**
- * One aggregate that does not match the events under it.
- *
- * Three shapes, and they mean different things. `missing` is an aggregate
- * that was never written for events that exist — the shape a crash between
- * the insert and the upsert would leave, if the two were not in one
- * transaction. `extra` is an aggregate with no events under it at all, which
- * means something wrote one outside the writer. `mismatch` is both present
- * and disagreeing, which is the one that would put a wrong number on an
- * invoice.
+ * `missing`: events without an aggregate. `extra`: an aggregate without
+ * events. `mismatch`: both exist and differ.
  */
 final readonly class Drift
 {

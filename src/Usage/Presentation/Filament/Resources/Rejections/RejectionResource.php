@@ -20,13 +20,8 @@ use Metered\Usage\Presentation\Filament\Resources\Rejections\Pages\ListRejection
 use UnitEnum;
 
 /**
- * Events that arrived and were not counted.
- *
- * This screen is why ingestion can answer `202` before it knows whether the
- * meter exists (ADR-0003). Validation is asynchronous, so the answer has to
- * be somewhere a tenant can find it — with the reason, the detail and the
- * event exactly as they sent it. Without this screen the same design would
- * just be silent data loss.
+ * Rejected events with reason and original payload; the tenant-facing side of
+ * asynchronous validation (ADR-0003).
  */
 final class RejectionResource extends Resource
 {
@@ -59,8 +54,7 @@ final class RejectionResource extends Resource
             ->where('rejected_at', '>=', now()->subDay())
             ->count();
 
-        // Only when there is something to say. A badge showing zero teaches
-        // people to ignore the badge.
+        // No badge for zero.
         return $count > 0 ? (string) $count : null;
     }
 

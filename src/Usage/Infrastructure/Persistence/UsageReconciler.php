@@ -13,18 +13,8 @@ use Metered\Usage\Domain\Bucket;
 use stdClass;
 
 /**
- * Recomputes aggregates from the raw events and reports where the two
- * disagree.
- *
- * This is the check behind the claim the whole ingestion design makes: an
- * aggregate always equals the fold of the events it covers. It runs in tests,
- * after every chaos scenario, and whenever an operator wants to know. Without
- * it, "exactly once in effect" is a sentence in an ADR rather than a property
- * anybody has verified.
- *
- * The comparison is one query, in the database, because moving tens of
- * millions of rows into PHP to add them up would make the check too expensive
- * to run — and a check nobody runs proves nothing.
+ * Recomputes aggregates from raw events and reports drift. Used by tests,
+ * chaos scenarios and `usage:reconcile`. The comparison is a single SQL query.
  */
 final readonly class UsageReconciler
 {
@@ -34,15 +24,8 @@ final readonly class UsageReconciler
     ) {}
 
     /**
-     * The window a check or a repair actually covers: the one asked for,
-     * widened outwards to whole buckets.
-     *
-     * Events are filtered by the instant they occurred and aggregates by the
-     * hour they start, so a window cut mid-hour holds part of a bucket's
-     * events and none or all of its aggregate. The check would then report
-     * a correct bucket as drift, and a repair would rebuild it from half its
-     * events. The default window, the last 24 hours, is cut mid-hour almost
-     * every time it runs.
+     * Widened to whole hours; a window cut mid-hour would compare part of a
+     * bucket's events with the whole aggregate.
      *
      * @return array{DateTimeImmutable, DateTimeImmutable}
      */
@@ -107,12 +90,7 @@ final readonly class UsageReconciler
     }
 
     /**
-     * Rewrites the aggregates in the window from the events under them.
-     *
-     * Deliberately not automatic. Drift means something is wrong upstream,
-     * and an aggregate quietly repaired every night is a bug that never gets
-     * found — so the repair is a decision an operator makes, with the drift
-     * report in front of them.
+     * Run by an operator only (`--repair`), never automatically.
      */
     public function repair(TenantContext $tenant, DateTimeImmutable $from, DateTimeImmutable $to): int
     {
@@ -162,10 +140,8 @@ final readonly class UsageReconciler
     }
 
     /**
-     * The fold, in SQL, exactly as {@see \Metered\Shared\Domain\Metering\Aggregation::fold()}
-     * defines it. Two expressions of one rule is a risk worth naming: an
-     * integration test folds the same events both ways and compares, so a
-     * change to one that is not made to the other fails rather than drifts.
+     * Must match {@see \Metered\Shared\Domain\Metering\Aggregation::fold()};
+     * an integration test compares the two.
      */
     private function recomputedSql(): string
     {
@@ -194,9 +170,7 @@ final readonly class UsageReconciler
 
     private function sql(): string
     {
-        // A full outer join, because all three kinds of disagreement matter:
-        // an aggregate with no events, events with no aggregate, and the two
-        // present but disagreeing.
+        // Full outer join: catches missing, extra and mismatched rows.
         return <<<SQL
             WITH recomputed AS (
                 {$this->recomputedSql()}

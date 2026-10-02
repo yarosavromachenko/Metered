@@ -10,16 +10,8 @@ use Metered\Usage\Domain\EventId;
 use Metered\Usage\Domain\Properties;
 
 /**
- * One event as a client sent it, after the endpoint has checked its shape and
- * before anything has checked whether it refers to real things.
- *
- * The meter and the customer are still the strings the client used: resolving
- * them costs a database round trip, and the hot path does not make one
- * (ADR-0003). What the edge does check is everything it can check without
- * leaving the process — that the quantity is a number it can store, that the
- * timestamp is a timestamp, that the labels are labels — because a client
- * which sent nonsense deserves an immediate 422 rather than a rejection they
- * have to go looking for later.
+ * Shape-checked at the endpoint (422 on bad input); meter code and customer
+ * reference are resolved later by the consumer (ADR-0003).
  */
 final readonly class SubmittedEvent
 {

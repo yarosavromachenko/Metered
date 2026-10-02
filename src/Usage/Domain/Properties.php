@@ -7,13 +7,7 @@ namespace Metered\Usage\Domain;
 use Metered\Usage\Domain\Exception\InvalidProperties;
 
 /**
- * The client's own labels on an event: region, tier, whether it was a retry.
- *
- * Flat and small, deliberately. They exist to be filtered and grouped by in
- * the usage explorer, and later to select which price applies; a nested
- * document in a column on the largest table in the system would be neither
- * filterable nor cheap. Anything richer belongs in the client's own logs,
- * with the event id to join on.
+ * Flat scalar labels (region, tier), used for filtering and grouping.
  */
 final readonly class Properties
 {
@@ -38,8 +32,7 @@ final readonly class Properties
         $properties = [];
 
         foreach ($values as $key => $value) {
-            // A JSON list decodes to integer keys, and a list of labels is a
-            // request that cannot be stored as one.
+            // A JSON list (integer keys) is refused.
             if (! is_string($key) || trim($key) === '') {
                 throw InvalidProperties::unnamed();
             }

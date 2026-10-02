@@ -11,10 +11,8 @@ use Metered\Usage\Application\Metrics\UsageMetrics;
 use Metered\Usage\Application\Stream\StreamDepth;
 
 /**
- * The ingestion stream as an operator watches it: how much is waiting (what
- * backpressure decides on), how long the stream is, what was set aside, and
- * how close the Redis holding it and the deduplication keys is to its memory
- * limit (ADR-0002) — past which ingestion answers 503.
+ * Backlog, stream length, dead letters, and memory of the ingestion Redis
+ * (ADR-0002).
  */
 final readonly class StreamGauges implements GaugeSource
 {
@@ -27,8 +25,7 @@ final readonly class StreamGauges implements GaugeSource
 
     public function read(): array
     {
-        // INFO rather than CONFIG GET: managed Redis services often rename or
-        // disable CONFIG, and INFO reports the limit as well.
+        // INFO, not CONFIG GET, which managed Redis often disables.
         $memory = $this->connection->command('info', ['memory']);
         $memory = is_array($memory) ? $memory : [];
 

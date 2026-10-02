@@ -5,12 +5,7 @@ declare(strict_types=1);
 namespace Metered\Usage\Infrastructure\Redis;
 
 /**
- * One entry of the dead-letter stream, as an operator reads it: why it is
- * there, how often it was tried, and enough of the event to recognise it.
- *
- * Every field but the id and the reason can be missing — a message is
- * dead-lettered precisely when it could not be read — so they are nullable
- * rather than guessed.
+ * All fields but id and reason are nullable: the message may be unreadable.
  */
 final readonly class DeadLetter
 {

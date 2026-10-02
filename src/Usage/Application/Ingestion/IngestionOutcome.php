@@ -5,11 +5,7 @@ declare(strict_types=1);
 namespace Metered\Usage\Application\Ingestion;
 
 /**
- * What became of a batch — the numbers the daemon logs and the metrics count.
- *
- * Four outcomes, and every event is exactly one of them: counted, already
- * known, refused, or still in the batch that failed. A batch whose numbers do
- * not add up to what went in is a bug this shape makes visible.
+ * Each event is exactly one of: counted, duplicate, rejected, failed.
  */
 final readonly class IngestionOutcome
 {
