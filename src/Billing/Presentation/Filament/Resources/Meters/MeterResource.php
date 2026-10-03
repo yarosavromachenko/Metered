@@ -18,12 +18,7 @@ use Metered\Tenancy\Application\Contract\PanelScope;
 use UnitEnum;
 
 /**
- * What this project measures.
- *
- * Scoped to the project in the panel scope, not merely to the organization:
- * meters belong to a project, and a colleague switching to the sandbox should
- * see the sandbox's catalog. A scope that resolves to nothing yields a query
- * matching nothing rather than a query without a filter.
+ * Filtered by the project in the panel scope; no scope matches nothing.
  */
 final class MeterResource extends Resource
 {

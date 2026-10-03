@@ -10,8 +10,7 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
- * The published versions of the project in the panel scope, as select
- * options: "pro v2 (month)", plans in code order, newest version first.
+ * Select options like "pro v2 (month)": plans by code, newest version first.
  */
 final class PublishedVersions
 {

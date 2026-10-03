@@ -10,8 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Metered\Shared\Domain\Metering\Aggregation;
 
 /**
- * The read side of a meter — what the panel lists. Writes go through
- * DefineMeterHandler, never through this model.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

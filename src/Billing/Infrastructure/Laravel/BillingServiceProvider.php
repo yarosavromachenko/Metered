@@ -35,10 +35,6 @@ use Metered\Billing\Presentation\Http\RegisterCustomerController;
 use Metered\Billing\Presentation\Http\StartSubscriptionController;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 
-/**
- * Wires the catalog: the repositories Billing uses itself, and the two
- * contracts other modules resolve against.
- */
 final class BillingServiceProvider extends ServiceProvider
 {
     public function register(): void
@@ -53,16 +49,12 @@ final class BillingServiceProvider extends ServiceProvider
         $this->app->singleton(CustomerDirectory::class, DatabaseCustomerDirectory::class);
         $this->app->singleton(SubscriptionBilling::class, CatalogSubscriptionBilling::class);
 
-        // Removed with a purged demo tenant, by the module that owns the rows.
         $this->app->tag([DatabaseBillingPurger::class], TenantDataPurger::TAG);
     }
 
     public function boot(): void
     {
-        // The management API is an admin key's: a key embedded in a client's
-        // product reports usage and can change nothing in the catalog. Every
-        // write takes an Idempotency-Key, so a retried request cannot create
-        // a second plan version or start a second subscription.
+        // Admin scope; every write requires an Idempotency-Key.
         Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
             ->prefix('api/v1')
             ->group(static function (): void {

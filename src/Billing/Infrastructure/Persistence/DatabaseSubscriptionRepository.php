@@ -20,8 +20,7 @@ use stdClass;
 final readonly class DatabaseSubscriptionRepository implements SubscriptionRepository
 {
     /**
-     * Microseconds kept: the query builder's own format stops at seconds, and
-     * an anchor rounded to the second would move every boundary it defines.
+     * Keeps microseconds, which the query builder's format drops.
      */
     private const string INSTANT = 'Y-m-d H:i:s.uP';
 
@@ -42,12 +41,10 @@ final readonly class DatabaseSubscriptionRepository implements SubscriptionRepos
                 'interval' => $subscription->interval->value,
                 'status' => $subscription->status->value,
                 'ends_at' => $subscription->endsAt?->format(self::INSTANT),
-                // Anchor, currency, interval and customer never change after
-                // the start; only the lifecycle does.
+                // Only lifecycle columns change.
             ], ['id'], ['status', 'ends_at']);
 
-            // Phases are rewritten whole. The exclusion constraint checks the
-            // result, so a set of phases that overlaps cannot be committed.
+            // Phases are replaced; an exclusion constraint forbids overlaps.
             $connection->table('subscription_phases')->where('subscription_id', $subscription->id->value)->delete();
 
             $connection->table('subscription_phases')->insert(array_map(

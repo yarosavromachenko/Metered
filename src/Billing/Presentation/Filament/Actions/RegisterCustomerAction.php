@@ -15,9 +15,6 @@ use Metered\Shared\Domain\Access\PermissionDenied;
 use Metered\Shared\Domain\Exception\DomainException;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
-/**
- * Registering a customer from the panel, through the handler.
- */
 final class RegisterCustomerAction
 {
     public static function make(): Action

@@ -8,24 +8,18 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * How one price turns a period's usage into money.
- *
- * Four implementations, one per model the catalog offers, and a new model is a
- * new class rather than another branch in an existing one. Every
- * implementation is a pure function of the quantity: no clock, no database,
- * nothing that could make the same usage cost differently on a second run.
+ * One implementation per pricing model; each is a pure function of the
+ * quantity.
  */
 interface PricingModel
 {
     /**
-     * The charge for a period in which the price's meter reported $quantity.
-     * Rounded to the currency's minor unit exactly once.
+     * Rounded to the minor unit once.
      */
     public function charge(Quantity $quantity): Money;
 
     /**
-     * The working behind charge($quantity), one step per line, in words a
-     * customer checking the invoice by hand can follow.
+     * How charge() was computed, one line per step, shown on the invoice.
      *
      * @return list<string>
      */
@@ -34,8 +28,7 @@ interface PricingModel
     public function currency(): string;
 
     /**
-     * Whether the charge depends on usage at all — and therefore whether the
-     * price needs a meter to read it from.
+     * Usage-based prices need a meter.
      */
     public function isUsageBased(): bool;
 }

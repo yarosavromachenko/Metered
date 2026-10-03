@@ -16,7 +16,7 @@ use stdClass;
 
 final readonly class DatabasePlanRepository implements PlanRepository
 {
-    /** Microseconds kept: the query builder's own format stops at seconds. */
+    /** Keeps microseconds, which the query builder's format drops. */
     private const string INSTANT = 'Y-m-d H:i:s.uP';
 
     public function __construct(private DatabaseManager $db) {}
@@ -30,7 +30,7 @@ final readonly class DatabasePlanRepository implements PlanRepository
             'code' => $plan->code->value,
             'name' => $plan->name,
             'created_at' => $plan->createdAt->format(self::INSTANT),
-            // The code is not in the update list: integrations refer to it.
+            // The code never changes.
         ], ['id'], ['name']);
     }
 

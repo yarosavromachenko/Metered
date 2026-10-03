@@ -28,9 +28,7 @@ final readonly class DatabaseMeterRepository implements MeterRepository
             'name' => $meter->name,
             'aggregation' => $meter->aggregation->value,
             'created_at' => $meter->definedAt,
-            // The code and the aggregation are not in the update list: a meter
-            // that could be recoded would orphan its events, and one that could
-            // be re-aggregated would rewrite periods that are already invoiced.
+            // Code and aggregation never change.
         ], ['id'], ['name']);
     }
 

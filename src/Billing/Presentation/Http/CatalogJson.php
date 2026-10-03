@@ -19,11 +19,7 @@ use Metered\Billing\Domain\Subscription\SubscriptionPhase;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * The JSON shapes of the catalog, in one place so that a meter looks the same
- * whether it is listed, created, or named inside a price.
- *
- * Decimals are strings and money is minor units, as everywhere else in the
- * API: a JSON number would invite a client to parse a price into a float.
+ * Catalog JSON shapes. Decimals are strings, money is minor units.
  */
 final class CatalogJson
 {

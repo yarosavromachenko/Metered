@@ -8,11 +8,6 @@ use DateTimeImmutable;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
-/**
- * What invoicing needs to know about a subscription to bill it: whose it is —
- * with the customer's reference and name, which an invoice prints — in which
- * currency, and since when.
- */
 final readonly class BillableSubscription
 {
     public function __construct(

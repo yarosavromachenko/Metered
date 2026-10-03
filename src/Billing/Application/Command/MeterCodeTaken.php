@@ -8,11 +8,6 @@ use Metered\Billing\Domain\MeterCode;
 use Metered\Shared\Application\Exception\Conflict;
 use RuntimeException;
 
-/**
- * Reported rather than resolved. A second meter under an existing code would
- * split one client's usage across two definitions, and the person defining it
- * is the only one who knows which of the two they meant.
- */
 final class MeterCodeTaken extends RuntimeException implements Conflict
 {
     public static function withCode(MeterCode $code): self

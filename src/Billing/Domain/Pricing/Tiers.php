@@ -10,12 +10,8 @@ use Metered\Shared\Domain\Money\UnitPrice;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * An ordered tier table that can price any quantity.
- *
- * Three rules make that true, and a table breaking any of them is refused when
- * it is built rather than discovered when an invoice is: limits rise strictly
- * from zero, only the last tier is unbounded, and it must be. All tiers share
- * one currency, because a price belongs to one project.
+ * Validated on construction: limits strictly increasing from zero, exactly the
+ * last tier unbounded, one currency.
  */
 final readonly class Tiers
 {
@@ -74,8 +70,7 @@ final readonly class Tiers
     }
 
     /**
-     * How each tier reads on an invoice, in order: "up to 1000", "over 1000
-     * up to 5000", "over 5000".
+     * "up to 1000", "over 1000 up to 5000", "over 5000".
      *
      * @return non-empty-list<string>
      */
@@ -100,7 +95,7 @@ final readonly class Tiers
     }
 
     /**
-     * A decimal as a person writes it: 1000, not 1000.000000.
+     * 1000, not 1000.000000.
      */
     public static function plain(BigDecimal $value): string
     {

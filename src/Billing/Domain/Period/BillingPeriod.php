@@ -10,11 +10,7 @@ use Metered\Billing\Domain\Exception\InvalidPeriod;
 use Stringable;
 
 /**
- * A half-open interval of time, `[start, end)`, that one invoice covers.
- *
- * Half-open so that consecutive periods share a boundary without sharing an
- * instant: an event at exactly midnight belongs to the period that starts
- * then, never to both and never to neither.
+ * `[start, end)`: an event exactly on a boundary belongs to the later period.
  */
 final readonly class BillingPeriod implements Stringable
 {
@@ -46,8 +42,7 @@ final readonly class BillingPeriod implements Stringable
 
     public function equals(self $other): bool
     {
-        // Compared as instants, to the microsecond. Two DateTimeImmutable objects
-        // naming the same instant are not the same object.
+        // Compare instants, not objects.
         return $this->start->format('U.u') === $other->start->format('U.u')
             && $this->end->format('U.u') === $other->end->format('U.u');
     }

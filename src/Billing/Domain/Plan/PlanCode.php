@@ -8,12 +8,8 @@ use Metered\Billing\Domain\Exception\InvalidPlanCode;
 use Stringable;
 
 /**
- * The stable name an integration uses for a plan — `pro`, `team-annual`.
- *
- * Unique within a project and immutable, like a meter code: a checkout page or
- * a provisioning script refers to it long after the plan's display name has
- * been reworded. Dots are not allowed, which keeps a plan code visibly
- * different from a meter code in logs and URLs.
+ * E.g. `pro`, `team-annual`. Unique per project and immutable. No dots, unlike
+ * meter codes.
  */
 final readonly class PlanCode implements Stringable
 {

@@ -15,16 +15,8 @@ use Metered\Tenancy\Application\Contract\Authorizer;
 use Psr\Clock\ClockInterface;
 
 /**
- * Defines what a project measures.
- *
- * Shaping the catalog is `catalog.manage` — the authority an admin has and a
- * billing operator does not, because deciding what is measured and deciding
- * what somebody owes are different jobs (ADR-0017).
- *
- * The duplicate check here is a courtesy, not the guarantee: two panels
- * submitting the same code at the same moment both pass it, and the unique
- * index on (project_id, code) is what refuses the second. What this adds is a
- * sentence a person can read instead of a constraint violation.
+ * Requires `catalog.manage` (ADR-0017). The duplicate check only gives a
+ * readable message; the unique index on (project_id, code) enforces it.
  */
 final readonly class DefineMeterHandler
 {

@@ -9,9 +9,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use RuntimeException;
 
 /**
- * Something a command names does not exist in the command's project. The
- * same answer whether it does not exist at all or belongs to another tenant,
- * so the error reveals nothing about anyone else's catalog.
+ * Also for another tenant's rows, so nothing about them is revealed.
  */
 final class CatalogNotFound extends RuntimeException implements NotFound
 {

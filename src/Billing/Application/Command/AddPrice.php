@@ -10,9 +10,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * Adds a price to a draft version. The model arrives already built — the API
- * and the panel each parse their own input into one — and the meter is named
- * when, and only when, the model depends on usage.
+ * The model is built by the caller; the meter is set only for usage-based
+ * models.
  */
 final readonly class AddPrice
 {

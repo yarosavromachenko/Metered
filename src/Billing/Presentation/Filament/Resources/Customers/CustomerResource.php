@@ -16,9 +16,6 @@ use Metered\Billing\Presentation\Filament\Resources\Customers\Pages\ListCustomer
 use Metered\Tenancy\Application\Contract\PanelScope;
 use UnitEnum;
 
-/**
- * The parties this project bills, under the references their events carry.
- */
 final class CustomerResource extends Resource
 {
     protected static ?string $model = Customer::class;

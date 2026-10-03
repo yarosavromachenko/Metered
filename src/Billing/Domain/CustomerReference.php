@@ -8,14 +8,9 @@ use Metered\Billing\Domain\Exception\InvalidCustomerReference;
 use Stringable;
 
 /**
- * The id a tenant already knows their customer by.
- *
- * It is a foreign key into somebody else's system — a Stripe id, a row id, an
- * account slug — so this type stays out of the way: it trims, it bounds the
- * length, and it refuses only what cannot travel safely (whitespace inside,
- * control characters). It deliberately does not fold case, because two
- * references differing only in case may be two different customers over there,
- * and merging them here would be our error, not theirs.
+ * The tenant's own id for a customer. Trimmed and length-checked; inner
+ * whitespace and control characters are refused. Case is kept: the tenant's
+ * system may treat `Acme` and `acme` as different customers.
  */
 final readonly class CustomerReference implements Stringable
 {
@@ -40,8 +35,7 @@ final readonly class CustomerReference implements Stringable
             throw InvalidCustomerReference::tooLong($trimmed);
         }
 
-        // Visible ASCII only. A reference travels in a URL, a log line and a
-        // problem document, and the three disagree about everything else.
+        // Visible ASCII only: it appears in URLs, logs and problem documents.
         if (preg_match('/^[\x21-\x7E]+$/', $trimmed) !== 1) {
             throw InvalidCustomerReference::malformed($trimmed);
         }

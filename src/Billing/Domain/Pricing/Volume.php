@@ -9,11 +9,9 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * The tier the total reaches prices every unit.
- *
- * 1,500 units against "first 1,000 at 0.10, then 0.08" is 1,500 × 0.08. Unlike
- * graduated pricing, one more unit across a boundary can lower the bill — that
- * is the point of a volume discount, not an anomaly.
+ * The tier the total reaches prices all units: 1,500 units against "first
+ * 1,000 at 0.10, then 0.08" is 1,500 × 0.08. Crossing a boundary can lower
+ * the bill.
  */
 final readonly class Volume implements PricingModel
 {
@@ -32,9 +30,7 @@ final readonly class Volume implements PricingModel
             }
         }
 
-        // Unreachable: Tiers guarantees an unbounded last tier, which reaches
-        // every quantity. Stated rather than returned, so a broken guarantee
-        // fails loudly instead of billing zero.
+        // Unreachable: the last tier is unbounded.
         throw new LogicException('A tier table without an unbounded last tier reached pricing.');
     }
 

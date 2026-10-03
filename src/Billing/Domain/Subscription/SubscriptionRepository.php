@@ -9,9 +9,6 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 
 interface SubscriptionRepository
 {
-    /**
-     * Stores the subscription with exactly the phases it holds.
-     */
     public function save(Subscription $subscription): void;
 
     public function find(TenantContext $tenant, Uuid $id): ?Subscription;

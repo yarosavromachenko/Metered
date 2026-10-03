@@ -13,9 +13,7 @@ use Metered\Billing\Domain\Exception\InvalidCustomerReference;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * The published view of Billing's customers. Total, for the same reason as
- * {@see DatabaseMeterCatalog}: a reference nothing could ever match is an
- * answer, not a failure.
+ * Returns null for an invalid reference instead of throwing.
  */
 final readonly class DatabaseCustomerDirectory implements CustomerDirectory
 {

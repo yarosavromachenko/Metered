@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Metered\Billing\Domain\Period;
 
 /**
- * How far apart a cycle's boundaries are. Both are whole months, which is what
- * lets one clamping rule serve both.
+ * Both are whole months, so one clamping rule covers both.
  */
 enum BillingInterval: string
 {

@@ -18,11 +18,8 @@ use Metered\Shared\Domain\Metering\Aggregation;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
- * Defining a meter from the panel, through the handler (ADR-0015).
- *
- * A class rather than a closure, so that the body can be called by a test
- * without a browser. The panel's first closure action had a bug in its
- * opening line that no rendering test caught.
+ * Calls the handler (ADR-0015). A class, not a closure, so tests can call it
+ * directly.
  */
 final class DefineMeterAction
 {

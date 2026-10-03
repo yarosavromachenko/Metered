@@ -16,12 +16,8 @@ use Metered\Shared\Domain\Money\UnitPrice;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * Builds a pricing model from one validated `prices[]` entry.
- *
- * Validation has already settled the shape; what is left is the part only the
- * domain can judge — a tier table that leaves a quantity unpriced, a price
- * with more decimals than it can hold — and those arrive as domain
- * exceptions, answered 422.
+ * Builds a pricing model from a validated `prices[]` entry; domain errors
+ * (bad tier table, too many decimals) become 422.
  */
 final class PriceInput
 {

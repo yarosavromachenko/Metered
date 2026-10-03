@@ -10,9 +10,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * `startsAt` backdates the subscription: it is anchored there, and the
- * periods that have already ended are invoiced by the next period close, as
- * they would have been had it started then. Null starts it now.
+ * `startsAt` may be in the past: ended periods are invoiced by the next period
+ * close. Null means now.
  */
 final readonly class StartSubscription
 {

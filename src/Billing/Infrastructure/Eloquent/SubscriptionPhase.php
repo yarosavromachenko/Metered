@@ -9,9 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Read model for the panel. The table is keyed by (subscription, start),
- * which Eloquent cannot address, so this model is only ever loaded through
- * its subscription and never saved.
+ * Read model with a composite key; loaded only through its subscription.
  *
  * @property string $subscription_id
  * @property string $plan_version_id
