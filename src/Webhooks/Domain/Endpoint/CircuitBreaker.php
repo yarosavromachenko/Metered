@@ -7,13 +7,9 @@ namespace Metered\Webhooks\Domain\Endpoint;
 use DateTimeImmutable;
 
 /**
- * Whether an endpoint is taking deliveries.
- *
- * Closed until `threshold` deliveries fail in a row; then open, and nothing is
- * attempted until the cooldown passes. Then half-open: exactly one delivery
- * goes out as a probe. Its success closes the breaker, its failure opens it
- * again. A probe that never reports — a worker killed mid-request — is
- * replaced after another cooldown, so a breaker cannot stay half-open forever.
+ * Opens after `threshold` consecutive failures; after the cooldown one probe
+ * goes out (half-open), which closes or reopens it. A probe that never
+ * reports is replaced after another cooldown.
  */
 final readonly class CircuitBreaker
 {
@@ -29,7 +25,7 @@ final readonly class CircuitBreaker
     }
 
     /**
-     * @internal for the repository, rebuilding a breaker exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(BreakerState $state, int $consecutiveFailures, ?DateTimeImmutable $changedAt): self
     {
@@ -37,9 +33,7 @@ final readonly class CircuitBreaker
     }
 
     /**
-     * The breaker to store if a delivery may go out at $now, or null if it
-     * must wait. An open breaker past its cooldown lets this one through as
-     * the probe, and is half-open from then on.
+     * The new state if a delivery may go now, null if it must wait.
      */
     public function admit(DateTimeImmutable $now, int $cooldownSeconds): ?self
     {

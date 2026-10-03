@@ -11,10 +11,6 @@ use Metered\Shared\Presentation\Http\TenantRequest;
 use Metered\Webhooks\Application\Command\ReplayDelivery;
 use Metered\Webhooks\Application\Command\ReplayDeliveryHandler;
 
-/**
- * Sends a dead or failed delivery again, from its first attempt, within
- * seconds.
- */
 final readonly class ReplayDeliveryController
 {
     public function __construct(private ReplayDeliveryHandler $handler) {}

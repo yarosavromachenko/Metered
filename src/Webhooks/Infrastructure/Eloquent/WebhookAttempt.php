@@ -8,7 +8,7 @@ use DateTimeImmutable;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * Read model for the panel.
+ * Read model.
  *
  * @property int $id
  * @property string $delivery_id

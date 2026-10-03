@@ -47,11 +47,6 @@ use Metered\Webhooks\Presentation\Http\RotateSecretController;
 use Metered\Webhooks\Presentation\Http\UpdateEndpointController;
 use Psr\Clock\ClockInterface;
 
-/**
- * Wires webhooks: the repositories, the guarded transport — the only HTTP
- * client pointed at a tenant's URL — and the fan-out that turns integration
- * events into deliveries.
- */
 final class WebhooksServiceProvider extends ServiceProvider
 {
     public function register(): void
@@ -62,8 +57,7 @@ final class WebhooksServiceProvider extends ServiceProvider
         $this->app->singleton(Resolver::class, SystemResolver::class);
         $this->app->singleton(Jitter::class, RandomJitter::class);
 
-        // A client of its own, with nothing inherited: no base URI, no
-        // default retries, no middleware that might follow a redirect.
+        // A dedicated client: no base URI, retries or redirect middleware.
         $this->app->singleton(WebhookTransport::class, static fn(Application $app): GuardedTransport => new GuardedTransport(
             $app->make(Resolver::class),
             trusted: self::trustedDestination($app),
@@ -110,24 +104,19 @@ final class WebhooksServiceProvider extends ServiceProvider
 
         $this->app->tag([FanOutWebhookEvent::class], SharedServiceProvider::HANDLER_TAG);
         $this->app->tag([BreakerGauges::class], GaugeSource::TAG);
-        // Removed with a purged demo tenant, by the module that owns the rows.
         $this->app->tag([DatabaseWebhooksPurger::class], TenantDataPurger::TAG);
     }
 
     public function boot(): void
     {
-        // Read now rather than at the first delivery: a trusted destination
-        // outside local and demo stops the application from starting at all.
+        // Read at boot so a misconfiguration fails immediately.
         self::trustedDestination($this->app);
 
         if ($this->app->runningInConsole()) {
             $this->commands([DispatchDeliveriesCommand::class, ReplayDeliveryCommand::class]);
         }
 
-        // An admin key's, like the catalog: a key embedded in a client's
-        // product reports usage and can reconfigure nothing. Writes take an
-        // Idempotency-Key, so a retried request cannot register an endpoint
-        // twice or rotate a secret twice.
+        // Admin scope; writes require an Idempotency-Key.
         Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
             ->prefix('api/v1')
             ->group(static function (): void {

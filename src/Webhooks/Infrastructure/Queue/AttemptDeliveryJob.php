@@ -15,13 +15,9 @@ use Metered\Webhooks\Application\Delivery\AttemptDelivery;
 use Metered\Webhooks\Application\Delivery\AttemptDeliveryHandler;
 
 /**
- * One attempt at one delivery, on the webhooks queue.
- *
- * Unique per delivery while it waits, so a dispatcher passing every few
- * seconds does not stack copies behind a slow worker. That is economy only:
- * two copies are harmless, because the handler leases the delivery before
- * sending and the second finds it no longer due. The queue does not retry it
- * — the delivery's own schedule does (config/horizon.php).
+ * Unique per delivery to avoid piling up copies; duplicates are still
+ * harmless thanks to the lease. Not retried by the queue: the delivery has its
+ * own retry schedule (config/horizon.php).
  */
 final class AttemptDeliveryJob implements ShouldBeUnique, ShouldQueue
 {

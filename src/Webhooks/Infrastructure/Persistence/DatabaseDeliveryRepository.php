@@ -28,8 +28,7 @@ final readonly class DatabaseDeliveryRepository implements DeliveryRepository
 
     public function add(Delivery $delivery): bool
     {
-        // The context of the event being fanned out, kept for the attempts,
-        // which run from a scheduled pass with no context of their own.
+        // Trace context stored for the later attempts.
         $trace = $this->tracing->carrier();
 
         return $this->db->connection()->table('webhook_deliveries')->insertOrIgnore([

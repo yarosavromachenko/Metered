@@ -8,9 +8,7 @@ use Filament\Notifications\Notification;
 use Metered\Webhooks\Domain\Signing\SecretKey;
 
 /**
- * Shows a new signing secret, the one time it is shown. It stays on screen
- * until dismissed: a secret that vanished after five seconds would have to
- * be rotated again.
+ * Persistent notification with the new secret.
  */
 final class SecretNotice
 {

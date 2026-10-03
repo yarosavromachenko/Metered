@@ -14,8 +14,8 @@ use Metered\Webhooks\Domain\Delivery\DeliveryRepository;
 use Psr\Clock\ClockInterface;
 
 /**
- * Sends a dead or failed delivery again, from its first attempt, with the
- * same body. It goes out with the next dispatch, seconds later.
+ * Resets a dead or failed delivery to its first attempt, same body; the next
+ * dispatch sends it.
  */
 final readonly class ReplayDeliveryHandler
 {

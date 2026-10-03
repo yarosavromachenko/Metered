@@ -14,12 +14,8 @@ use Metered\Webhooks\Infrastructure\Queue\AttemptDeliveryJob;
 use Psr\Clock\ClockInterface;
 
 /**
- * Queues an attempt for every delivery that is due: new ones and retries
- * alike. The database says what is due; the queue only carries it.
- *
- * Each attempt is queued inside the trace its delivery was created in, so the
- * outgoing request lands in the same trace as the event that caused it, on the
- * first attempt and on every retry (ADR-0012).
+ * Queues an attempt for each due delivery, inside the trace the delivery was
+ * created in (ADR-0012).
  */
 final class DispatchDeliveriesCommand extends Command
 {

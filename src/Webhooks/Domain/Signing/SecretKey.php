@@ -7,11 +7,7 @@ namespace Metered\Webhooks\Domain\Signing;
 use Metered\Webhooks\Domain\Exception\InvalidEndpoint;
 
 /**
- * The secret an endpoint's deliveries are signed with.
- *
- * Not Stringable on purpose: a secret interpolated into a log line or an
- * exception message is a secret leaked. It is revealed by asking for it, and
- * shown to a person once, when it is created.
+ * Not Stringable, so it cannot end up in a log line by interpolation.
  */
 final readonly class SecretKey
 {
@@ -29,8 +25,7 @@ final readonly class SecretKey
     }
 
     /**
-     * A new secret from 32 random bytes the caller drew. The domain does not
-     * draw them itself: where randomness comes from is not its business.
+     * From 32 random bytes supplied by the caller.
      */
     public static function fromBytes(string $bytes): self
     {
@@ -42,9 +37,6 @@ final readonly class SecretKey
         return $this->value;
     }
 
-    /**
-     * Enough to tell two secrets apart on a screen, and nothing more.
-     */
     public function masked(): string
     {
         return 'whsec_…' . substr($this->value, -4);

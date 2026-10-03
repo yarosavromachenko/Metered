@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Metered\Webhooks\Domain\Endpoint;
 
-/**
- * What an endpoint can subscribe to — the integration events the system
- * publishes that a tenant's own systems would act on.
- */
 enum EventType: string
 {
     case SubscriptionCreated = 'subscription.created';

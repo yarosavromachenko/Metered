@@ -11,12 +11,8 @@ use Metered\Webhooks\Domain\Endpoint\EventType;
 use Metered\Webhooks\Domain\Exception\DeliveryRefused;
 
 /**
- * One event on its way to one endpoint.
- *
- * The body is fixed when the delivery is created — every attempt, and every
- * replay, sends the same bytes, so a receiver deduplicating on the event id
- * sees the same event each time. Only the signature changes: it carries the
- * time of the attempt.
+ * The body is fixed at creation; attempts and replays send the same bytes.
+ * Only the signature (with its timestamp) changes.
  */
 final readonly class Delivery
 {
@@ -47,7 +43,7 @@ final readonly class Delivery
     }
 
     /**
-     * @internal for the repository, rebuilding a delivery exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         Uuid $id,
@@ -87,18 +83,13 @@ final readonly class Delivery
     }
 
     /**
-     * Not attempted — the endpoint's breaker is open — and asked again when it
-     * may be. Waiting is not a failure, so no attempt is counted.
+     * Breaker open: rescheduled without counting an attempt.
      */
     public function postponedUntil(DateTimeImmutable $at): self
     {
         return $this->with(DeliveryStatus::Pending, $this->attempts, $at, $this->lastStatusCode);
     }
 
-    /**
-     * Starts a dead or failed delivery again from its first attempt, with the
-     * same body.
-     */
     public function replay(DateTimeImmutable $now): self
     {
         if ($this->status !== DeliveryStatus::Dead && $this->status !== DeliveryStatus::Failed) {

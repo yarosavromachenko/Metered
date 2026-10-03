@@ -11,11 +11,7 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Webhooks\Application\Metrics\WebhookMetrics;
 
 /**
- * Whether each enabled endpoint's breaker is holding its deliveries back:
- * 1 while open or half-open, 0 while closed.
- *
- * Read across every tenant, because it is the operator who watches it. A
- * disabled endpoint is left out; its owner stopped it, and nothing is failing.
+ * Per enabled endpoint, all tenants: 1 when open or half-open, 0 when closed.
  */
 final readonly class BreakerGauges implements GaugeSource
 {

@@ -11,10 +11,6 @@ use Metered\Webhooks\Domain\Signing\SecretKey;
 use Metered\Webhooks\Infrastructure\Eloquent\WebhookDelivery;
 use Metered\Webhooks\Infrastructure\Eloquent\WebhookEndpoint;
 
-/**
- * Endpoints and deliveries as the management API returns them. A secret
- * appears in the clear only in the answer that created it.
- */
 final class WebhookJson
 {
     /**

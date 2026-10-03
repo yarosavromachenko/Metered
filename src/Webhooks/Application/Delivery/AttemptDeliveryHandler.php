@@ -20,20 +20,13 @@ use Metered\Webhooks\Domain\Signing\Signature;
 use Psr\Clock\ClockInterface;
 
 /**
- * One attempt at one delivery, in three steps.
+ * 1. Transaction: check it is due and the breaker allows it, then lease it
+ *    (next attempt pushed past the request timeout).
+ * 2. HTTP request, outside any transaction.
+ * 3. Transaction: record the attempt, advance the delivery, update the breaker.
  *
- * First, in a transaction: is it still due, and does the endpoint's breaker
- * let it through? If so the delivery is leased — its next attempt moved past
- * the time a request can take — so the dispatcher does not hand it to a
- * second worker meanwhile. Then the request, outside any transaction: a
- * database transaction held open across somebody else's server is a lock
- * held at their mercy. Last, in a transaction again: the attempt is recorded,
- * the delivery moves on, the breaker learns the result.
- *
- * A worker killed between the steps leaves a leased delivery, which falls due
- * again when the lease ends. The receiver may then see the event twice, which
- * at-least-once delivery promises it might; the event id is there to
- * deduplicate on.
+ * A crash between steps lets the lease expire and the delivery is retried
+ * (at-least-once; receivers deduplicate on the event id).
  */
 final readonly class AttemptDeliveryHandler
 {
@@ -79,9 +72,7 @@ final readonly class AttemptDeliveryHandler
     }
 
     /**
-     * By endpoint, because "which receiver is failing" is the question a
-     * dashboard of deliveries is opened to answer. Endpoints are a tenant's
-     * own few, not something that grows with traffic.
+     * Labelled by endpoint; the number of endpoints is small.
      */
     private function measure(Endpoint $endpoint, AttemptResult $result): void
     {
@@ -94,7 +85,7 @@ final readonly class AttemptDeliveryHandler
 
         $this->metrics->add(WebhookMetrics::deliveries(), 1, [...$endpointLabel, 'outcome' => $outcome]);
 
-        // A refused destination was never called: there is no answer to time.
+        // Refused by the guard: nothing was sent, no duration.
         if (! $result->refusedDestination) {
             $this->metrics->record(WebhookMetrics::deliveryDuration(), $result->durationMs * 1_000_000, $endpointLabel);
         }
@@ -118,8 +109,7 @@ final readonly class AttemptDeliveryHandler
             return null;
         }
 
-        // A disabled endpoint keeps its deliveries: they wait, and go out
-        // once it is enabled again.
+        // Disabled: deliveries wait until it is enabled again.
         $breaker = $endpoint->enabled ? $endpoint->breaker->admit($now, $this->breakerCooldownSeconds) : null;
 
         if (!$breaker instanceof CircuitBreaker) {
@@ -142,8 +132,7 @@ final readonly class AttemptDeliveryHandler
         $delivery = $this->deliveries->findForUpdate($command->tenant, $command->deliveryId);
         $endpoint = $this->endpoints->findForUpdate($command->tenant, $claimed->endpointId);
 
-        // Removed with its endpoint while the request was out: nothing is
-        // left to record against.
+        // The endpoint was removed during the request.
         if (! $delivery instanceof Delivery || ! $endpoint instanceof Endpoint) {
             return;
         }
@@ -153,8 +142,7 @@ final readonly class AttemptDeliveryHandler
         $this->deliveries->save($attempted);
         $this->attempts->record($attempted, $attempted->attempts, $sentAt, $result);
 
-        // A receiver that answered at all is up, even when it refused this
-        // delivery; the breaker counts only what says it is not.
+        // Any HTTP answer means the receiver is up; only unreachability trips the breaker.
         $down = $result->refusedDestination || $result->verdict() === Verdict::Retry;
 
         $this->endpoints->save($endpoint->withBreaker(

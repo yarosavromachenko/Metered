@@ -11,8 +11,7 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 interface DeliveryRepository
 {
     /**
-     * Stores a new delivery — unless its endpoint already has one for this
-     * event, in which case nothing is written and the answer is false.
+     * False when the endpoint already has a delivery for this event.
      */
     public function add(Delivery $delivery): bool;
 
@@ -23,8 +22,7 @@ interface DeliveryRepository
     public function findForUpdate(TenantContext $tenant, Uuid $id): ?Delivery;
 
     /**
-     * Pending deliveries whose next attempt is due, oldest first, across every
-     * tenant — what the dispatcher queues.
+     * All tenants, oldest first.
      *
      * @return list<Delivery>
      */

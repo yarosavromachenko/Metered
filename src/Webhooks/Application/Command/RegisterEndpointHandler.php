@@ -14,7 +14,7 @@ use Metered\Webhooks\Domain\Signing\SecretKey;
 use Psr\Clock\ClockInterface;
 
 /**
- * Registers an endpoint and hands back its secret, the one time it is shown.
+ * Returns the secret; it is shown only this once.
  */
 final readonly class RegisterEndpointHandler
 {

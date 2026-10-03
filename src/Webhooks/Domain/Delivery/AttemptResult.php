@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Metered\Webhooks\Domain\Delivery;
 
 /**
- * What one attempt came back with: a status code, or the reason there was
- * none — a timeout, a refused connection, an address the guard would not
- * connect to.
+ * A status code, or why there is none (timeout, connection refused, guard).
  */
 final readonly class AttemptResult
 {
@@ -32,8 +30,7 @@ final readonly class AttemptResult
     }
 
     /**
-     * The guard refused the address: it resolves somewhere a delivery may not
-     * go. Nothing was sent.
+     * Nothing was sent.
      */
     public static function refused(string $reason): self
     {
@@ -54,9 +51,7 @@ final readonly class AttemptResult
             return Verdict::Delivered;
         }
 
-        // A receiver saying "not now" is asked again; one saying "never" is
-        // believed. A redirect is not followed, and following it next time
-        // would not change that (ADR-0011).
+        // Retryable statuses are retried; redirects are never followed (ADR-0011).
         $notNow = $this->statusCode === 408 || $this->statusCode === 429 || $this->statusCode >= 500;
 
         return $notNow ? Verdict::Retry : Verdict::GiveUp;

@@ -9,8 +9,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use RuntimeException;
 
 /**
- * No such endpoint or delivery in the command's project — the same answer
- * whether it does not exist or belongs to another tenant.
+ * Also for another tenant's rows.
  */
 final class WebhookNotFound extends RuntimeException implements NotFound
 {

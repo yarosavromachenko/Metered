@@ -8,9 +8,7 @@ use Metered\Webhooks\Domain\Exception\InvalidEndpoint;
 use Stringable;
 
 /**
- * Where an endpoint's deliveries go. Checked for shape here; where it points
- * is checked again at every delivery, because a hostname can resolve anywhere
- * by then (ADR-0011).
+ * Shape only; the address is checked at every delivery (ADR-0011).
  */
 final readonly class EndpointUrl implements Stringable
 {
@@ -51,7 +49,7 @@ final readonly class EndpointUrl implements Stringable
             throw InvalidEndpoint::url($allowHttp ? 'only http and https are delivered to' : 'deliveries go over https only');
         }
 
-        // Credentials in a URL end up in logs, screens and error messages.
+        // No credentials in the URL: it is logged and displayed.
         if (isset($parts['user']) || isset($parts['pass'])) {
             throw InvalidEndpoint::url('it must not carry credentials; put them in a secret instead');
         }

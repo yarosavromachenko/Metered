@@ -85,8 +85,7 @@ final class WebhookEndpointResource extends Resource
     }
 
     /**
-     * Whether this endpoint is the one private destination the guard lets
-     * through — said on screen, so the exception is never invisible.
+     * Shown on screen when the endpoint is the trusted demo destination.
      */
     private static function trusts(WebhookEndpoint $record): bool
     {

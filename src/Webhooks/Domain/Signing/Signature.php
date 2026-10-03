@@ -7,13 +7,9 @@ namespace Metered\Webhooks\Domain\Signing;
 use DateTimeImmutable;
 
 /**
- * The `X-Metered-Signature` header: `t=<unix>,v1=<hmac>[,v1=<hmac>]`.
- *
- * The HMAC covers `"<t>.<raw body>"`, so the timestamp cannot be changed
- * without breaking it and a captured delivery stops verifying once the
- * receiver's tolerance passes. One `v1` per active secret, so a secret can be
- * rotated without the receiver and the sender switching at the same instant
- * (ADR-0011). docs/webhooks.md has the receiving side and the test vectors.
+ * `X-Metered-Signature: t=<unix>,v1=<hmac>[,v1=<hmac>]`, HMAC over
+ * `"<t>.<raw body>"`, one `v1` per active secret (ADR-0011). Receiving side
+ * and test vectors: docs/webhooks.md.
  */
 final class Signature
 {

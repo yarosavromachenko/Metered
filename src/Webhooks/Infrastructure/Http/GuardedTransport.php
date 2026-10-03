@@ -20,26 +20,15 @@ use OpenTelemetry\API\Trace\StatusCode;
 use RuntimeException;
 
 /**
- * The SSRF guard and the HTTP client, in the one place a tenant's URL is ever
- * called (ADR-0011).
- *
- * The host is resolved once. If any address it resolves to is not public,
- * nothing is sent. Otherwise the connection is pinned to the address that was
- * checked — curl is told the host's address instead of asking DNS again — so
- * a DNS server that answers "public" to the check and "169.254.169.254" to
- * the connection gets nowhere. No proxy is used, even one named in the
- * environment. Redirects are not followed; a kilobyte of the
- * answer is kept and reading stops after a megabyte; connect and total
- * timeouts are 5s and 10s.
- *
- * A request that is sent is a client span, and the receiver gets its
- * `traceparent`, so a tenant that traces its own backend can join our trace
- * to theirs (ADR-0012). A refused destination is never contacted and has no
- * span of its own.
+ * SSRF guard plus HTTP client (ADR-0011). The host is resolved once; if any
+ * address is not public nothing is sent, otherwise curl is pinned to the
+ * checked address (no DNS rebinding). No proxy, no redirects, 5s connect /
+ * 10s total, response read up to 1 MB and 1 KB kept. Sent requests are client
+ * spans with `traceparent` (ADR-0012).
  */
 final readonly class GuardedTransport implements WebhookTransport
 {
-    /** Past this, the answer is not read any further: a receiver cannot make a worker hold its reply in memory. */
+    /** Reading stops here. */
     public const int MAX_ANSWER_BYTES = 1_048_576;
 
     private ClientInterface $client;
@@ -47,13 +36,8 @@ final readonly class GuardedTransport implements WebhookTransport
     private Tracing $tracing;
 
     /**
-     * @param ClientInterface|null $client what sends the request — a client
-     *                                     over cURL unless a test brings its
-     *                                     own. Not Guzzle's default choice of
-     *                                     handler: it may pick PHP's stream
-     *                                     handler, which cannot be told which
-     *                                     address to connect to, and pinning
-     *                                     the checked address is the whole point.
+     * @param ClientInterface|null $client defaults to a cURL client: Guzzle's
+     *                                     stream handler cannot pin the address
      */
     public function __construct(
         private Resolver $resolver,
@@ -94,7 +78,7 @@ final readonly class GuardedTransport implements WebhookTransport
             $span->setAttribute('http.response.status_code', $result->statusCode);
         }
 
-        // For a client, a 4xx is a failed call as much as a 5xx is.
+        // 4xx is an error for a client span too.
         if ($result->statusCode === null || $result->statusCode >= 400) {
             $span->setStatus(StatusCode::STATUS_ERROR, $result->error ?? 'HTTP ' . $result->statusCode);
         }
@@ -116,8 +100,7 @@ final readonly class GuardedTransport implements WebhookTransport
                 RequestOptions::HEADERS => $headers,
                 RequestOptions::BODY => $body,
                 RequestOptions::ALLOW_REDIRECTS => false,
-                // Never through a proxy, whatever the environment says: a
-                // proxy resolves the host itself, past the pinned address.
+                // No proxy: it would resolve the host itself.
                 RequestOptions::PROXY => '',
                 RequestOptions::HTTP_ERRORS => false,
                 RequestOptions::CONNECT_TIMEOUT => $this->connectTimeout,
@@ -132,7 +115,6 @@ final readonly class GuardedTransport implements WebhookTransport
                 ],
             ]);
 
-            // A kilobyte of the answer is kept; a longer one was cut off above.
             $excerpt = $response->getBody()->read(AttemptResult::EXCERPT_LIMIT);
 
             return AttemptResult::responded($response->getStatusCode(), $this->since($started), $excerpt);
@@ -141,9 +123,6 @@ final readonly class GuardedTransport implements WebhookTransport
         }
     }
 
-    /**
-     * The one address the request may go to, or the refusal to send it.
-     */
     private function checkedAddress(string $host, int $port): string|AttemptResult
     {
         $addresses = filter_var($host, FILTER_VALIDATE_IP) !== false ? [$host] : $this->resolver->resolve($host);
@@ -152,14 +131,12 @@ final readonly class GuardedTransport implements WebhookTransport
             return AttemptResult::unreachable(sprintf('%s does not resolve', $host), 0);
         }
 
-        // The local demo receiver, named exactly in configuration: resolved
-        // and pinned like any other host, just not asked to be public.
+        // The configured demo receiver: pinned, but not required to be public.
         if ($this->trusted instanceof TrustedDestination && $this->trusted->matches($host, $port)) {
             return $addresses[0];
         }
 
-        // Every address, not just the first: a host with one public and one
-        // private record would otherwise be a coin toss away from the network.
+        // All addresses must be public, not just the first.
         foreach ($addresses as $address) {
             if (! PublicAddress::allows($address)) {
                 return AttemptResult::refused(sprintf('%s resolves to %s, which webhooks may not reach', $host, $address));

@@ -12,7 +12,7 @@ use Metered\Webhooks\Application\Command\RotateEndpointSecret;
 use Metered\Webhooks\Application\Command\RotateEndpointSecretHandler;
 
 /**
- * A new signing secret, shown once. The old one keeps signing for a day.
+ * The new secret is shown once; the old one keeps signing for a day.
  */
 final readonly class RotateSecretController
 {

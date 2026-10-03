@@ -17,13 +17,8 @@ use Psr\Clock\ClockInterface;
 use RuntimeException;
 
 /**
- * Turns an integration event into one delivery per endpoint that listens to
- * it.
- *
- * Runs behind the inbox, so a redelivered event does nothing; and a delivery
- * is unique per endpoint and event, so even a second run would add nothing.
- * Nothing is sent from here: the deliveries are rows, and the dispatcher sends
- * whatever is due — the same path a retry takes.
+ * Creates one delivery row per subscribed endpoint (unique per endpoint and
+ * event); the dispatcher sends them. Runs behind the inbox.
  */
 final readonly class FanOutWebhookEvent implements IntegrationEventHandler
 {
@@ -57,9 +52,7 @@ final readonly class FanOutWebhookEvent implements IntegrationEventHandler
     }
 
     /**
-     * What a receiver gets: the event's id to deduplicate on, its type, when
-     * it happened, and its data — without the tenant ids, which name the
-     * receiver's own organization back to it.
+     * Event id, type, time and data, without tenant ids.
      */
     private function body(OutboxMessage $message): string
     {

@@ -9,12 +9,8 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Webhooks\Domain\Delivery\Delivery;
 
 /**
- * The trace context each delivery was created in, for the pass that queues
- * its attempts (ADR-0012).
- *
- * Kept out of the domain's Delivery: a trace is how the system is observed,
- * not something a delivery is. Read in one query per pass, for the deliveries
- * that pass already holds and within their projects.
+ * Trace context of each delivery's creation (ADR-0012), kept outside the
+ * domain entity. One query per dispatch pass.
  */
 final readonly class DeliveryTraceContexts
 {

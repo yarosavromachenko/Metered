@@ -21,8 +21,7 @@ use RuntimeException;
 use stdClass;
 
 /**
- * Secrets are encrypted with the application key on the way in and decrypted
- * on the way out; nothing else in the system sees the column.
+ * Secrets are encrypted with the application key.
  */
 final readonly class DatabaseEndpointRepository implements EndpointRepository
 {
@@ -90,11 +89,9 @@ final readonly class DatabaseEndpointRepository implements EndpointRepository
     }
 
     /**
-     * Deliveries first, then the endpoint. A delivery worker locks the
-     * delivery it claims and then its endpoint; deleting the endpoint and
-     * letting the cascade reach the deliveries locks them the other way
-     * round, and a removal during an attempt deadlocks
-     * (tests/Concurrency/Webhooks). The cascade stays, for anything else.
+     * Deliveries first, then the endpoint: same lock order as a delivery
+     * worker, avoiding the deadlock a cascade would cause
+     * (tests/Concurrency/Webhooks).
      */
     public function remove(TenantContext $tenant, Uuid $id): bool
     {
@@ -133,8 +130,7 @@ final readonly class DatabaseEndpointRepository implements EndpointRepository
                 Uuid::fromString(RowReader::string($values['organization_id'] ?? null, 'organization_id')),
                 Uuid::fromString(RowReader::string($values['project_id'] ?? null, 'project_id')),
             ),
-            // Stored URLs were accepted when they were written; whether plain
-            // http is allowed is a question for the next change, not this read.
+            // Stored URLs are not re-validated against the http rule on read.
             EndpointUrl::fromString(RowReader::string($values['url'] ?? null, 'url'), allowHttp: true),
             RowReader::string($values['description'] ?? null, 'description'),
             $types,

@@ -12,10 +12,6 @@ use Metered\Webhooks\Application\Command\ReplayDelivery;
 use Metered\Webhooks\Application\Command\ReplayDeliveryHandler;
 use Metered\Webhooks\Infrastructure\Eloquent\WebhookDelivery;
 
-/**
- * Replays a dead or failed delivery from the command line, for an operator
- * who has its id from a log or an alert rather than a tenant's panel.
- */
 final class ReplayDeliveryCommand extends Command
 {
     protected $signature = 'webhooks:replay {delivery : The delivery id}';

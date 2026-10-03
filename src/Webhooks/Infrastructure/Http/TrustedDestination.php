@@ -7,19 +7,9 @@ namespace Metered\Webhooks\Infrastructure\Http;
 use RuntimeException;
 
 /**
- * The one private destination a local stack may deliver to: the demo's
- * webhook receiver, named exactly — one host, one port, nothing wider.
- *
- * Everything else the SSRF guard does still applies to it: the host is
- * resolved once, the connection is pinned to that address, redirects are not
- * followed. Only the question "is this address public?" is skipped, and only
- * for this host and port. Another private host, or the same host on another
- * port, is refused as before.
- *
- * It exists for a local receiver, so it is honoured only in the local and demo
- * environments. Set anywhere else, the application refuses to boot: a
- * forgotten line in a production .env must fail loudly, not open a door
- * (ADR-0011).
+ * The demo webhook receiver: one exact host and port exempt from the "public
+ * address" check; pinning and no-redirect still apply. Only in local and
+ * demo; configured anywhere else, the application refuses to boot (ADR-0011).
  */
 final readonly class TrustedDestination
 {

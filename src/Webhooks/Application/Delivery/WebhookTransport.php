@@ -8,12 +8,9 @@ use Metered\Webhooks\Domain\Delivery\AttemptResult;
 use Metered\Webhooks\Domain\Endpoint\EndpointUrl;
 
 /**
- * Sends one signed delivery to a tenant's URL and reports what came back.
- *
- * The only way anything in this system reaches a URL a tenant chose. An
- * implementation must refuse addresses that are not public, connect to the
- * address it checked rather than resolving again, and follow no redirect
- * (ADR-0011); a refusal is a result, not an exception.
+ * The only path to tenant-chosen URLs. Implementations refuse non-public
+ * addresses, connect to the checked address without resolving again and
+ * follow no redirects (ADR-0011). A refusal is returned, not thrown.
  */
 interface WebhookTransport
 {
