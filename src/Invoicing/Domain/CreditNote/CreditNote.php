@@ -13,11 +13,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * The document that reverses a finalized invoice.
- *
- * Numbered on its own gapless sequence and booked `Dr Revenue / Cr Accounts
- * Receivable`. The invoice it reverses is not changed beyond being marked
- * void: both documents stay, and together they explain the balance.
+ * Reverses a finalized invoice. Own gapless numbering; booked `Dr Revenue /
+ * Cr Accounts Receivable`. The invoice is only marked void.
  */
 final readonly class CreditNote
 {
@@ -32,13 +29,9 @@ final readonly class CreditNote
         public DateTimeImmutable $issuedAt,
     ) {}
 
-    /**
-     * The whole of a voided invoice, reversed.
-     */
     public static function voiding(Uuid $id, DocumentNumber $number, Invoice $invoice, string $reason): self
     {
-        // Only `void()` sets both: a discarded draft is void without a number,
-        // and there is nothing booked to reverse.
+        // A discarded draft is void but has no number.
         if (! $invoice->number instanceof DocumentNumber || ! $invoice->voidedAt instanceof DateTimeImmutable) {
             throw InvoiceTransitionRefused::from($invoice->status->value, 'credited');
         }
@@ -47,7 +40,7 @@ final readonly class CreditNote
     }
 
     /**
-     * @internal for the repository, rebuilding a note exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         Uuid $id,

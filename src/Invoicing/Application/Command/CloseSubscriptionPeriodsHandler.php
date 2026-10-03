@@ -24,21 +24,15 @@ use Metered\Usage\Application\Contract\UsageTotals;
 use Psr\Clock\ClockInterface;
 
 /**
- * Invoices one subscription's periods once their grace window has passed:
- * builds a draft from the aggregates, with late lines for earlier periods
- * that grew since they were billed, then finalizes it.
- *
- * Safe to run twice, at once or in turn. The draft is inserted only if its
- * subscription has no invoice for that period — a unique key decides, and
- * losing that race is a quiet no-op (ADR-0010).
+ * For each period past its grace window: a draft from the aggregates, plus
+ * late lines for earlier periods, then finalization. Idempotent: a unique key
+ * on (subscription, period) makes a second run a no-op (ADR-0010).
  */
 final readonly class CloseSubscriptionPeriodsHandler
 {
     /**
      * @param int $graceSeconds      how long after a period ends it may be closed
-     * @param int $lateWindowSeconds how far before a period's start a billed
-     *                               period can still be reached by late usage:
-     *                               the ingestion acceptance window plus the grace
+     * @param int $lateWindowSeconds acceptance window plus grace
      */
     public function __construct(
         private SubscriptionBilling $billing,
@@ -131,9 +125,7 @@ final readonly class CloseSubscriptionPeriodsHandler
                 continue;
             }
 
-            // Priced twice on the version that billed the period: once at what
-            // was billed, once at what it holds now. One version, so the two
-            // lists hold the same prices in the same order.
+            // Priced at the billed and the current quantity, same version and order.
             $before = $this->billing->charges($subscription->tenant, $subscription->id, $earlier->start, $billed);
             $after = $this->billing->charges($subscription->tenant, $subscription->id, $earlier->start, $now);
 

@@ -11,7 +11,7 @@ use Metered\Invoicing\Domain\Invoice\DocumentNumber;
 use Metered\Shared\Domain\Money\Money;
 
 /**
- * Read model for the panel.
+ * Read model.
  *
  * @property string $id
  * @property string $invoice_id

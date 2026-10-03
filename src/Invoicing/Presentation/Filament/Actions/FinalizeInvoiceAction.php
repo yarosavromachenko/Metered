@@ -16,8 +16,7 @@ use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
- * Finalizes a draft the period close left behind — a finalization that
- * failed after its draft was built.
+ * For drafts left when finalization failed during the period close.
  */
 final class FinalizeInvoiceAction
 {

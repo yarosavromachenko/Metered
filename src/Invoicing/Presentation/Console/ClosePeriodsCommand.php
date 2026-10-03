@@ -14,16 +14,9 @@ use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Psr\Clock\ClockInterface;
 
 /**
- * Finds the subscriptions with a period past its grace window and queues one
- * close per subscription on the billing queue.
- *
- * Deciding "due" here keeps the queue to the work there is; the job decides
- * again, and anything this gets wrong in either direction costs a no-op job
- * or a five-minute wait, never an invoice.
- *
- * Each run is the root of a trace, and the closes it queues are its children:
- * from there the trace follows each invoice's events through the outbox to
- * the webhooks they cause (ADR-0012).
+ * Queues one close job per subscription with a due period; the job checks
+ * again. Each run starts a trace that continues into the jobs, the outbox and
+ * webhooks (ADR-0012).
  */
 final class ClosePeriodsCommand extends Command
 {
@@ -86,9 +79,7 @@ final class ClosePeriodsCommand extends Command
                 $subscription->id->value,
             )->onQueue(is_string($queue) ? $queue : 'billing');
 
-            // The same job either way, so --sync closes exactly what the
-            // queue would have; it only waits for it. For an operator who
-            // wants the invoices now, and for the demo seed.
+            // --sync runs the same job inline (used by the demo seed).
             $this->option('sync') === true ? $bus->dispatchSync($job) : $bus->dispatch($job);
 
             ++$queued;

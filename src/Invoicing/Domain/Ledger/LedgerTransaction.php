@@ -13,15 +13,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * A set of entries recorded together, whose debits equal its credits.
- *
- * The equality is checked here, when the transaction is built, and again by
- * the database when it is committed (ADR-0008). It is the property that makes
- * the books check themselves: an amount booked to one account and forgotten on
- * the other cannot be written.
- *
- * There are three ways money moves in this system, and a named constructor for
- * each. Nothing else builds a transaction outside tests.
+ * Debits equal credits, checked here and by the database at commit
+ * (ADR-0008). One named constructor per kind of posting.
  */
 final readonly class LedgerTransaction
 {

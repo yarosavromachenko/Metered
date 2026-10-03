@@ -12,11 +12,8 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use RuntimeException;
 
 /**
- * One statement per number: the upsert creates the organization's counter at
- * one or advances it, and holds its row lock until the caller's transaction
- * ends. A second finalization in the same organization waits on that lock and
- * reads the committed value — or, after a rollback, the same number again.
- * That is the whole of the gapless guarantee (ADR-0010).
+ * One upsert per number; its row lock lasts until the caller commits, so
+ * concurrent finalizations wait and a rollback frees the number (ADR-0010).
  */
 final readonly class DatabaseDocumentNumbering implements DocumentNumbering
 {

@@ -10,8 +10,7 @@ use Metered\Invoicing\Domain\Invoice\LineKind;
 use Metered\Shared\Domain\Money\Money;
 
 /**
- * Read model for the panel. The table is keyed by (invoice, position), which
- * Eloquent cannot address, so a line is only ever loaded through its invoice.
+ * Read model with a composite key; loaded only through its invoice.
  *
  * @property string $invoice_id
  * @property int $position

@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Metered\Invoicing\Domain\Invoice;
 
 /**
- * Who the invoice is addressed to, as they were when it was built.
- *
- * A copy rather than a reference: a customer renamed next year must not
- * change what last year's invoice says.
+ * A copy of the customer at build time, so renames don't change old invoices.
  */
 final readonly class BillTo
 {

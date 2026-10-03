@@ -8,11 +8,8 @@ use Metered\Invoicing\Domain\Exception\InvalidInvoice;
 use Stringable;
 
 /**
- * The number printed on a finalized invoice or a credit note.
- *
- * Each kind counts on its own, per organization, from one and without gaps
- * (ADR-0010). The sequence is what is stored and compared; the prefix and the
- * padding are how it is printed.
+ * Gapless per organization and document kind (ADR-0010). The sequence is
+ * stored; prefix and padding are formatting.
  */
 final readonly class DocumentNumber implements Stringable
 {

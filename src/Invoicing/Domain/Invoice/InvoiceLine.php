@@ -10,12 +10,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * One line of an invoice: an amount, the period it bills, and how it was
- * arrived at.
- *
- * Every line carries its calculation — the tiers, the unit price, the
- * quantity — so that the figure can be checked on paper by someone who does
- * not trust the system. A line that only says "€41.30" invites a dispute.
+ * Amount, period, and the calculation behind it (tiers, unit price,
+ * quantity), printed so the customer can check it.
  */
 final readonly class InvoiceLine
 {
@@ -54,7 +50,7 @@ final readonly class InvoiceLine
     /**
      * @param list<string> $calculation
      *
-     * @internal for the repository, rebuilding a line exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         LineKind $kind,
@@ -71,8 +67,7 @@ final readonly class InvoiceLine
     }
 
     /**
-     * Usage that reached $covers after its invoice was built: the quantity is
-     * the part not yet billed, the amount what it adds to the period's charge.
+     * Quantity and amount not yet billed for the earlier period $covers.
      */
     public static function late(MeterCharge $charge, InvoicePeriod $covers): self
     {

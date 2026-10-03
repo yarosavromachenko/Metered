@@ -9,12 +9,7 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * What one metered price charges for one quantity of usage, as the catalog
- * priced it.
- *
- * The invoice does not price anything itself: pricing is Billing's, and a
- * charge arrives here already computed, with the steps that computed it so the
- * line can show its working.
+ * A charge priced by Billing, with its calculation.
  */
 final readonly class MeterCharge
 {

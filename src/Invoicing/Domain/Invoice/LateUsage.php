@@ -9,18 +9,9 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * What an earlier period still owes for usage that reached it after its
- * invoice was built.
- *
- * The period is priced again at everything it now holds, and the late line
- * bills the difference from what was already billed. Pricing the late units
- * on their own would be wrong under tiers: 200 late units after 900 billed
- * belong partly to the second tier, which only the whole quantity reveals.
- *
- * A volume discount can make more usage cost less. The late line then bills
- * nothing rather than paying money back: a refund is a credit note, a
- * document someone decides to issue, not a side effect of an event arriving
- * late (assumptions, 25).
+ * Prices the period at its full current quantity and bills the difference
+ * from what was billed (late units alone would miss tier boundaries). A
+ * negative difference bills zero; refunds are credit notes (assumption 25).
  */
 final class LateUsage
 {

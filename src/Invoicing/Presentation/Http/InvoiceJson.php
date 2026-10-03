@@ -13,9 +13,7 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * Invoices as the management API returns them. Money is minor units and a
- * currency; quantities are decimal strings; instants are RFC 3339 in UTC
- * (docs/api.md).
+ * Minor units, decimal strings, RFC 3339 UTC (docs/api.md).
  */
 final class InvoiceJson
 {

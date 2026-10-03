@@ -7,8 +7,7 @@ namespace Metered\Invoicing\Application\Command;
 use Metered\Shared\Domain\Exception\DomainException;
 
 /**
- * The provider refused to collect. Nothing was booked and the invoice is
- * still open; the reason is the provider's, shown as it was given.
+ * Nothing booked, the invoice stays open. The message is the provider's.
  */
 final class PaymentDeclined extends DomainException
 {

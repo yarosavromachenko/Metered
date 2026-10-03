@@ -41,10 +41,8 @@ final readonly class DatabaseBillingHistory implements BillingHistory
 
     public function billedQuantities(TenantContext $tenant, Uuid $subscriptionId, InvoicePeriod $covers): array
     {
-        // Every line that billed this meter for this period: the usage line on
-        // the period's own invoice, and each late line since. A late line's
-        // quantity is what it added, so the sum is what has been billed —
-        // for a max meter too, where it adds up to the peak billed so far.
+        // Usage line plus late lines; late lines hold increments, so the sum is
+        // the billed quantity (for max meters, the billed peak).
         $rows = $this->db->connection()->table('invoice_lines')
             ->where('project_id', $tenant->projectId->value)
             ->where('subscription_id', $subscriptionId->value)

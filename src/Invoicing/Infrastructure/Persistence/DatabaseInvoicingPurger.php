@@ -9,13 +9,9 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 
 /**
- * A purged demo tenant's invoices, credit notes, ledger and numbering.
- *
- * Every one of these tables refuses deletion by trigger (ADR-0008). The
- * triggers admit one exception: a transaction that has declared the
- * organization it is purging, for an organization created as a demo. The
- * declaration is made here, lasts until the transaction ends, and is worth
- * nothing for a real tenant — the database checks the demo flag itself.
+ * Triggers forbid deleting these rows (ADR-0008) unless the transaction
+ * declares the purged organization and that organization is a demo; the
+ * database checks the flag.
  */
 final readonly class DatabaseInvoicingPurger implements TenantDataPurger
 {

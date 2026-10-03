@@ -9,8 +9,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use RuntimeException;
 
 /**
- * No such invoice in the command's project — the same answer whether it does
- * not exist or belongs to another tenant.
+ * Also for another tenant's invoice.
  */
 final class InvoiceNotFound extends RuntimeException implements NotFound
 {
@@ -25,8 +24,7 @@ final class InvoiceNotFound extends RuntimeException implements NotFound
     }
 
     /**
-     * For an id that is not even a UUID: the same answer as for one that
-     * does not exist, rather than a validation error that tells them apart.
+     * Same error as for an unknown id.
      */
     public static function reference(string $given): self
     {

@@ -35,10 +35,6 @@ use Metered\Tenancy\Application\Contract\TenantDataPurger;
 use Metered\Usage\Application\Contract\UsageTotals;
 use Psr\Clock\ClockInterface;
 
-/**
- * Wires invoicing: its repositories, the ledger, the gapless counters, the
- * fake payment provider, and the two windows the period close runs on.
- */
 final class InvoicingServiceProvider extends ServiceProvider
 {
     public function register(): void
@@ -62,14 +58,12 @@ final class InvoicingServiceProvider extends ServiceProvider
                 $app->make(IdentifierGenerator::class),
                 $app->make(ClockInterface::class),
                 self::configInt($app, 'metered.invoicing.grace_seconds', 3600),
-                // Late usage can reach back as far as an event may be old when
-                // it is accepted, plus the grace in which it becomes an aggregate.
+                // Acceptance window plus grace.
                 self::configInt($app, 'metered.usage.acceptance.max_age_seconds', 604_800)
                     + self::configInt($app, 'metered.invoicing.grace_seconds', 3600),
             ),
         );
 
-        // Removed with a purged demo tenant, by the module that owns the rows.
         $this->app->tag([DatabaseInvoicingPurger::class], TenantDataPurger::TAG);
     }
 
@@ -81,9 +75,7 @@ final class InvoicingServiceProvider extends ServiceProvider
             $this->commands([ClosePeriodsCommand::class]);
         }
 
-        // Invoices are read and settled with an admin key, like the catalog.
-        // Paying and voiding take an Idempotency-Key, so a retried request
-        // cannot collect twice or issue a second credit note.
+        // Admin scope; paying and voiding require an Idempotency-Key.
         Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
             ->prefix('api/v1')
             ->group(static function (): void {

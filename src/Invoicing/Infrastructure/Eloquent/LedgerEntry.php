@@ -12,7 +12,7 @@ use Metered\Invoicing\Domain\Ledger\Direction;
 use Metered\Shared\Domain\Money\Money;
 
 /**
- * Read model for the panel.
+ * Read model.
  *
  * @property int $id
  * @property string $transaction_id

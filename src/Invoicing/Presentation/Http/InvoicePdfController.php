@@ -12,9 +12,6 @@ use Metered\Invoicing\Presentation\Pdf\InvoicePdf;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
-/**
- * The invoice as a PDF document, the same one the panel downloads.
- */
 final readonly class InvoicePdfController
 {
     public function __invoke(Request $request, string $invoice): Response
