@@ -6,9 +6,6 @@ namespace Metered\Simulation\Application\Port;
 
 use RuntimeException;
 
-/**
- * The API answered with a failure the simulation cannot work around.
- */
 final class ApiRefused extends RuntimeException
 {
     public static function answered(string $method, string $path, int $status, string $detail): self

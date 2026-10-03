@@ -21,20 +21,10 @@ use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 /**
- * The panel shell: branding, authentication, the middleware stack, and where
- * to look for the screens.
- *
- * It owns nothing else. Resources belong to the modules whose data they show,
- * and are found by path rather than imported, so the shell keeps no
- * compile-time dependency on any module (ADR-0015, and the module boundaries
- * Deptrac enforces). A module that is deleted takes its screens with it.
- *
- * Tenant scope is not Filament's built-in tenancy. This system scopes by an
- * organization *and* a project, and Filament models one tenant; splitting the
- * two halves between a URL segment and a session would mean two places to
- * check before believing a query is scoped. Both halves live in the session
- * instead, validated against the signed-in person's memberships on every
- * request — which is what ADR-0013 asks for.
+ * Panel shell: branding, auth, middleware. Resources are discovered by path
+ * in the modules, so the shell imports none of them (ADR-0015). Filament's
+ * tenancy is not used: the scope is organization plus project, kept in the
+ * session and checked against memberships (ADR-0013).
  */
 final class AdminPanelProvider extends PanelProvider
 {
@@ -92,9 +82,7 @@ final class AdminPanelProvider extends PanelProvider
                 Authenticate::class,
             ]);
 
-        // Sign-up exists only when demo mode names a page for it, so an
-        // installation that is not a demo has no registration route at all
-        // rather than a hidden one (ADR-0016).
+        // Outside demo mode there is no registration route (ADR-0016).
         $registration = config('metered.admin.registration_page');
 
         return is_string($registration) && class_exists($registration)

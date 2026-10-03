@@ -16,16 +16,10 @@ use Metered\Simulation\Application\Port\WebhookInbox;
 use Psr\Clock\ClockInterface;
 
 /**
- * Runs one failure against a tenant of its own and checks, through the public
- * API and `usage:reconcile`, that the platform kept its promises (plan §10):
- * no event lost, none counted twice, no webhook lost, and a sick endpoint
- * unable to hold up a healthy one.
- *
- * Each run provisions a fresh organization, so scenarios never share data
- * with each other, with a seed, or with a previous run. The failure itself is
- * real — a daemon with work in hand killed with SIGKILL, Redis unanswering —
- * and the checks wait for the stack's own daemons to recover from it, which
- * is the point: recovery is the stack's job, not the scenario's.
+ * Causes one real failure (SIGKILL of a busy daemon, paused Redis) against a
+ * fresh organization, waits for the stack to recover, then checks via the API
+ * and `usage:reconcile`: no event lost or double-counted, no webhook lost, a
+ * failing endpoint does not delay a healthy one.
  */
 final readonly class RunChaosHandler
 {
@@ -34,7 +28,7 @@ final readonly class RunChaosHandler
     /** Subscriptions started in the outbox and webhook scenarios. */
     private const int SUBSCRIPTIONS = 12;
 
-    /** Long enough for an orphaned message to be reclaimed (60s idle) and written. */
+    /** Covers the 60s reclaim idle time plus the write. */
     private const int USAGE_RECOVERY_SECONDS = 180;
 
     private const int DELIVERY_SECONDS = 120;

@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Metered\Simulation\Application\Seed;
 
 /**
- * The seeded catalog, in the shapes the management API takes.
- *
- * Four meters, one per aggregation that matters, and four plans that between
- * them use every pricing model — so every calculator has real invoice lines
- * to show, and the tier boundaries are crossed by customers of different
- * sizes rather than by a unit test alone.
+ * Four meters and four plans covering every aggregation and pricing model,
+ * as management API payloads.
  */
 final class Catalog
 {
@@ -82,8 +78,6 @@ final class Catalog
     }
 
     /**
-     * Every event the platform announces: the seeded endpoints hear it all.
-     *
      * @return list<string>
      */
     public static function webhookEvents(): array
@@ -92,9 +86,8 @@ final class Catalog
     }
 
     /**
-     * The demo receiver's modes (docker/webhook-receiver): one endpoint each,
-     * so the delivery log shows success, retries, a slow answer, an endpoint
-     * gone for good and a breaker that opens.
+     * One endpoint per receiver mode (docker/webhook-receiver): success,
+     * retries, slow, gone, breaker.
      *
      * @return array<string, string>
      */

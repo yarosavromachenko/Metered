@@ -10,8 +10,7 @@ use Metered\Simulation\Application\Seed\SeedTenant;
 use Metered\Simulation\Application\Seed\SeedTenantHandler;
 
 /**
- * Fills a tenant through the public API (ADR-0016). Without --key it creates
- * the organization first and prints the key it was given, once.
+ * ADR-0016. Without --key it creates the organization and prints its key once.
  */
 final class SeedCommand extends Command
 {
@@ -81,8 +80,7 @@ final class SeedCommand extends Command
     }
 
     /**
-     * A text option, narrowed rather than cast: the signature only types the
-     * input where the command is registered, and it is not in every environment.
+     * Narrowed, not cast: the command is not registered in every environment.
      */
     private function text(string $option): string
     {

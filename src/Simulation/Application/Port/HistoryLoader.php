@@ -8,11 +8,8 @@ use DateTimeImmutable;
 use Metered\Simulation\Application\Seed\SimulatedEvent;
 
 /**
- * The bulk path for history (ADR-0016): events and their aggregates written
- * straight into the tables, in the shape the consumer would have left them,
- * then checked by `usage:reconcile`. Faster than the API by orders of
- * magnitude, and the only way to load anything older than the acceptance
- * window at all.
+ * Bulk-loads events and aggregates older than the acceptance window directly
+ * into the tables, then `usage:reconcile` checks them (ADR-0016).
  */
 interface HistoryLoader
 {

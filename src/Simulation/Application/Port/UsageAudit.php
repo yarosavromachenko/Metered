@@ -7,8 +7,7 @@ namespace Metered\Simulation\Application\Port;
 use DateTimeImmutable;
 
 /**
- * `usage:reconcile` over one project's window: do the aggregates agree with
- * the events under them?
+ * `usage:reconcile` for one project.
  */
 interface UsageAudit
 {

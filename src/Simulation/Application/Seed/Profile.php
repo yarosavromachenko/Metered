@@ -5,14 +5,9 @@ declare(strict_types=1);
 namespace Metered\Simulation\Application\Seed;
 
 /**
- * How much a seeded tenant holds (ADR-0016).
- *
- * `demo` is sized for roughly two million events over ninety days, `heavy`
- * for twenty million, `small` for a tenant that seeds in seconds — the one
- * every demo sign-up gets. Only the last `liveDays` go through the ingestion
- * API; everything older is history, loaded by the backfill, because the
- * acceptance window refuses events more than seven days old and because two
- * million requests would take longer than anyone waits.
+ * Seed sizes (ADR-0016): `demo` about 2M events over 90 days, `heavy` 20M,
+ * `small` seconds (demo sign-ups). Only the last `liveDays` go through the
+ * API; older days are bulk-loaded.
  */
 enum Profile: string
 {
@@ -38,9 +33,7 @@ enum Profile: string
     }
 
     /**
-     * Days of usage sent through the API, ending now. At most the
-     * acceptance window, and small enough that the per-key rate limit does
-     * not turn seeding into a wait.
+     * Within the acceptance window and the per-key rate limit.
      */
     public function liveDays(): int
     {
@@ -51,10 +44,7 @@ enum Profile: string
     }
 
     /**
-     * Events an average customer sends in a day. A customer's own size, the
-     * hour and the weekday move it around this. Customers join over the
-     * history's first month, fifteen and a half days in on average, which
-     * the rates for demo and heavy allow for.
+     * Per average customer per day, before size, hour and weekday factors.
      */
     public function eventsPerCustomerDay(): int
     {

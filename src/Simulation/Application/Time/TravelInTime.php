@@ -8,8 +8,8 @@ use DateInterval;
 use DateTimeImmutable;
 
 /**
- * Move the demo's clock: forward by an interval, forward to an instant, or
- * back to real time. Nothing given only reports where it stands.
+ * Forward by an interval, to an instant, or reset; with nothing given it
+ * reports the current offset.
  */
 final readonly class TravelInTime
 {

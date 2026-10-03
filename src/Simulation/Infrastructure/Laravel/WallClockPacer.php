@@ -7,10 +7,8 @@ namespace Metered\Simulation\Infrastructure\Laravel;
 use Metered\Simulation\Application\Port\Pacer;
 
 /**
- * Sleeps until the schedule catches up, counting from its first call. When a
- * second's requests took longer than a second, the next second starts at
- * once rather than drifting: the run then sends less than it was asked to,
- * which the report shows, instead of stretching out.
+ * Counts from the first call. A slow second is not made up: the run sends
+ * fewer events (shown in the report) instead of drifting.
  */
 final class WallClockPacer implements Pacer
 {

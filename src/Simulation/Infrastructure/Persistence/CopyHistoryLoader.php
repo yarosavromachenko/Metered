@@ -19,20 +19,11 @@ use Psr\Clock\ClockInterface;
 use RuntimeException;
 
 /**
- * History by COPY, the documented exception to "the simulation goes through
- * the API" (ADR-0016).
- *
- * Events are streamed into `usage_events` in chunks, and each customer's
- * aggregates are folded as their events go by — with the kernel's own
- * Aggregation::fold(), the definition the consumer's upsert agrees with — and
- * copied into `usage_aggregates` the moment the next customer begins. Neither
- * is derived from the other in SQL, which is what makes the reconciliation
- * afterwards a check rather than a tautology: `usage:reconcile` recomputes
- * every bucket in the window from the events and must find nothing to say.
- *
- * Partitions are created for the history's days first, or everything would
- * land in the default partition. The tenant is found by its key's prefix,
- * the same lookup authentication makes.
+ * COPY-based history load, the one exception to going through the API
+ * (ADR-0016). Events are copied in chunks; aggregates are folded in PHP with
+ * Aggregation::fold() and copied per customer, so `usage:reconcile` afterwards
+ * is an independent check. Partitions are created first. The tenant is looked
+ * up by key prefix.
  */
 final readonly class CopyHistoryLoader implements HistoryLoader
 {

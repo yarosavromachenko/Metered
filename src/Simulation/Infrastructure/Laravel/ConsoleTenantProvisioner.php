@@ -10,9 +10,7 @@ use Metered\Simulation\Application\Port\TenantProvisioner;
 use RuntimeException;
 
 /**
- * `org:create --json`, exactly as an operator would run it. The simulation
- * may not reach into Tenancy (ADR-0001), and a console command is a public
- * interface as much as a route is.
+ * Runs `org:create --json`; Simulation may not use Tenancy internals (ADR-0001).
  */
 final readonly class ConsoleTenantProvisioner implements TenantProvisioner
 {

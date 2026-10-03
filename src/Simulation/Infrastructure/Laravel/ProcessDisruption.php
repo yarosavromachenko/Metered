@@ -11,13 +11,12 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 
 /**
- * Daemons of the simulation's own, as child processes of this command, and
- * Redis held still with CLIENT PAUSE — the stack's containers are never
- * touched, and nothing here needs the Docker socket.
+ * Daemons as child processes, Redis paused with CLIENT PAUSE; no Docker socket
+ * needed.
  */
 final class ProcessDisruption implements Disruption
 {
-    /** Time for a daemon to boot and join its group before traffic starts. */
+    /** Boot time before traffic starts. */
     private const int BOOT_MICROSECONDS = 2_000_000;
 
     /** @var array<string, Process> */

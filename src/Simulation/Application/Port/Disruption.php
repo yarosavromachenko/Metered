@@ -5,16 +5,12 @@ declare(strict_types=1);
 namespace Metered\Simulation\Application\Port;
 
 /**
- * The failures chaos scenarios cause. The simulation does not reach the
- * stack's own containers, so it brings up daemons of its own — a consumer,
- * a relay — and kills those, which is the same failure from the point of view
- * of everything else: a process that held work and vanished.
+ * Starts its own daemons (consumer, relay) and kills them; the stack's
+ * containers are not touched.
  */
 interface Disruption
 {
     /**
-     * Starts an artisan daemon in a process of its own.
-     *
      * @param  list<string>  $arguments
      * @return string a handle for kill()
      */
@@ -32,8 +28,7 @@ interface Disruption
     public function pendingOf(string $consumer): int;
 
     /**
-     * Every Redis client is held for this long — to the platform, Redis is
-     * gone and then back.
+     * CLIENT PAUSE for this long.
      */
     public function stallRedis(int $milliseconds): void;
 }

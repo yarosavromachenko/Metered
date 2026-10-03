@@ -7,11 +7,8 @@ namespace Metered\Simulation\Application\Seed;
 use DateTimeImmutable;
 
 /**
- * One customer of the seeded tenant, and what happens to them.
- *
- * `size` scales how much they use: 1.0 is the profile's average customer.
- * `switchesTo` is a plan they move to at the end of a period; `cancels` ends
- * their subscription at the end of the current one.
+ * `size` 1.0 is the profile average. `switchesTo` and `cancels` take effect
+ * at the end of a period.
  */
 final readonly class SeededCustomer
 {

@@ -9,13 +9,9 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * Who the seeded tenant bills.
- *
- * Mostly ordinary customers spread over the plans and over the first month of
- * the history, so each has several closed periods. The first few are there on
- * purpose (ADR-0016): anchored on the 29th, 30th and 31st, so the month-end
- * clamp shows in real invoices; one who never uses anything; one who changes
- * plan; one who cancels; one on the plan priced by volume.
+ * Customers spread over the plans and the first month. The first few are
+ * edge cases (ADR-0016): anchors on the 29th–31st, no usage, a plan change, a
+ * cancellation, volume pricing.
  */
 final readonly class Roster
 {
@@ -47,8 +43,7 @@ final readonly class Roster
                 3 => new SeededCustomer($reference, $this->name($i), 'growth', $this->ordinaryStart($reference, $historyStart), $size, silent: true),
                 4 => new SeededCustomer($reference, $this->name($i), 'starter', $this->ordinaryStart($reference, $historyStart), $size, switchesTo: 'growth'),
                 5 => new SeededCustomer($reference, $this->name($i), 'payg', $this->ordinaryStart($reference, $historyStart), $size, cancels: true),
-                // Volume pricing lives on Scale alone, and a small roster could
-                // miss it by chance: every seeded tenant has one customer there.
+                // Always one customer on Scale (volume pricing).
                 6 => new SeededCustomer($reference, $this->name($i), 'scale', $this->ordinaryStart($reference, $historyStart), $size),
                 default => new SeededCustomer($reference, $this->name($i), $this->plan($reference), $this->ordinaryStart($reference, $historyStart), $size),
             };
@@ -82,9 +77,6 @@ final readonly class Roster
         return 'starter';
     }
 
-    /**
-     * Somewhere in the first month of the history, at some hour of the day.
-     */
     private function ordinaryStart(string $reference, DateTimeImmutable $historyStart): DateTimeImmutable
     {
         return $historyStart
@@ -94,8 +86,7 @@ final readonly class Roster
     }
 
     /**
-     * The end of a first monthly period, clamped to a shorter month the way
-     * billing periods are: 31 January is followed by 28 February.
+     * Clamped like billing periods: 31 January → 28 February.
      */
     private function monthLater(DateTimeImmutable $at): DateTimeImmutable
     {
@@ -106,10 +97,8 @@ final readonly class Roster
     }
 
     /**
-     * The latest day numbered $day inside the history whose first period has
-     * already ended, at ten in the morning: a start on the 29th, 30th or 31st
-     * of the month. February has none of those, so this walks back far enough
-     * to find one.
+     * Latest date with day-of-month $day (29–31) whose first period has ended,
+     * at 10:00; skips months without that day.
      */
     private function lastDayNumbered(int $day, DateTimeImmutable $historyStart, DateTimeImmutable $now): DateTimeImmutable
     {
