@@ -80,7 +80,7 @@ PostgreSQL directly. Only the stateless web tier is pooled
 | `Shared` | Clock, Money, UUIDv7, outbox, inbox, idempotency, audit log, tracing, metrics, health checks, problem+json | Used directly by everyone — it is the shared kernel |
 | `Tenancy` | Organizations, projects, API keys, scopes, rate limits, admin users | `Tenancy\Application\Contract` |
 | `Usage` | Ingestion endpoint, stream consumer, partitions, aggregates, reconciliation | `Usage\Application\Contract` |
-| `Billing` | Meters, plans, versions, prices, customers, subscriptions, pricing calculator | `Billing\Application\Contract` |
+| `Billing` | Meters, plans, versions, prices, customers, subscriptions, pricing calculator | `Billing\Application\Contract`; outbox events `subscription.created`, `subscription.canceled` |
 | `Invoicing` | Period close, invoices, ledger, credit notes, payments, PDF | Outbox events `invoice.finalized`, `invoice.paid`, `invoice.voided` |
 | `Webhooks` | Endpoints, signing, delivery, retries, DLQ, circuit breaker, SSRF guard | — (consumes the outbox, delivers to customer URLs) |
 | `Admin` | Filament panel shell, navigation, cross-module dashboards | — (presentation only) |

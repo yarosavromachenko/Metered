@@ -7,8 +7,9 @@ namespace Metered\Webhooks\Domain\Delivery;
 use DateTimeImmutable;
 
 /**
- * Ten attempts, waits of 1m, 5m, 30m, 1h, 2h, 4h, 8h, 12h, 24h (about 2.5
- * days, ADR-0011), each with ±20% jitter so endpoints don't retry in sync.
+ * Ten attempts, waits of 1m, 5m, 30m, 1h, 2h, 4h, 8h, 12h, 24h (about two
+ * days in all, ADR-0011), each with ±20% jitter so endpoints don't retry in
+ * sync.
  */
 final class RetrySchedule
 {

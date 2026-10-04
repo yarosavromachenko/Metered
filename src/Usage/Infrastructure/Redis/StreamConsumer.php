@@ -316,7 +316,7 @@ final readonly class StreamConsumer
                     continue;
                 }
 
-                // Original fields plus reason and time.
+                // Original fields plus reason, delivery count and time.
                 $pipe->xadd($key, '*', [
                     ...$delivery->fields,
                     DeadLetters::REASON => $reason,
