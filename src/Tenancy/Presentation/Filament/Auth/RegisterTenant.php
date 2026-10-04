@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Presentation\Filament\Auth;
 
 use Filament\Auth\Pages\Register;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Events\Dispatcher;
 use Metered\Tenancy\Application\Command\RegisterDemoTenant;
@@ -40,6 +41,14 @@ final class RegisterTenant extends Register
     {
         // No mail infrastructure (ADR-0017).
         return 'Demo accounts have no password reset. A forgotten password means a new account.';
+    }
+
+    /**
+     * Without Filament's hashing: the account repository hashes the password.
+     */
+    protected function getPasswordFormComponent(): Component
+    {
+        return parent::getPasswordFormComponent()->dehydrateStateUsing(null);
     }
 
     /**
