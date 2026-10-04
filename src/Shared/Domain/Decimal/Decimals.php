@@ -9,12 +9,9 @@ use Brick\Math\Exception\MathException;
 use Metered\Shared\Domain\Exception\InvalidDecimal;
 
 /**
- * Parsing shared by the decimal value objects.
- *
- * Both rules here are deliberate and both refuse rather than repair. A value
- * carrying more decimal places than the column can hold is rejected instead of
- * rounded, because silently rounding a quantity changes what a customer is
- * billed and leaves no trace that it happened.
+ * Parsing for the decimal value objects. Negative values and values with more
+ * decimal places than the column holds are rejected, not rounded: rounding a
+ * quantity would change the bill.
  */
 final class Decimals
 {

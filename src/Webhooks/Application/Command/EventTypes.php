@@ -7,9 +7,6 @@ namespace Metered\Webhooks\Application\Command;
 use Metered\Webhooks\Domain\Endpoint\EventType;
 use Metered\Webhooks\Domain\Exception\InvalidEndpoint;
 
-/**
- * Event names as a caller spells them, read into the types they name.
- */
 final class EventTypes
 {
     /**

@@ -13,12 +13,7 @@ use Symfony\Component\HttpFoundation\Response;
 use Throwable;
 
 /**
- * Opens the trace, or joins the caller's.
- *
- * Joining matters as much as opening: a tenant that instruments its own
- * backend and sends `traceparent` can then see its request and our processing
- * of it as one trace, which is the difference between "your API was slow" and
- * a conversation about which hop was.
+ * Starts a trace, or continues the caller's when it sends `traceparent`.
  */
 final readonly class TraceRequest
 {
@@ -52,9 +47,7 @@ final readonly class TraceRequest
 
         $span->setAttribute('http.response.status_code', $response->getStatusCode());
 
-        // 4xx is the client being told something, not the server failing. Only
-        // 5xx marks the span as an error, or every rejected request would look
-        // like an outage on a dashboard.
+        // Only 5xx marks the span as an error; 4xx is a client mistake.
         if ($response->getStatusCode() >= 500) {
             $span->setStatus(StatusCode::STATUS_ERROR);
         }
@@ -66,8 +59,7 @@ final readonly class TraceRequest
     }
 
     /**
-     * The route pattern rather than the path, so that a million customer ids
-     * do not become a million span names.
+     * Route pattern, not the path, to keep span names low-cardinality.
      */
     private function routePattern(Request $request): string
     {

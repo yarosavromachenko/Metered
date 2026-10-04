@@ -17,23 +17,14 @@ use Psr\Clock\ClockInterface;
 use RuntimeException;
 
 /**
- * Seeds one tenant, in the order a real client and a real history would
- * leave it:
- *
- *  1. catalog, webhook endpoints, customers and subscriptions — through the
- *     API. Endpoints come first so the subscriptions' own events are
- *     delivered; subscriptions start in the past, where the roster puts them.
- *  2. history up to the profile's last few days — by the bulk loader, since
- *     the acceptance window refuses anything older (ADR-0016), and checked by
- *     `usage:reconcile` before anything is built on it.
- *  3. every period that has ended is closed, by the ordinary period close.
- *  4. those invoices are settled through the API the way customers settle:
- *     most paid some days after they were issued, a few left overdue, one
- *     voided with a credit note.
- *  5. the last few days of usage — through the API. Some of it falls in
- *     periods closed in step 3 and becomes late lines on the next invoice; a
- *     share is sent twice, and a handful name a meter or customer that does
- *     not exist, so deduplication and rejections have something to show.
+ *  1. Via the API: catalog, webhook endpoints (first, so subscription events
+ *     are delivered), customers, backdated subscriptions.
+ *  2. History older than the live days via the bulk loader, then
+ *     `usage:reconcile` (ADR-0016).
+ *  3. The regular period close.
+ *  4. Via the API: most invoices paid, some left overdue, one voided.
+ *  5. Via the API: the live days, producing late lines, plus some duplicates
+ *     and some events that will be rejected.
  */
 final readonly class SeedTenantHandler
 {
@@ -42,10 +33,9 @@ final readonly class SeedTenantHandler
     /** Every hundredth event is sent a second time. */
     private const int DUPLICATE_EVERY = 100;
 
-    /** How long after an invoice's period ends a customer who pays, pays. */
+    /** Delay between period end and payment. */
     private const int PAYS_AFTER_DAYS = 10;
 
-    /** The share of customers who leave their invoices open. */
     private const float LATE_PAYERS = 0.1;
 
     public function __construct(
@@ -195,10 +185,8 @@ final readonly class SeedTenantHandler
     }
 
     /**
-     * The live usage as API batches, made as they are sent: a heavy tenant's
-     * day is a quarter of a million events, and holding it whole ran out of
-     * memory. Every hundredth event is kept to be resent at the end as a
-     * duplicate, followed by the events meant to be rejected.
+     * Generated lazily (a heavy day is ~250k events). Every hundredth event is
+     * resent at the end, followed by the events meant to be rejected.
      *
      * @param  iterable<SimulatedEvent>  $usage
      * @param  list<array<string, string>>  $rejects
@@ -234,8 +222,7 @@ final readonly class SeedTenantHandler
     }
 
     /**
-     * Every customer's usage in [from, to), one customer after another — the
-     * order the history loader folds aggregates in.
+     * Customer by customer, the order the history loader expects.
      *
      * @param  list<SeededCustomer>  $customers
      * @return Generator<SimulatedEvent>
@@ -247,7 +234,7 @@ final readonly class SeedTenantHandler
         foreach ($customers as $customer) {
             for ($hour = $from; $hour < $to; $hour = $hour->add(new DateInterval('PT1H'))) {
                 foreach ($pattern->hour($customer, $plans[$customer->plan]['meters'], $hour) as $event) {
-                    // Nothing that has not happened yet: the API would refuse it.
+                    // No future events.
                     if ($event->occurredAt >= $from && $event->occurredAt < $to) {
                         yield $event;
                     }
@@ -257,8 +244,7 @@ final readonly class SeedTenantHandler
     }
 
     /**
-     * Pays what has been open long enough, except for the few customers who
-     * never pay on time; voids one invoice instead of paying it.
+     * Pays due invoices except for late payers; voids one.
      *
      * @param  list<SeededCustomer>  $customers
      * @return array{int, int} paid, voided
@@ -298,8 +284,7 @@ final readonly class SeedTenantHandler
     }
 
     /**
-     * A few events a real integration gets wrong: a meter code with a typo,
-     * and a customer nobody registered.
+     * A misspelled meter code and an unregistered customer.
      *
      * @param  list<SeededCustomer>  $customers
      * @return list<array<string, string>>

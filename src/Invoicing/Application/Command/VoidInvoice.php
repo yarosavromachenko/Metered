@@ -8,10 +8,6 @@ use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
-/**
- * Discards a draft, or voids a finalized invoice with a credit note carrying
- * $reason.
- */
 final readonly class VoidInvoice
 {
     public function __construct(

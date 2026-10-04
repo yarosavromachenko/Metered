@@ -27,9 +27,7 @@ use Metered\Tenancy\Application\Contract\PanelScope;
 use UnitEnum;
 
 /**
- * Every version of every plan, with its prices spelled out. Drafts carry the
- * actions that shape them; a published version carries none, because it can
- * no longer change.
+ * Actions only on drafts; published versions are immutable.
  */
 final class PlanVersionResource extends Resource
 {

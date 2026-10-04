@@ -9,8 +9,8 @@ use Metered\Simulation\Application\Port\WebhookInbox;
 use RuntimeException;
 
 /**
- * docker/webhook-receiver: each mode is a path, and POST /_secrets hands it
- * a signing secret so it can check the signatures on what it receives.
+ * docker/webhook-receiver: one path per mode; POST /_secrets registers a
+ * signing secret.
  */
 final readonly class ReceiverInbox implements WebhookInbox
 {

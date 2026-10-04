@@ -8,13 +8,7 @@ use Illuminate\Database\DatabaseManager;
 use Metered\Usage\Application\Ingestion\RejectionLog;
 
 /**
- * Rejections, written in one statement per batch.
- *
- * Deliberately outside the write transaction. A rejection is a fact about an
- * event that will never be stored, so tying it to the transaction that stores
- * the other events would mean a write failure erases the record of why its
- * neighbours were refused — and then the rejections would be recomputed on
- * redelivery anyway.
+ * One insert per batch, outside the event write transaction.
  */
 final readonly class DatabaseRejectionLog implements RejectionLog
 {
@@ -40,8 +34,7 @@ final readonly class DatabaseRejectionLog implements RejectionLog
                 'project_id' => $rejection->tenant->projectId->value,
                 'event_id' => $rejection->eventId,
                 'reason' => $rejection->reason->value,
-                // The column is bounded; a detail that would not fit is
-                // truncated rather than costing the row that explains it.
+                // Truncated to the column size.
                 'detail' => mb_substr($rejection->detail, 0, 500),
                 'payload' => is_string($payload) ? $payload : '{}',
                 'rejected_at' => $rejection->rejectedAt,

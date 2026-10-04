@@ -6,6 +6,7 @@ namespace Metered\Tenancy\Presentation\Filament\Auth;
 
 use Filament\Auth\Pages\Register;
 use Filament\Forms\Components\TextInput;
+use Filament\Schemas\Components\Component;
 use Filament\Schemas\Schema;
 use Illuminate\Contracts\Events\Dispatcher;
 use Metered\Tenancy\Application\Command\RegisterDemoTenant;
@@ -16,17 +17,8 @@ use RuntimeException;
 use SensitiveParameter;
 
 /**
- * Self-service sign-up, offered only when demo mode names this page
- * (ADR-0016). A visitor leaves this form owning an organization, a project and
- * a working API key.
- *
- * One extra field over Filament's own: the company name. Everything else the
- * new tenant needs is derived, because a sign-up that asked a stranger to
- * choose a currency, an environment and a slug before seeing anything would
- * lose most of them at the second field.
- *
- * Registration goes through the same handler the console command uses, so the
- * demo exercises the real path rather than a shortcut written for it.
+ * Demo sign-up (ADR-0016). Adds the company name to Filament's form; slug,
+ * currency and environment use defaults. Goes through RegisterDemoTenantHandler.
  */
 final class RegisterTenant extends Register
 {
@@ -47,9 +39,16 @@ final class RegisterTenant extends Register
 
     public function getSubheading(): string
     {
-        // Said plainly, because it is true and because there is no mail
-        // infrastructure to soften it with (ADR-0017).
+        // No mail infrastructure (ADR-0017).
         return 'Demo accounts have no password reset. A forgotten password means a new account.';
+    }
+
+    /**
+     * Without Filament's hashing: the account repository hashes the password.
+     */
+    protected function getPasswordFormComponent(): Component
+    {
+        return parent::getPasswordFormComponent()->dehydrateStateUsing(null);
     }
 
     /**
@@ -60,12 +59,11 @@ final class RegisterTenant extends Register
         $registered = app(RegisterDemoTenantHandler::class)->handle(new RegisterDemoTenant(
             name: $this->text($data['name'] ?? null),
             email: $this->text($data['email'] ?? null),
-            password: $this->text($data['password'] ?? null),
+            plainPassword: $this->text($data['password'] ?? null),
             organizationName: $this->text($data['organization'] ?? null),
         ));
 
-        // Filled in the background, once this registration has committed:
-        // the visitor lands in their panel at once and watches it fill.
+        // Filled in the background after commit.
         app(Dispatcher::class)->dispatch(new DemoDataRequested(
             $registered->tenant->organization->id->value,
             $registered->tenant->secret->reveal(),
@@ -73,9 +71,7 @@ final class RegisterTenant extends Register
 
         $user = User::query()->find($registered->userId->value);
 
-        // The handler just wrote it inside this transaction, so a miss here
-        // means the mapping is broken rather than that the visitor did
-        // anything wrong.
+        // Just written by the handler; a miss is a bug.
         return $user instanceof User
             ? $user
             : throw new RuntimeException('The account was created but could not be read back.');

@@ -9,12 +9,8 @@ use Monolog\Processor\ProcessorInterface;
 use OpenTelemetry\API\Trace\Span;
 
 /**
- * Stamps a log line with the trace and span it was written in.
- *
- * Without a log store beside the traces, this is what joins the two: a line
- * in `docker compose logs` carries the id to paste into Tempo, and a span in
- * Tempo carries the id to grep for. Lines written outside any span are left
- * as they are.
+ * Adds trace and span ids to log records written inside a span, so logs and
+ * Tempo traces can be matched.
  */
 final readonly class TraceContextProcessor implements ProcessorInterface
 {

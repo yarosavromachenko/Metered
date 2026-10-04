@@ -17,22 +17,9 @@ use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\ProjectRepository;
 
 /**
- * Which organization and project the person at the keyboard is looking at.
- *
- * Both halves live in the session and both are re-derived from the signed-in
- * person's memberships on every read. A session that names an organization the
- * person has been removed from resolves to nothing, not to the stale scope it
- * was holding — which is the difference between an access change taking effect
- * and merely being recorded.
- *
- * Resolved per request rather than kept as a singleton. Under Octane a
- * singleton holding a request or a session belongs to whoever created it, and
- * the next request would inherit their scope while every query kept succeeding.
- *
- * Other modules' screens see only the two questions on
- * {@see PanelScopeContract}: which tenant, and may this person do that. The
- * rest — switching, the list of reachable projects — is the switcher's, and
- * the switcher is Tenancy's.
+ * The selection is kept in the session and checked against memberships on
+ * every read, so removed access takes effect immediately. Resolved per request
+ * (Octane). Other modules use {@see PanelScopeContract}.
  */
 final readonly class PanelScope implements PanelScopeContract
 {
@@ -44,10 +31,6 @@ final readonly class PanelScope implements PanelScopeContract
         private ProjectRepository $projects,
     ) {}
 
-    /**
-     * The scope to filter every panel query by, or null when the person has
-     * nothing to look at.
-     */
     public function tenant(): ?TenantContext
     {
         return $this->current()?->tenant();
@@ -82,9 +65,7 @@ final readonly class PanelScope implements PanelScopeContract
     }
 
     /**
-     * Moves the scope to another project, if the person is a member of the
-     * organization that owns it. Anything else leaves the scope untouched:
-     * a project id typed into a form is a request, not an instruction.
+     * Ignored unless the user is a member of the project's organization.
      */
     public function switchTo(string $projectId): bool
     {
@@ -100,9 +81,6 @@ final readonly class PanelScope implements PanelScopeContract
     }
 
     /**
-     * Every project the person can reach, across every organization they
-     * belong to — the contents of the switcher.
-     *
      * @return list<Project>
      */
     public function available(): array
@@ -142,9 +120,7 @@ final readonly class PanelScope implements PanelScopeContract
             }
         }
 
-        // No choice made yet, or a choice that no longer belongs to this
-        // person: fall back to the first project they can reach and remember
-        // it, so the rest of the request sees one consistent scope.
+        // No valid choice: use the first reachable project and store it.
         $first = $available[0];
         $this->remember($first->id->value);
 
@@ -152,9 +128,7 @@ final readonly class PanelScope implements PanelScopeContract
     }
 
     /**
-     * A request without a session still has a scope — it just cannot carry a
-     * choice between requests, and falls back to the first project each time.
-     * Console commands and stateless requests reach this.
+     * Without a session (console, stateless requests) the first project is used.
      */
     private function remember(string $projectId): void
     {
@@ -165,9 +139,7 @@ final readonly class PanelScope implements PanelScopeContract
 
     private function userId(): ?Uuid
     {
-        // The guard rather than the request: a request only knows its user
-        // once authentication middleware has run, and this is also read from
-        // Livewire components, which build their own.
+        // The guard, not the request: Livewire components build their own requests.
         $id = Auth::user()?->getAuthIdentifier();
 
         return is_string($id) && Uuid::isValid($id) ? Uuid::fromString($id) : null;

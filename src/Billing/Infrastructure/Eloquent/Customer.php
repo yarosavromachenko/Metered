@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 
 /**
- * The read side of a customer.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

@@ -64,24 +64,16 @@ use OpenTelemetry\Context\Propagation\TextMapPropagatorInterface;
 use Psr\Clock\ClockInterface;
 use Psr\Log\LoggerInterface;
 
-/**
- * Wires the shared kernel's ports to their production adapters.
- *
- * The module owns its own wiring rather than leaving it in app/Providers, so
- * everything a module needs in order to work travels with the module.
- */
 final class SharedServiceProvider extends ServiceProvider
 {
     /**
-     * Modules add their integration event handlers to this tag; the dispatcher
-     * picks up whatever is tagged, without the kernel knowing who they are.
+     * Tag for integration event handlers.
      */
     public const string HANDLER_TAG = 'metered.integration_event_handlers';
 
     public function register(): void
     {
-        // Where a demo runs, time can be moved forward (sim:time-travel);
-        // anywhere else it is the operating system's, and nothing can move it.
+        // Time travel (sim:time-travel) only in local and demo.
         $this->app->singleton(
             ClockInterface::class,
             static fn(Application $app): ClockInterface => $app->environment('local', 'demo')
@@ -199,7 +191,6 @@ final class SharedServiceProvider extends ServiceProvider
             ),
         );
 
-        // What every instance needs; modules tag what they need on top.
         $this->app->tag([DatabaseCheck::class, RedisCheck::class], ReadinessCheck::TAG);
 
         $this->app->singleton(
@@ -213,28 +204,23 @@ final class SharedServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Built here, on the application Octane clones for every request, so
-        // a worker keeps one of each for its life. Resolved first inside a
-        // request, they would belong to that request's clone: a new provider
-        // per request, exporting one span at a time and restarting every
-        // counter from zero.
+        // Resolved at boot, before Octane clones the app per request, so a
+        // worker keeps one provider for its lifetime.
         foreach ([TracerProviderInterface::class, MeterProviderInterface::class, Tracing::class, Metrics::class, TelemetryFlush::class] as $telemetry) {
             $this->app->make($telemetry);
         }
 
         QueueTracing::register($this->app->make('events'), fn(): QueueTracing => $this->app->make(QueueTracing::class));
 
-        // The idle points of the long-running processes the framework runs:
-        // a queue worker's every pass, and an Octane request once answered.
-        // The daemons of this codebase call it from their own loops.
+        // Flush at idle points: each queue worker pass and after each Octane
+        // request. Our own daemons flush in their loops.
         $flush = function (): void {
             $this->app->make(TelemetryFlush::class)->flushIfDue();
         };
         $this->app->make('events')->listen(Looping::class, $flush);
         $this->app->make('events')->listen(RequestTerminated::class, $flush);
 
-        // No middleware group: a probe carries no session, no API key and no
-        // trace, and it must not be rate limited into looking unhealthy.
+        // No middleware: probes must not be rate limited.
         Route::get('health/live', LivenessController::class)->name('health.live');
         Route::get('health/ready', ReadinessController::class)->name('health.ready');
 
@@ -250,9 +236,7 @@ final class SharedServiceProvider extends ServiceProvider
     }
 
     /**
-     * A list, not a generator. The dispatcher is a singleton that a worker
-     * keeps for its whole life, and a generator can be walked once: the
-     * second event a worker handled would find no handlers left to run.
+     * A list, not a generator: the singleton dispatcher iterates it many times.
      *
      * @return list<IntegrationEventHandler>
      */

@@ -9,8 +9,6 @@ use Closure;
 interface Waiter
 {
     /**
-     * Asks the condition again until it holds or the time runs out.
-     *
      * @param  Closure(): bool  $condition
      * @return float|null seconds it took, or null if it never held
      */

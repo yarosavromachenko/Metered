@@ -10,12 +10,8 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Domain\Text\Name;
 
 /**
- * A tariff, as the catalog lists it. What it costs lives in its versions.
- *
- * The plan itself carries only what stays true across every version: its code
- * and its display name. Changing a price means publishing a new
- * {@see PlanVersion}, never editing the plan, so a subscription always knows
- * exactly which terms it was billed on.
+ * Code and name only; prices live in {@see PlanVersion}, and a price change is
+ * a new version.
  */
 final readonly class Plan
 {

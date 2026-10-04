@@ -5,12 +5,8 @@ declare(strict_types=1);
 namespace Metered\Shared\Application\Metrics;
 
 /**
- * Where code records what it counted and how long things took, without
- * knowing where the numbers go.
- *
- * Labels are for values from a small, known set — a status, a reason, an
- * endpoint of a tenant's own. Never an id that grows with traffic: every
- * distinct label set is a series of its own.
+ * Label values come from a small fixed set (status, reason). No ids: each
+ * label set is a separate series.
  */
 interface Metrics
 {

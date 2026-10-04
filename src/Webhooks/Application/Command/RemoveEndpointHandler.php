@@ -10,8 +10,7 @@ use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Webhooks\Domain\Endpoint\EndpointRepository;
 
 /**
- * Removes an endpoint, and with it its deliveries and their log. Switching it
- * off keeps both. The removal and its audit entry commit together.
+ * Also deletes its deliveries and attempt log (disabling keeps them).
  */
 final readonly class RemoveEndpointHandler
 {

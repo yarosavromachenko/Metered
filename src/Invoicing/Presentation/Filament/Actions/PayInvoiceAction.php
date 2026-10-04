@@ -15,10 +15,6 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
-/**
- * Collects a finalized invoice through the payment gateway — the fake one,
- * in this system.
- */
 final class PayInvoiceAction
 {
     public static function make(): Action

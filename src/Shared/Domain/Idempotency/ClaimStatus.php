@@ -4,20 +4,17 @@ declare(strict_types=1);
 
 namespace Metered\Shared\Domain\Idempotency;
 
-/**
- * What happened when a request tried to claim an idempotency key.
- */
 enum ClaimStatus
 {
-    /** Nobody had used this key: the request may proceed. */
+    /** New key: proceed. */
     case Claimed;
 
-    /** The same key and the same request, already finished: replay the response. */
+    /** Same key and request, finished: replay the stored response. */
     case Replayed;
 
-    /** The same key, still running somewhere else: tell the client to retry. */
+    /** Same key, still in progress: the client retries later. */
     case InProgress;
 
-    /** The same key, a different request: a client bug, not a retry. */
+    /** Same key, different request body: rejected. */
     case FingerprintMismatch;
 }

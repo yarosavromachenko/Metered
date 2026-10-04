@@ -8,8 +8,7 @@ use Metered\Webhooks\Domain\Endpoint\Endpoint;
 use Metered\Webhooks\Domain\Signing\SecretKey;
 
 /**
- * An endpoint just registered or rotated, with the secret in the clear — the
- * one moment it is shown.
+ * Carries the plaintext secret; show it once.
  */
 final readonly class RegisteredEndpoint
 {

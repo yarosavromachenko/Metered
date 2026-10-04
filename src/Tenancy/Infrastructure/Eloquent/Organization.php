@@ -10,8 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * The read side of an organization (ADR-0015: resources read their own
- * module's models; every write goes through a handler).
+ * Read model (ADR-0015).
  *
  * @property string $id
  * @property string $name

@@ -20,12 +20,9 @@ use Metered\Tenancy\Application\Contract\Authorizer;
 use Psr\Clock\ClockInterface;
 
 /**
- * Collects a finalized invoice through the payment gateway and books the cash.
- *
- * The invoice row is held while the gateway answers, so a second operator
- * paying the same invoice waits and then finds it paid. With a real provider
- * that lock would be held across a network call; the provider's idempotency
- * on the invoice id is what would make releasing it early safe.
+ * Locks the invoice row during the gateway call, so a concurrent payment waits
+ * and then finds it paid. (With a real provider the lock would span a network
+ * call; its idempotency on the invoice id would allow releasing it earlier.)
  */
 final readonly class PayInvoiceHandler
 {
@@ -52,8 +49,7 @@ final readonly class PayInvoiceHandler
                 throw InvoiceNotFound::of($command->invoiceId);
             }
 
-            // Asked of the invoice before the gateway is: a draft or a paid
-            // invoice is refused without anyone being charged.
+            // Checked before calling the gateway.
             $now = $this->clock->now();
             $paid = $open->pay($now);
 

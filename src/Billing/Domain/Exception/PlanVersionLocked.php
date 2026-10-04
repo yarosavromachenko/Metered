@@ -7,11 +7,7 @@ namespace Metered\Billing\Domain\Exception;
 use Metered\Shared\Domain\Exception\DomainException;
 
 /**
- * An attempt to change a plan version after it was published.
- *
- * A separate type from the validation failures, because it means something
- * different to the person who hit it: the fix is not a better value but a new
- * version.
+ * A published version cannot change; the fix is a new version.
  */
 final class PlanVersionLocked extends DomainException
 {

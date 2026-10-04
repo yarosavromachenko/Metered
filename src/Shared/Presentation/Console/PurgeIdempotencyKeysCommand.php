@@ -8,9 +8,7 @@ use Illuminate\Console\Command;
 use Metered\Shared\Application\Idempotency\IdempotencyStore;
 
 /**
- * `idempotency:purge` — removes idempotency records past their retention
- * window (ADR-0006). Scheduled hourly. An expired record is already ignored
- * when its key comes back; this keeps the table the size of one window.
+ * Scheduled hourly (ADR-0006).
  */
 final class PurgeIdempotencyKeysCommand extends Command
 {

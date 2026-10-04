@@ -48,7 +48,8 @@ exist.
 lookup, and revoking drops that entry, so in practice a revoked key stops
 working immediately. The thirty seconds is the bound that holds when the
 invalidation does not arrive — another node, a local cache store, a row changed
-by a migration. The figure is the cache TTL, it is configuration
+by a migration, or a request that read the key just before the revocation and
+cached it just after. The figure is the cache TTL, it is configuration
 (`API_KEY_CACHE_TTL_SECONDS`), and raising it raises the promise.
 
 ## Conventions

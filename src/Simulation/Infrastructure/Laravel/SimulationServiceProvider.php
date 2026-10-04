@@ -31,11 +31,8 @@ use Metered\Simulation\Presentation\Console\TrafficCommand;
 use Metered\Tenancy\Application\Contract\DemoDataRequested;
 
 /**
- * The simulation's wiring. The module is removed from the production image,
- * and bootstrap/providers.php lists this provider only when the class exists;
- * where it does exist, it still registers nothing outside local, demo and
- * testing, because what it does — creating tenants, flooding the API — is
- * never something a real installation should be one typo away from.
+ * Not in the production image; bootstrap/providers.php loads it only if the
+ * class exists, and it registers nothing outside local, demo and testing.
  */
 final class SimulationServiceProvider extends ServiceProvider
 {
@@ -75,8 +72,7 @@ final class SimulationServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Every demo tenant that asks for data gets the small profile,
-        // queued; outside a demo nothing asks.
+        // Demo sign-ups and resets get the small profile, queued.
         if ($this->app->environment(self::ENVIRONMENTS)) {
             $this->app->make(Dispatcher::class)->listen(
                 DemoDataRequested::class,

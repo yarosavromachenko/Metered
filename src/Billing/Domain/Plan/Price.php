@@ -11,12 +11,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * One charge inside a plan version: a pricing model, and — when the model
- * depends on usage — the meter whose usage it prices.
- *
- * Two named constructors rather than an optional meter, so that a usage price
- * without a meter, or a fixed fee pointing at one, cannot be written by
- * accident.
+ * A pricing model plus, for usage-based models, the meter. Separate
+ * constructors prevent a usage price without a meter and vice versa.
  */
 final readonly class Price
 {

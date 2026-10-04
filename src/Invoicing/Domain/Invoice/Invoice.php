@@ -12,12 +12,9 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * What a customer owes for one period of one subscription.
- *
- * Built as a draft once the period's grace window has passed, then finalized:
- * numbered and booked to the ledger. From there it is paid, or voided by a
- * credit note — never edited. A correction is a new document, which is what
- * lets a finalized invoice be trusted (docs/domain.md, invariant 10).
+ * One period of one subscription. Draft → finalized (numbered, booked) → paid
+ * or voided by a credit note. Never edited after finalization (docs/domain.md,
+ * invariant 10).
  */
 final readonly class Invoice
 {
@@ -86,7 +83,7 @@ final readonly class Invoice
     /**
      * @param list<InvoiceLine> $lines
      *
-     * @internal for the repository, rebuilding an invoice exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         Uuid $id,
@@ -132,8 +129,7 @@ final readonly class Invoice
     }
 
     /**
-     * Numbers the invoice and fixes it. An invoice for nothing is settled the
-     * moment it is final: there is nothing to collect and nothing to book.
+     * A zero invoice is marked paid immediately.
      */
     public function finalize(DocumentNumber $number, DateTimeImmutable $at): self
     {
@@ -156,10 +152,6 @@ final readonly class Invoice
         return $this->with(InvoiceStatus::Paid, $this->number, $this->finalizedAt, paidAt: $at);
     }
 
-    /**
-     * Drops a draft before it is numbered. Nothing was booked, so nothing is
-     * reversed.
-     */
     public function discard(DateTimeImmutable $at): self
     {
         $this->guard(InvoiceStatus::Draft, 'discarded');
@@ -168,9 +160,7 @@ final readonly class Invoice
     }
 
     /**
-     * Cancels a finalized invoice. The amount it booked is reversed by the
-     * credit note issued alongside; the invoice itself stays as it was, marked
-     * void, with its number.
+     * The credit note reverses the entries; the invoice keeps its number.
      */
     public function void(DateTimeImmutable $at): self
     {

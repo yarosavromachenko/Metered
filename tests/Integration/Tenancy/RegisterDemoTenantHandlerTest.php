@@ -16,7 +16,7 @@ function register(string $email = 'someone@example.com', string $organization = 
     return app(RegisterDemoTenantHandler::class)->handle(new RegisterDemoTenant(
         name: 'Someone',
         email: $email,
-        password: 'correct horse battery staple',
+        plainPassword: 'correct horse battery staple',
         organizationName: $organization,
     ));
 }

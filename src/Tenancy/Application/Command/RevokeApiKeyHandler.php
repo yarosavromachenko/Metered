@@ -13,9 +13,7 @@ use Metered\Tenancy\Domain\ApiKeyRepository;
 use Psr\Clock\ClockInterface;
 
 /**
- * Revokes a key. The lookup is tenant-scoped, so a key id from another
- * organization is simply not found — there is no path here that reaches a key
- * the caller could not already see.
+ * Tenant-scoped lookup: another organization's key is not found.
  */
 final readonly class RevokeApiKeyHandler
 {
@@ -50,8 +48,6 @@ final readonly class RevokeApiKeyHandler
             payload: [
                 'project_id' => $key->tenant->projectId->value,
                 'prefix' => $key->prefix,
-                // The moment the key stopped working, which is what an
-                // incident review needs to line up against a request log.
                 'revoked_at' => $revoked->revokedAt?->format(DATE_RFC3339),
             ],
             occurredAt: $revokedAt,

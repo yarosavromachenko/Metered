@@ -14,8 +14,7 @@ use Metered\Billing\Infrastructure\Persistence\PriceColumns;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * One line of plain English per price, for the version list: what a person
- * checking a plan wants to read, with the numbers exactly as they are stored.
+ * One readable line per price for the version list.
  */
 final class PriceSummary
 {

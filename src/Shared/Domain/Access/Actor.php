@@ -7,20 +7,9 @@ namespace Metered\Shared\Domain\Access;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * Who asked for something to happen.
- *
- * Two kinds. A person, identified by their user id, whose authority is the
- * membership connecting them to the organization. And the system — a console
- * command, a scheduled job, the provisioning that creates an organization
- * before anyone is a member of it — which has no membership to check and is
- * trusted by virtue of running at all.
- *
- * Both carry a label, because both end up in the audit log, and "who did
- * this?" is the first question asked of it.
- *
- * It lives in the shared kernel rather than in Tenancy because every module's
- * handlers take one: a meter is defined by somebody, an invoice is voided by
- * somebody, and neither Billing nor Invoicing may reach into Tenancy to say so.
+ * Who asked for the change: a user (authorised through their membership) or
+ * the system (console, scheduler, provisioning), which is not checked. The
+ * label goes into the audit log.
  */
 final readonly class Actor
 {
@@ -35,8 +24,7 @@ final readonly class Actor
     }
 
     /**
-     * A caller with no person behind it. The label says which one, so an
-     * audit entry names `console:org:create` rather than merely "system".
+     * @param  string  $label  e.g. `console:org:create`
      */
     public static function system(string $label): self
     {

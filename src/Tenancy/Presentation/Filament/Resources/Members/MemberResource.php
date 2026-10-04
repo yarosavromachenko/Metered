@@ -17,11 +17,7 @@ use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Filament\Resources\Members\Pages\ListMembers;
 
 /**
- * Who belongs to this organization, and as what.
- *
- * Read-only in this milestone: the roles exist and are enforced, and changing
- * them is a screen the project does not have yet. That is recorded in
- * docs/assumptions.md rather than left for a reviewer to wonder about.
+ * Read-only; there is no screen for changing roles (docs/assumptions.md).
  */
 final class MemberResource extends Resource
 {

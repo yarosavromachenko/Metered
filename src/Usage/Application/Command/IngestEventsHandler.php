@@ -12,12 +12,8 @@ use Metered\Usage\Application\Stream\StreamFull;
 use Psr\Clock\ClockInterface;
 
 /**
- * The hot path, and deliberately the shortest use case in the codebase.
- *
- * It stamps the batch, asks whether the system is keeping up, and hands the
- * events to the stream. No database, no catalog lookup, no aggregation: a
- * tenant's own product waits on this call, so everything that can happen
- * later happens later (ADR-0003).
+ * Hot path: stamps the batch, checks backpressure and appends to the stream.
+ * No database access (ADR-0003).
  */
 final readonly class IngestEventsHandler
 {
@@ -35,9 +31,7 @@ final readonly class IngestEventsHandler
         $pending = $this->depth->pending();
 
         if ($pending >= $this->backpressureThreshold) {
-            // Shedding load is a decision, not a failure: accepting a batch
-            // the consumer cannot drain trades a fast 503 now for a stream
-            // that never recovers.
+            // 503 now instead of a backlog the consumer cannot drain.
             throw IngestionOverloaded::atDepth($pending, $this->backpressureThreshold, $this->retryAfterSeconds);
         }
 

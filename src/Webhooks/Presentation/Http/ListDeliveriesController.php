@@ -13,8 +13,7 @@ use Metered\Webhooks\Domain\Delivery\DeliveryStatus;
 use Metered\Webhooks\Infrastructure\Eloquent\WebhookDelivery;
 
 /**
- * The project's deliveries, newest first — dead ones, above all, are what a
- * caller comes here for.
+ * Newest first.
  */
 final readonly class ListDeliveriesController
 {

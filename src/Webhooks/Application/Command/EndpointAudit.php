@@ -12,9 +12,7 @@ use Metered\Webhooks\Domain\Endpoint\EventType;
 use Psr\Clock\ClockInterface;
 
 /**
- * What the four endpoint commands write to the audit log: the endpoint as it
- * now stands, and never its secret — the log is read by everyone who may read
- * the organization.
+ * Audit payload of the endpoint commands; never includes the secret.
  */
 final readonly class EndpointAudit
 {

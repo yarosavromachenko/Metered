@@ -21,9 +21,7 @@ use Metered\Tenancy\Application\Contract\Authorizer;
 use Psr\Clock\ClockInterface;
 
 /**
- * Numbers a draft, books it, and announces it — in one transaction, so that a
- * number is never used without an invoice to show for it, and an invoice is
- * never final without its entries.
+ * Number, ledger entries and outbox message in one transaction.
  */
 final readonly class FinalizeInvoiceHandler
 {
@@ -45,9 +43,7 @@ final readonly class FinalizeInvoiceHandler
         $this->authorizer->ensure($command->actor, $command->tenant->organizationId, Permission::MoveMoney);
 
         $invoice = $this->transactions->run(function () use ($command): Invoice {
-            // The invoice row first, then the organization's counter: every
-            // finalization takes the two locks in that order, so they queue
-            // rather than deadlock.
+            // Lock order: invoice row, then the counter, to avoid deadlocks.
             $draft = $this->invoices->findForUpdate($command->tenant, $command->invoiceId);
 
             if (! $draft instanceof Invoice) {
@@ -77,8 +73,7 @@ final readonly class FinalizeInvoiceHandler
             return $invoice;
         });
 
-        // Counted once the transaction has committed: a rolled-back
-        // finalization is not an invoice.
+        // After commit.
         $this->metrics->add(InvoicingMetrics::invoicesFinalized());
 
         return $invoice;

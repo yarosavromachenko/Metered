@@ -18,15 +18,8 @@ use Metered\Usage\Infrastructure\Persistence\UsageSummaryReader;
 use Psr\Clock\ClockInterface;
 
 /**
- * `GET /api/v1/customers/{reference}/usage` — what this customer has used.
- *
- * Read from the aggregates, never from the raw events: a period's worth of
- * events for one customer is a table scan whose cost grows with history,
- * which is the whole reason aggregates exist (ADR-0004).
- *
- * An unknown customer is a 404 rather than an empty summary. "No usage" and
- * "no such customer" are different answers, and a client integrating against
- * this needs to be able to tell them apart.
+ * Read from aggregates (ADR-0004). An unknown customer is a 404, not an empty
+ * summary.
  */
 final readonly class ReadCustomerUsageController
 {
@@ -59,8 +52,7 @@ final readonly class ReadCustomerUsageController
         }
 
         $now = $this->clock->now();
-        // A day, because that is the question asked most often and the one
-        // whose answer is cheapest. A billing period is asked for explicitly.
+        // Default window: the last day.
         $from = $this->instant($request, 'from') ?? $now->sub(new DateInterval('P1D'));
         $to = $this->instant($request, 'to') ?? $now;
 

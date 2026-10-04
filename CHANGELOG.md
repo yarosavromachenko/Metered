@@ -5,6 +5,33 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
+## [1.1.1] - 2026-10-04
+
+No change to the API, the webhook payloads or the schema.
+
+### Security
+- A request that authenticated with a key at the moment it was revoked could
+  undo the revocation: recording the key's last use wrote back the whole row
+  as it had read it. That write now changes only the last-use time.
+
+### Fixed
+- A demo sign-up stored its password hashed twice, so the new account could
+  not sign in again once its first session ended. Accounts created before
+  this release keep the wrong hash; signing up again gives a working one.
+
+### Changed
+- Code comments across every module are shorter: they keep the reason a
+  reader cannot see in the code and the ADR that records it, and drop the
+  rest.
+- The account commands and the `UserAccounts` port name the password
+  `plainPassword`, which is what they carry; the repository hashes it.
+- The README opens with what the system is for and a worked example.
+
+### Removed
+- The `.gitkeep` placeholders left from the project skeleton, and the two
+  empty `Application/Contract` directories of Invoicing and Webhooks; the
+  architecture notes now say what those modules publish instead.
+
 ## [1.1.0] - 2026-10-01
 
 ### Upgrading from 1.0.0

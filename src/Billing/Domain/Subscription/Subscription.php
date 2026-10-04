@@ -15,15 +15,9 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * A customer's subscription, as a sequence of phases each pinned to one plan
- * version.
- *
- * History is appended to, never rewritten. A plan change closes the current
- * phase at the end of the period and opens the next one there — so every
- * period is billed on exactly one version, and there is nothing to prorate
- * (proration is not implemented). For the same reason a change may not
- * alter the currency or the interval: either would change what a period is,
- * and that is a new subscription.
+ * Phases, each pinned to one plan version. A plan change takes effect at the
+ * end of the current period, so each period has one version (no proration).
+ * Currency and interval cannot change.
  */
 final readonly class Subscription
 {
@@ -69,7 +63,7 @@ final readonly class Subscription
     /**
      * @param non-empty-list<SubscriptionPhase> $phases
      *
-     * @internal for the repository, rebuilding a subscription exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         Uuid $id,
@@ -96,13 +90,8 @@ final readonly class Subscription
     }
 
     /**
-     * The periods that start at or after $from and have ended by $endedBy, in
-     * order — what is left to invoice once $from is where the last invoice
-     * stopped.
-     *
-     * Each is a period of the cycle, except the last one of a subscription
-     * that has ended, which stops at the end: a subscription canceled on the
-     * 10th is billed up to the 10th and not a day past it.
+     * Periods starting at or after $from and ended by $endedBy. The last
+     * period of an ended subscription is cut at its end date.
      *
      * @return list<BillingPeriod>
      */
@@ -119,8 +108,7 @@ final readonly class Subscription
                 break;
             }
 
-            // A $from inside a period means that period was invoiced already,
-            // or began before the subscription did; either way not again.
+            // A period containing $from is already invoiced.
             if ($period->start >= $from) {
                 $periods[] = BillingPeriod::between($period->start, $end);
             }
@@ -132,8 +120,7 @@ final readonly class Subscription
     }
 
     /**
-     * The plan version that prices $instant, or null outside the
-     * subscription's life.
+     * Null outside the subscription's lifetime.
      */
     public function versionAt(DateTimeImmutable $instant): ?Uuid
     {
@@ -194,8 +181,7 @@ final readonly class Subscription
     }
 
     /**
-     * A pending cancellation becomes a cancellation once its end has passed.
-     * Asked by the period close; anything else is returned unchanged.
+     * Called by the period close.
      */
     public function lapse(DateTimeImmutable $now): self
     {
@@ -207,14 +193,11 @@ final readonly class Subscription
     }
 
     /**
-     * Ends the subscription at $end: phases that would only have started then
-     * or later are dropped, and the one running at $end is cut short there.
+     * Drops phases starting at or after $end and cuts the current one.
      */
     private function endAt(DateTimeImmutable $end, SubscriptionStatus $status): self
     {
-        // The first phase is always kept: a subscription canceled at the very
-        // instant it started keeps it as `[anchor, anchor)`, a record that it
-        // existed and covered nothing.
+        // The first phase is kept, possibly as an empty `[anchor, anchor)`.
         $kept = array_values(array_filter(
             $this->phases,
             static fn(SubscriptionPhase $phase, int $index): bool => $index === 0 || $phase->startsAt < $end,

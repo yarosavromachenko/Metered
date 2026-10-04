@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Metered\Invoicing\Domain\Ledger\Posting;
 
 /**
- * Read model for the panel.
+ * Read model.
  *
  * @property string $id
  * @property string $invoice_id

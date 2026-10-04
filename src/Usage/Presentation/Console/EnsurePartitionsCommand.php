@@ -10,12 +10,8 @@ use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 use Psr\Clock\ClockInterface;
 
 /**
- * Keeps `usage_events` supplied with the day partitions it writes into.
- *
- * Runs on a schedule, and is deliberately dull: it creates what is missing and
- * says what it created. The interesting case is the one it refuses to paper
- * over — rows already sitting in the default partition for a day it was asked
- * to carve out, which means a day was missed and needs a person.
+ * Scheduled. Warns, without moving them, about rows already in the default
+ * partition for a day being created.
  */
 final class EnsurePartitionsCommand extends Command
 {
@@ -32,12 +28,10 @@ final class EnsurePartitionsCommand extends Command
         $now = $clock->now();
         $daysAhead = $this->intOption('days') ?? $this->config('metered.usage.partitions.days_ahead', 7);
 
-        // Backwards as far as the acceptance window reaches: an event from six
-        // days ago is legitimate and must not land in the default partition.
+        // Back as far as the acceptance window.
         $daysBack = (int) ceil($this->config('metered.usage.acceptance.max_age_seconds', 604800) / 86400);
 
-        // Further back only when asked: a bulk load of history (sim:backfill)
-        // needs its days to have partitions of their own, like any other day.
+        // Further back on request, for the history load of `sim:seed`.
         $daysBack = max($daysBack, $this->intOption('back') ?? 0);
 
         $created = $partitions->ensure($now, $daysBack, $daysAhead, $this->option('rescue') === true);
@@ -58,9 +52,7 @@ final class EnsurePartitionsCommand extends Command
         $health = $partitions->health();
 
         if ($health['default_rows'] > 0) {
-            // Not a failure — the rows are stored and billed. It is a warning
-            // because they are stored in the one partition that cannot be
-            // pruned and cannot be pruned around.
+            // A warning: the rows are billed, but the default partition is never pruned.
             $this->warn(sprintf(
                 'The default partition holds %d row(s): a day went by without its partition.',
                 $health['default_rows'],

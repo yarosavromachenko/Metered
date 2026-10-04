@@ -5,9 +5,7 @@ declare(strict_types=1);
 namespace Metered\Webhooks\Infrastructure\Http;
 
 /**
- * Turns a hostname into the addresses it points at right now. An interface so
- * that tests can answer differently on each call — which is exactly what a
- * rebinding attacker's DNS server does.
+ * An interface so tests can simulate DNS rebinding.
  */
 interface Resolver
 {

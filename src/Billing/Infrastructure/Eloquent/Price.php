@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * Read model for the panel. Writes go through the application handlers.
+ * Read model.
  *
  * @property string $id
  * @property string $plan_version_id

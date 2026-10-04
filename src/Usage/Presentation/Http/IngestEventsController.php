@@ -21,18 +21,9 @@ use Metered\Usage\Domain\EventQuantity;
 use Metered\Usage\Domain\Properties;
 
 /**
- * `POST /api/v1/usage/events` — the endpoint a tenant's product calls.
- *
- * It answers `202 Accepted`, and the word means what ADR-0003 says it means:
- * the batch is durably in the stream. Not in PostgreSQL, and not checked
- * against the catalog — a meter that does not exist is found out later and
- * shows up as a rejection, not as a status code here.
- *
- * What is checked here is everything that can be checked without leaving the
- * process: the shape, the numbers, the timestamps, the labels. A client that
- * sent nonsense gets told immediately and with a pointer to the event that
- * caused it, because "one of your hundred events was wrong" is not an answer
- * anybody can act on.
+ * `202 Accepted` once the batch is in the stream (ADR-0003); unknown meters
+ * and customers become rejections later. Shape errors are a 422 with a JSON
+ * pointer to the event.
  */
 final readonly class IngestEventsController
 {
@@ -108,10 +99,7 @@ final readonly class IngestEventsController
             $this->string($raw['meter_code'] ?? null),
             $this->string($raw['customer_ref'] ?? null),
             EventQuantity::fromString($this->string($raw['quantity'] ?? null)),
-            // Whatever offset the client wrote, the instant travels in UTC:
-            // the partition, the bucket and every comparison downstream are
-            // UTC, and an offset that survived this far would render one
-            // moment as two.
+            // Normalised to UTC.
             $this->instant($this->string($raw['occurred_at'] ?? null)),
             Properties::fromArray(is_array($properties) ? $properties : []),
         );
@@ -125,9 +113,7 @@ final readonly class IngestEventsController
     }
 
     /**
-     * A JSON number arriving where a string was expected is a client sending
-     * a quantity unquoted, which is reasonable. Anything else has already
-     * failed validation, and an empty string fails the value object next.
+     * Accepts an unquoted JSON number as a quantity.
      */
     private function string(mixed $value): string
     {
@@ -142,8 +128,6 @@ final readonly class IngestEventsController
             422,
             $detail,
             Problem::instanceFor($request),
-            // A pointer, because a batch of a hundred with one bad member is
-            // the case this endpoint exists to survive.
             ['pointer' => sprintf('/events/%d', $index)],
         );
     }

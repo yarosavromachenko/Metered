@@ -9,8 +9,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * Ends a subscription at the end of its current period, or — when
- * $immediately — at once.
+ * At the end of the current period, or at once with $immediately.
  */
 final readonly class CancelSubscription
 {

@@ -6,9 +6,6 @@ namespace Metered\Simulation\Application\Seed;
 
 use DateTimeImmutable;
 
-/**
- * One usage event, as a client would report it.
- */
 final readonly class SimulatedEvent
 {
     public function __construct(

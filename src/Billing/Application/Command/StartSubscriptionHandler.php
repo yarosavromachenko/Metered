@@ -25,9 +25,7 @@ use Psr\Clock\ClockInterface;
 final readonly class StartSubscriptionHandler
 {
     /**
-     * How far back a subscription may start. A year covers moving a customer
-     * over from another system with their anchor intact; anything older would
-     * invoice history nobody can check any more in one period close.
+     * Maximum backdating, enough to migrate a customer with their anchor.
      */
     public const int MAX_BACKDATE_DAYS = 366;
 
@@ -67,9 +65,7 @@ final readonly class StartSubscriptionHandler
             $this->startAt($command->startsAt, $now),
         );
 
-        // The subscription and the event announcing it commit together
-        // (ADR-0005): a webhook about a subscription that rolled back, or a
-        // subscription nobody hears about, are both worse than neither.
+        // Subscription and outbox message in one transaction (ADR-0005).
         $this->transactions->run(function () use ($subscription): void {
             $this->subscriptions->save($subscription);
             $this->outbox->append(SubscriptionMessages::about($this->ids->generate(), $subscription, 'subscription.created', $subscription->anchorAt));
@@ -86,7 +82,7 @@ final readonly class StartSubscriptionHandler
                 'plan_version_id' => $version->id->value,
                 'anchor_at' => $subscription->anchorAt->format(DATE_ATOM),
             ],
-            // When it was done, which for a backdated start is not the anchor.
+            // Now, not the (possibly backdated) anchor.
             occurredAt: $now,
         ));
 

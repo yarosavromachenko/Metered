@@ -15,9 +15,7 @@ use Metered\Tenancy\Domain\Role;
 use Metered\Tenancy\Domain\Slug;
 
 /**
- * Adds a person to an organization from the command line, with a role and a
- * password to sign in with. Without --password one is generated and printed
- * once.
+ * Without --password, one is generated and printed once.
  */
 final class AddMemberCommand extends Command
 {
@@ -50,7 +48,7 @@ final class AddMemberCommand extends Command
                 organization: Slug::fromString((string) $this->argument('organization')),
                 name: is_string($name) && $name !== '' ? $name : ucfirst(explode('@', $email)[0]),
                 email: $email,
-                password: $password,
+                plainPassword: $password,
                 role: $role,
                 actor: Actor::system('console:org:member'),
             ));

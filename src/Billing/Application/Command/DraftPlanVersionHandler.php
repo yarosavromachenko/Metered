@@ -39,8 +39,7 @@ final readonly class DraftPlanVersionHandler
             throw CatalogNotFound::of('plan', $command->planId);
         }
 
-        // Two drafts started at once may both be told the same number; the
-        // unique (plan, number) constraint lets only one of them be saved.
+        // Concurrent drafts: the unique (plan, number) constraint decides.
         $version = PlanVersion::draft(
             $this->ids->generate(),
             $command->tenant,

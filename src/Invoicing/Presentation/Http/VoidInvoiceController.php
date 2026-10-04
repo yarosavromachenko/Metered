@@ -15,10 +15,6 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
-/**
- * Discards a draft, or voids a finalized invoice with a credit note carrying
- * the reason given.
- */
 final readonly class VoidInvoiceController
 {
     public function __construct(

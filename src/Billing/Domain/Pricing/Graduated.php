@@ -9,11 +9,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * Each tier prices only the units that fall inside it.
- *
- * 1,500 units against "first 1,000 at 0.10, then 0.08" is 1,000 × 0.10 plus
- * 500 × 0.08. The tiers are summed exactly and the total rounded once, so the
- * line equals what an accountant gets by redoing the arithmetic on paper.
+ * Each tier prices only its own units: 1,500 units against "first 1,000 at
+ * 0.10, then 0.08" is 1,000 × 0.10 + 500 × 0.08. Rounded once, after summing.
  */
 final readonly class Graduated implements PricingModel
 {
@@ -61,9 +58,7 @@ final readonly class Graduated implements PricingModel
     }
 
     /**
-     * The part of the usage each tier prices, walked once for both the charge
-     * and the calculation shown beside it, so the two cannot disagree. A tier
-     * the usage never reaches has no slice.
+     * Shared by charge() and the explanation. Unreached tiers have no slice.
      *
      * @return list<array{index: int, tier: Tier, units: BigDecimal, amount: BigDecimal}>
      */

@@ -12,21 +12,9 @@ use Metered\Usage\Domain\UsageEvent;
 use Redis;
 
 /**
- * `SET key occurred_at NX GET EX ttl`, once per event, pipelined.
- *
- * `NX` is what makes this a claim rather than a lookup: the answer and the
- * reservation are one operation, so two consumers handed the same redelivered
- * batch cannot both conclude they were first. A GET followed by a SET would
- * be a race with a customer's invoice as the stake.
- *
- * `GET` returns what the key already held, which is the timestamp the event
- * was first claimed for. The same timestamp is the same event, possibly
- * claimed by a consumer that died before its write committed, and is passed
- * through to the database's unique key. A different timestamp is the resend
- * this layer exists for, and is dropped.
- *
- * The keys are namespaced per project, because an event id is the client's
- * own string and two tenants may pick the same one.
+ * `SET key occurred_at NX GET EX ttl` per event, pipelined: claim and lookup
+ * in one atomic step. Same stored timestamp: pass to the database. Different:
+ * a resend, dropped. Keys are per project.
  */
 final readonly class RedisDeduplicator implements Deduplicator
 {
@@ -59,8 +47,7 @@ final readonly class RedisDeduplicator implements Deduplicator
         $passed = [];
 
         foreach ($events as $index => $event) {
-            // False means the key was not there and is now ours; a string is
-            // the timestamp somebody claimed this event id for before.
+            // false: claimed now; string: the earlier claim's timestamp.
             $previous = $answers[$index] ?? false;
 
             if ($previous === false || $previous === $claims[$index][1]) {
@@ -77,8 +64,7 @@ final readonly class RedisDeduplicator implements Deduplicator
     }
 
     /**
-     * Microseconds since the epoch: the precision `occurred_at` is stored at,
-     * and a form no timezone can make two different strings of.
+     * Microseconds since the epoch, timezone-independent.
      */
     private function stamp(UsageEvent $event): string
     {

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 /**
- * Read model for the panel. Writes go through the application handlers.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

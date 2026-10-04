@@ -15,8 +15,7 @@ use Metered\Invoicing\Domain\Invoice\InvoiceStatus;
 use Metered\Shared\Domain\Money\Money;
 
 /**
- * Read model for the panel. Every write goes through a handler, and the
- * schema refuses most of them anyway.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id
@@ -74,7 +73,7 @@ final class Invoice extends Model
     }
 
     /**
-     * The lines in the order the invoice prints them.
+     * In print order.
      *
      * @return Collection<int, InvoiceLine>
      */

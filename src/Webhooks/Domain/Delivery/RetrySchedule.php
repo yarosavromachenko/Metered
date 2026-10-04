@@ -7,13 +7,9 @@ namespace Metered\Webhooks\Domain\Delivery;
 use DateTimeImmutable;
 
 /**
- * How long a delivery waits after each failed attempt: ten attempts, nine
- * waits — 1m, 5m, 30m, 1h, 2h, 4h, 8h, 12h, 24h — about two and a half days
- * in all (ADR-0011).
- *
- * Each wait is moved by up to a fifth either way. Without that, every endpoint
- * that failed during one incident retries in the same second, and the
- * recovery is a thundering herd of its own making.
+ * Ten attempts, waits of 1m, 5m, 30m, 1h, 2h, 4h, 8h, 12h, 24h (about two
+ * days in all, ADR-0011), each with ±20% jitter so endpoints don't retry in
+ * sync.
  */
 final class RetrySchedule
 {
@@ -24,8 +20,7 @@ final class RetrySchedule
 
 
     /**
-     * When to try again after the $failedAttempts-th failure, or null when
-     * that was the last attempt.
+     * Null after the last attempt.
      *
      * @param int $jitter a draw from [-JITTER_PERMILLE, JITTER_PERMILLE]
      */
@@ -42,9 +37,7 @@ final class RetrySchedule
     }
 
     /**
-     * Seconds to wait after the first, second, … failed attempt. Computed
-     * rather than a constant, so that mutation testing can reach the numbers:
-     * a literal list is not code that runs (docs/testing.md).
+     * A method, not a constant, so mutation testing covers it (docs/testing.md).
      *
      * @return list<int>
      */

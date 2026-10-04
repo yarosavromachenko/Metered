@@ -13,12 +13,9 @@ use Metered\Simulation\Application\Seed\SeedTenantHandler;
 use SensitiveParameter;
 
 /**
- * Fills a demo tenant with the small profile through the API, with the key
- * the tenant was given. Encrypted on the queue, because it carries that key.
- *
- * Tried once: a seed is not idempotent — a second run meets the first's
- * meters and plans and is refused — and a demo that half-filled is better
- * reset from the panel than filled twice.
+ * Small profile, through the API with the tenant's key; encrypted on the queue.
+ * Single attempt: seeding is not idempotent, a half-filled demo is reset from
+ * the panel.
  */
 final class SeedDemoTenantJob implements ShouldQueue, ShouldBeEncrypted
 {
@@ -40,7 +37,7 @@ final class SeedDemoTenantJob implements ShouldQueue, ShouldBeEncrypted
     {
         $handler->handle(new SeedTenant(
             profile: Profile::Small,
-            // Each tenant its own data, and the same data if it is reset.
+            // Seeded per tenant: same data after a reset.
             seed: crc32($this->organizationId),
             token: $this->token,
         ));

@@ -10,14 +10,8 @@ use JsonException;
 use RuntimeException;
 
 /**
- * Turns the untyped values a database row hands back into the types the domain
- * expects, and fails loudly when the row is not shaped as expected.
- *
- * The alternative — casting mixed values and hoping — puts a silent corruption
- * one schema change away.
- *
- * Every module's repositories read rows, so this lives in the kernel rather
- * than beside the first table that needed it.
+ * Typed access to query-builder rows; throws when a column is missing or has
+ * the wrong type.
  */
 final class RowReader
 {
@@ -80,11 +74,8 @@ final class RowReader
     }
 
     /**
-     * Timestamps arrive with the session's offset attached, and the offset
-     * inside the string wins over any zone passed alongside it — so the value
-     * is converted rather than merely constructed. The instant is the same
-     * either way; what this fixes is everything downstream that renders one,
-     * from a panel column to an assertion in a test.
+     * Converted to UTC: the offset in the string wins over a zone passed to
+     * the constructor.
      */
     public static function instant(mixed $value, string $column): DateTimeImmutable
     {

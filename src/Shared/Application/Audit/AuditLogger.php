@@ -7,10 +7,7 @@ namespace Metered\Shared\Application\Audit;
 use Metered\Shared\Domain\Audit\AuditEntry;
 
 /**
- * Records who did what.
- *
- * Reads are not recorded, and secrets never appear in a payload: an audit
- * trail that leaks the thing it was protecting has made matters worse.
+ * Records writes only. Payloads never contain secrets.
  */
 interface AuditLogger
 {

@@ -9,18 +9,8 @@ use Illuminate\Database\DatabaseManager;
 use Psr\Clock\ClockInterface;
 
 /**
- * Removes outbox messages that were published long enough ago (ADR-0005).
- *
- * A published row has done its job: the relay never reads it again, and the
- * partial index keeps the poll from seeing it. Kept for a while it answers
- * "was this event sent, and when"; kept forever it is a table that only grows.
- * An unpublished row is never removed, however old — that would drop an event
- * whose state change already committed.
- *
- * Deleted in chunks, so no single statement holds its locks for long on a
- * table the relay is polling. Each chunk starts after the last id the one
- * before it removed, so a long first run does not walk the dead rows of every
- * earlier chunk again.
+ * Deletes published messages past retention (ADR-0005); unpublished ones are
+ * never deleted. Works in chunks, each starting after the last deleted id.
  */
 final readonly class OutboxPruner
 {

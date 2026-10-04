@@ -9,12 +9,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 
 /**
- * A purged tenant's events, aggregates and rejections.
- *
- * `usage_events` has no foreign key to its project — a partitioned table of
- * that size is not given one (ADR-0002) — so nothing would ever remove these
- * rows if this did not. By project, because that is how every index on them
- * begins.
+ * Deletes by project id (the leading index column). `usage_events` has no
+ * foreign key to projects (ADR-0002), so nothing cascades.
  */
 final readonly class DatabaseUsagePurger implements TenantDataPurger
 {

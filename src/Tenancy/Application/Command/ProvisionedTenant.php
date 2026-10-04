@@ -10,8 +10,7 @@ use Metered\Tenancy\Domain\Organization;
 use Metered\Tenancy\Domain\Project;
 
 /**
- * What provisioning produced, including the one and only moment the secret
- * exists. Whoever receives this shows it once and then lets it go.
+ * Carries the key secret; show it once, never store it.
  */
 final readonly class ProvisionedTenant
 {

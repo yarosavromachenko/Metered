@@ -22,9 +22,8 @@ use Metered\Tenancy\Application\Contract\Authorizer;
 use Psr\Clock\ClockInterface;
 
 /**
- * Takes an invoice back. A draft is discarded — it was never numbered or
- * booked. A finalized invoice is voided by a credit note that reverses what
- * it booked; both documents remain.
+ * A draft is discarded. A finalized invoice is voided with a credit note that
+ * reverses its entries; both documents remain.
  */
 final readonly class VoidInvoiceHandler
 {

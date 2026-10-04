@@ -26,35 +26,19 @@ use Redis;
 use Throwable;
 
 /**
- * One pass over the stream: reclaim what was abandoned, read what is new,
- * process it, acknowledge what is done with.
+ * One pass: reclaim idle pending messages, read new ones, process, then
+ * acknowledge after commit (a crash in between causes a harmless redelivery,
+ * ADR-0004). After too many deliveries a message is dead-lettered; unreadable
+ * messages and messages of deleted projects are dead-lettered at once.
  *
- * Acknowledgement comes after the transaction commits, never before. A crash
- * between the two means the batch is delivered again, inserts nothing, and
- * contributes nothing to any aggregate (ADR-0004) — work repeated, nothing
- * double-counted. The opposite order would lose events on a crash, silently,
- * and only under load.
- *
- * Three things can happen to a message. It is processed and acknowledged; it
- * fails and is left unacknowledged, to be reclaimed after it has been idle
- * long enough; or it has failed so many times that it is moved to the
- * dead-letter stream and acknowledged, because one poison message must not
- * hold a tenant's ingestion behind it. A message that cannot be read, or
- * whose project no longer exists, goes to the dead-letter stream at once.
- *
- * Tenants are written independently: one tenant's failed write leaves its
- * own messages pending and the others written and acknowledged. The failure
- * is still thrown once the rest are done, so the daemon reports it.
- *
- * Each tenant's write is a span of its own trace, linked to the requests its
- * events came from rather than a child of any one of them (ADR-0012): one
- * write serves many requests, and a span has one parent.
+ * Each tenant is written separately; a failure leaves only that tenant's
+ * messages pending and is rethrown after the others. Each write is a span
+ * linked to the originating requests (ADR-0012).
  */
 final readonly class StreamConsumer
 {
     /**
-     * Past this many distinct requests a batch links to the first ones only;
-     * the span still records how many there were.
+     * Span link limit; the span records the total count.
      */
     public const int MAX_LINKS = 128;
 
@@ -77,20 +61,15 @@ final readonly class StreamConsumer
     ) {}
 
     /**
-     * Creates the consumer group, and the stream with it if it does not exist.
-     *
-     * `MKSTREAM` matters on a fresh installation: the first consumer usually
-     * starts before the first event is sent, and a group cannot be created on
-     * a stream that is not there.
+     * `MKSTREAM`: the consumer usually starts before the first event.
      */
     public function ensureGroup(): void
     {
         try {
-            // '0' rather than '$': a group starting at the end would ignore
-            // everything already waiting, which on a restart is the backlog.
+            // '0', not '$': read entries already waiting.
             $this->connection->command('xgroup', ['CREATE', $this->key, $this->group, '0', true]);
         } catch (Throwable $failure) {
-            // BUSYGROUP is the normal case on every start but the first.
+            // BUSYGROUP: the group already exists.
             if (! str_contains($failure->getMessage(), 'BUSYGROUP')) {
                 throw $failure;
             }
@@ -151,8 +130,7 @@ final readonly class StreamConsumer
             $groups[$key]['events'][] = new IncomingEvent($envelope->event, $envelope->receivedAt);
             $groups[$key]['ids'][] = $delivery->id;
 
-            // Fifty events of one request carry one context: keyed by it,
-            // each request is linked once.
+            // One link per request.
             if (isset($envelope->trace['traceparent'])) {
                 $groups[$key]['traces'][$envelope->trace['traceparent']] = $envelope->trace;
             }
@@ -163,9 +141,7 @@ final readonly class StreamConsumer
         }
 
         if ($malformedIds !== []) {
-            // Unreadable, so redelivering it would fail the same way forever.
-            // It goes to the dead-letter stream with its reason and is
-            // acknowledged, and the rejection above is what a tenant sees.
+            // Unreadable: dead-letter and acknowledge now.
             $this->deadLetter($malformedIds, $deliveries, DeadLetters::MALFORMED);
             $outcome = $outcome->plus(new IngestionOutcome(rejected: count($malformedIds)));
         }
@@ -173,9 +149,7 @@ final readonly class StreamConsumer
         $failure = null;
 
         foreach ($groups as $group) {
-            // Deleted while its events waited — a demo reset or purge. There
-            // is nothing left for them to belong to, not even a rejection
-            // row, so the dead-letter entry is their only record.
+            // Project deleted (demo purge or reset): only the dead letter remains.
             if (! $this->exists($group['tenant'], $existing)) {
                 $this->deadLetter($group['ids'], $deliveries, DeadLetters::PROJECT_GONE);
                 $outcome = $outcome->plus(new IngestionOutcome(rejected: count($group['ids'])));
@@ -186,8 +160,7 @@ final readonly class StreamConsumer
             try {
                 $outcome = $outcome->plus($this->writeGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
             } catch (Throwable $groupFailure) {
-                // Left unacknowledged, to be redelivered on its own; the
-                // tenants after it are not made to wait for it.
+                // Left pending; continue with the other tenants.
                 $failure ??= $groupFailure;
             }
         }
@@ -200,22 +173,9 @@ final readonly class StreamConsumer
     }
 
     /**
-     * Writes one tenant's events, and when the database refuses them for what
-     * one of them holds, writes them in halves until the refusal is down to
-     * the event that causes it.
-     *
-     * A write is one transaction, so a single event the database cannot
-     * store fails every event beside it, and they would reach the
-     * dead-letter stream together. Halving within the same pass writes and
-     * acknowledges the rest; the event that still fails on its own stays
-     * pending, and is set aside alone once it has been delivered too often.
-     *
-     * Only a refusal of the data is halved. A connection lost or a
-     * transaction aborted by a concurrent one would fail every half as well,
-     * and halving would only multiply the attempts that fail; the batch waits
-     * whole for its next delivery instead. Retrying a half is safe for the
-     * reasons any redelivery is: a claim with the same timestamp passes
-     * again, and the unique key decides (ADR-0002, ADR-0004).
+     * When the database rejects the data (SQLSTATE 22/23), retries in halves
+     * so only the bad event stays pending. Other errors leave the whole batch
+     * for redelivery. Retrying is safe (ADR-0002, ADR-0004).
      *
      * @param  list<IncomingEvent>  $events
      * @param  list<string>  $ids  the stream ids of the events, in the same order
@@ -256,9 +216,7 @@ final readonly class StreamConsumer
     }
 
     /**
-     * SQLSTATE class 22 is a value its column cannot take, class 23 a row
-     * that breaks a constraint: both are about what was written, and the same
-     * event fails the same way on every attempt.
+     * SQLSTATE class 22 (data) or 23 (constraint).
      */
     private function refusesTheData(QueryException $failure): bool
     {
@@ -304,8 +262,7 @@ final readonly class StreamConsumer
             $span->end();
         }
 
-        // Only now. Everything above this line is redoable; acknowledging
-        // before it would make the failure unrecoverable instead.
+        // Acknowledge only after the commit.
         $this->acknowledge($ids);
 
         return $outcome;
@@ -359,9 +316,7 @@ final readonly class StreamConsumer
                     continue;
                 }
 
-                // The message as it was, plus why it is here and when: a
-                // dead-letter entry nobody can diagnose is a dropped message
-                // with extra steps.
+                // Original fields plus reason, delivery count and time.
                 $pipe->xadd($key, '*', [
                     ...$delivery->fields,
                     DeadLetters::REASON => $reason,
@@ -413,11 +368,7 @@ final readonly class StreamConsumer
     }
 
     /**
-     * Takes over messages another consumer stopped acknowledging.
-     *
-     * Pending first, claim second, rather than `XAUTOCLAIM`: the pending
-     * listing is what carries the delivery count, and the delivery count is
-     * how a poison message is recognised before it is processed again.
+     * XPENDING then XCLAIM, not `XAUTOCLAIM`: XPENDING returns the delivery count.
      *
      * @return list<Delivery>
      */
@@ -483,7 +434,7 @@ final readonly class StreamConsumer
     }
 
     /**
-     * Whether the tenant still exists, asked once per tenant per pass.
+     * Checked once per tenant per pass.
      *
      * @param  array<string, bool>  $existing
      */
@@ -500,9 +451,7 @@ final readonly class StreamConsumer
     }
 
     /**
-     * A rejection for a message that could not be read, when it at least said
-     * whose it was. When it did not, there is no project to file it under and
-     * the dead-letter entry is the only record there can be.
+     * Null when the message names no project.
      */
     private function rejectionFor(Delivery $delivery): ?Rejection
     {

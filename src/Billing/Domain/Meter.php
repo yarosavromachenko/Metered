@@ -11,17 +11,9 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Domain\Text\Name;
 
 /**
- * The definition of something measurable inside one project.
- *
- * A meter is two decisions: what the events are called ({@see MeterCode}) and
- * how they become one number ({@see Aggregation}). Everything else about
- * usage — the events, the aggregates, the invoice lines — is derived from
- * those two.
- *
- * Both are immutable after definition, and not by omission. Changing the code
- * would orphan every event already sent under it; changing the aggregation
- * would silently rewrite what past periods meant, including periods already
- * invoiced. A meter that needs either is a new meter.
+ * A {@see MeterCode} and an {@see Aggregation}, both immutable: changing them
+ * would orphan sent events or change invoiced periods. Create a new meter
+ * instead.
  */
 final readonly class Meter
 {
@@ -47,10 +39,6 @@ final readonly class Meter
         return new self($id, $tenant, $code, Name::of($name, 'meter', self::NAME_LIMIT), $aggregation, $at);
     }
 
-    /**
-     * Whether an event naming this code belongs to this meter. Asked by the
-     * ingestion consumer, which holds a code and needs the meter behind it.
-     */
     public function answersTo(MeterCode $code): bool
     {
         return $this->code->equals($code);

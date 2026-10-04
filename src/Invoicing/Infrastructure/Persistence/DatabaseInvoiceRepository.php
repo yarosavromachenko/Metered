@@ -24,8 +24,7 @@ use stdClass;
 final readonly class DatabaseInvoiceRepository implements InvoiceRepository
 {
     /**
-     * Microseconds kept: a period starts wherever its subscription was
-     * anchored, and the unique key compares the instants exactly.
+     * Keeps microseconds; the unique key compares period instants exactly.
      */
     public const string INSTANT = 'Y-m-d H:i:s.uP';
 
@@ -35,9 +34,8 @@ final readonly class DatabaseInvoiceRepository implements InvoiceRepository
     {
         $connection = $this->db->connection();
 
-        // ON CONFLICT DO NOTHING rather than catching the violation: inside
-        // the caller's transaction, a failed statement would abort everything
-        // after it, and the second close is the expected case, not an error.
+        // ON CONFLICT DO NOTHING: a failed statement would abort the caller's
+        // transaction.
         $inserted = $connection->table('invoices')->insertOrIgnore([
             'id' => $invoice->id->value,
             'organization_id' => $invoice->tenant->organizationId->value,

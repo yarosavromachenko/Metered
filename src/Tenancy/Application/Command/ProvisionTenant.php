@@ -9,15 +9,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Domain\Environment;
 
 /**
- * Create an organization, its first project and the key that reaches it.
- *
- * One command rather than three, because a tenant with no project or a
- * project with no key is not a tenant anyone can use — it is a half-finished
- * state that would have to be repaired by hand.
- *
- * `ownerUserId` is the person who ends up owning it, when there is one. The
- * console has nobody; a sign-up has exactly the person who filled in the form.
- * `demo` marks a tenant that demo mode may delete once nobody uses it.
+ * Organization, first project and first key in one command. `ownerUserId` is
+ * null from the console. `demo` lets demo mode delete the tenant when idle.
  */
 final readonly class ProvisionTenant
 {

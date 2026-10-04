@@ -7,8 +7,7 @@ namespace Metered\Billing\Application\Contract;
 use DateTimeImmutable;
 
 /**
- * One period of a subscription that has ended and can be invoiced,
- * `[start, end)`, in UTC.
+ * An ended period, `[start, end)` in UTC.
  */
 final readonly class BillablePeriod
 {

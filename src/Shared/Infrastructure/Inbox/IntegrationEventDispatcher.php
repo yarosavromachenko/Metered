@@ -9,14 +9,8 @@ use Metered\Shared\Application\Inbox\IntegrationEventHandler;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 
 /**
- * Routes an integration event to the handlers that asked for it, each behind
- * its own inbox claim.
- *
- * Keying the claim by handler rather than by message is what lets two modules
- * react to the same event: each gets exactly one turn, and a redelivery gives
- * neither a second one. The key is the handler's declared name rather than its
- * class, so moving or renaming the class does not make every message it has
- * already processed look new.
+ * Each handler gets its own inbox claim, so several handlers can process the
+ * same event once each.
  */
 final readonly class IntegrationEventDispatcher
 {
@@ -29,8 +23,7 @@ final readonly class IntegrationEventDispatcher
     ) {}
 
     /**
-     * @return int how many handlers actually ran, as opposed to being skipped
-     *             because this message had already been processed
+     * @return int handlers that ran (not skipped as already processed)
      */
     public function dispatch(OutboxMessage $message): int
     {

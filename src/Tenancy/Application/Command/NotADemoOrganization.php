@@ -8,10 +8,7 @@ use Metered\Tenancy\Domain\Organization;
 use RuntimeException;
 
 /**
- * Raised when a purge names an organization that was not created as a demo.
- *
- * The invoicing triggers would refuse it anyway; this says so before anything
- * is deleted, in a sentence rather than a trigger's exception.
+ * Checked before deleting anything; the invoicing triggers refuse it too.
  */
 final class NotADemoOrganization extends RuntimeException
 {

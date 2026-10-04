@@ -9,10 +9,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * A fixed amount per period, whatever was used.
- *
- * A first period shorter than a full one is still charged in full: proration
- * is out of scope in v1 (docs/domain.md, pricing models).
+ * Fixed amount per period, charged in full even for a short first period (no
+ * proration, docs/domain.md).
  */
 final readonly class FlatFee implements PricingModel
 {

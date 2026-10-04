@@ -11,8 +11,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 
 /**
- * The integration events an invoice announces, all of one shape: who, how
- * much, which period, and what happened.
+ * Payloads of the invoice integration events, one shape for all.
  */
 final class InvoiceMessages
 {

@@ -7,17 +7,8 @@ namespace Metered\Tenancy\Infrastructure\Laravel;
 use RuntimeException;
 
 /**
- * Where demo mode may be switched on at all.
- *
- * Demo mode opens sign-up to strangers and gives each of them a tenant that
- * is deleted a week after they stop coming back (ADR-0016). That is a
- * reasonable thing for a laptop running `make demo` and an unreasonable one
- * for anything holding real customers, so the environment decides, not a
- * convention: set anywhere else, the application refuses to boot. A
- * forgotten line in a production .env must fail loudly, not open a door.
- *
- * `testing` is on the list because the test suite is where demo mode is
- * proven to behave; a suite that cannot switch it on cannot test it.
+ * Environments where demo mode (open sign-up, ADR-0016) is allowed. Enabled
+ * anywhere else, the application refuses to boot.
  */
 final class DemoMode
 {

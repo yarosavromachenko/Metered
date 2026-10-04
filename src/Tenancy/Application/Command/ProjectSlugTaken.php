@@ -8,10 +8,8 @@ use Metered\Tenancy\Domain\Slug;
 use RuntimeException;
 
 /**
- * Unlike organization slugs, a project slug is not quietly suffixed. Inside
- * one organization the names are chosen by colleagues who can see each other's
- * projects, and two things called "production" is a mistake worth reporting
- * rather than papering over.
+ * Project slugs are not auto-suffixed like organization slugs: a duplicate
+ * inside one organization is reported.
  */
 final class ProjectSlugTaken extends RuntimeException
 {

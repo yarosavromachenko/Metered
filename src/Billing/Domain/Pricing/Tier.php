@@ -8,12 +8,8 @@ use Metered\Shared\Domain\Money\UnitPrice;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * One band of a tiered price: the units up to and including $limit, priced at
- * $unitPrice. The last band of a table has no limit.
- *
- * The limit is inclusive — a quantity of exactly 1,000 lies in the tier that
- * ends at 1,000. That is the reading every major billing provider uses, and
- * the one a customer reading "first 1,000 units" expects.
+ * Units up to and including $limit (as other billing providers read it); the
+ * last tier has no limit.
  */
 final readonly class Tier
 {
@@ -32,9 +28,6 @@ final readonly class Tier
         return new self(null, $unitPrice);
     }
 
-    /**
-     * Whether $quantity falls within this tier's reach, from zero.
-     */
     public function reaches(Quantity $quantity): bool
     {
         return !$this->limit instanceof Quantity || $quantity->compareTo($this->limit) <= 0;

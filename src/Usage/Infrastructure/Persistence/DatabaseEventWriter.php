@@ -19,19 +19,9 @@ use Psr\Clock\ClockInterface;
 use stdClass;
 
 /**
- * The write that makes redelivery harmless.
- *
- * One transaction, two steps, and the join between them is the whole idea
- * (ADR-0004): the insert says `ON CONFLICT DO NOTHING RETURNING`, and only the
- * rows it actually returned are folded into aggregates. A redelivered batch
- * inserts nothing, therefore returns nothing, therefore adds nothing — the
- * effect is exactly once even though the delivery is not, which is the only
- * kind of exactly-once that exists.
- *
- * The cost is that the insert has to return its rows, which a blind insert
- * would not. That is paid knowingly, and it is the cheapest correct option
- * available: the alternative is a second pass with its own watermark and its
- * own way of disagreeing with the first.
+ * One transaction: `INSERT ... ON CONFLICT DO NOTHING RETURNING`, then only
+ * the returned rows are folded into aggregates, so a redelivered batch adds
+ * nothing (ADR-0004).
  */
 final readonly class DatabaseEventWriter implements EventWriter
 {
@@ -99,8 +89,7 @@ final readonly class DatabaseEventWriter implements EventWriter
             . '(id, organization_id, project_id, event_id, customer_id, meter_id, meter_code, customer_ref, '
             . 'quantity, occurred_at, received_at, properties) '
             . 'VALUES ' . implode(', ', $placeholders) . ' '
-            // The conflict target is the primary key, which is the natural key
-            // deduplication turns on (ADR-0002).
+            // Conflict on the primary key, the deduplication key (ADR-0002).
             . 'ON CONFLICT (project_id, event_id, occurred_at) DO NOTHING '
             . 'RETURNING customer_id, meter_id, meter_code, customer_ref, quantity, occurred_at',
             $bindings,
@@ -129,12 +118,8 @@ final readonly class DatabaseEventWriter implements EventWriter
     }
 
     /**
-     * Folds the rows that were actually inserted into one delta per bucket.
-     *
-     * The fold is the domain's ({@see Aggregation::fold}), not SQL's, so the
-     * arithmetic a test can reason about and the arithmetic that runs are the
-     * same. SQL is left with the part only it can do: merging this delta into
-     * whatever another consumer committed a moment ago.
+     * One delta per bucket, folded with {@see Aggregation::fold}; SQL only
+     * merges it into the stored aggregate.
      *
      * @param  list<array{customer_id: string, meter_id: string, meter_code: string, customer_ref: string, quantity: string, occurred_at: string}>  $inserted
      * @param  list<ResolvedEvent>  $events
@@ -177,9 +162,7 @@ final readonly class DatabaseEventWriter implements EventWriter
      */
     private function upsertAggregates(ConnectionInterface $connection, TenantContext $tenant, array $deltas): void
     {
-        // Two shapes, because two things can be meant by "merge this in".
-        // Sum and count accumulate; max keeps whichever is larger, and a
-        // redelivery of a smaller value must not lower the peak.
+        // Sum and count add; max keeps the larger value.
         $additive = [];
         $peak = [];
 

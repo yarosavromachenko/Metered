@@ -14,11 +14,6 @@ use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Tenancy\Application\Contract\Authorizer;
 use Psr\Clock\ClockInterface;
 
-/**
- * Registers the party a tenant bills, under the id the tenant already uses
- * for them — which is what lets their instrumentation send usage without
- * looking anything up first.
- */
 final readonly class RegisterCustomerHandler
 {
     public function __construct(

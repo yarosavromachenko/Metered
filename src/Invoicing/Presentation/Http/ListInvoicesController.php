@@ -13,7 +13,7 @@ use Metered\Invoicing\Infrastructure\Eloquent\Invoice;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
 /**
- * The project's invoices, newest first, without their lines.
+ * Newest first, without lines.
  */
 final readonly class ListInvoicesController
 {

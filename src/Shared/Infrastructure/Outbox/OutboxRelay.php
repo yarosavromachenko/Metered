@@ -19,22 +19,10 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Publishes committed outbox messages, exactly as often as their state change
- * committed and at least once each.
- *
- * Claiming uses SELECT ... FOR UPDATE SKIP LOCKED, which is what allows several
- * relays to run at the same time without coordination: each skips the rows
- * another has locked instead of waiting behind them.
- *
- * Publication happens inside the claiming transaction. A relay that publishes
- * and then dies before recording it will publish that message again later —
- * delivery is at-least-once by design, and consumers are made idempotent by the
- * inbox rather than by hoping this never happens.
- *
- * Each publication is a span in the trace the message was written in, taken
- * from its headers, and the job it queues carries that span on (ADR-0012).
- * Without it every event would start a trace of its own, cut off from the
- * request or job that caused it.
+ * Claims with FOR UPDATE SKIP LOCKED, so several relays can run at once, and
+ * publishes inside the claiming transaction: at-least-once, deduplicated by
+ * the inbox. Each publication continues the trace from the message headers
+ * (ADR-0012).
  */
 final readonly class OutboxRelay
 {

@@ -8,14 +8,10 @@ use Closure;
 use SensitiveParameter;
 
 /**
- * Live usage against one tenant, through the ingestion API, for a while.
- *
- * `eventsPerSecond` is events, not requests: they are batched so that no
- * more than five requests a second leave, well inside a key's rate limit.
- * The rates are shares of the events sent: `duplicateRate` resends an event
- * already sent, `lateRate` reports something from up to three days ago. Out
- * of order moves every event up to ten minutes back, so arrival order and
- * time order disagree; a burst quintuples the rate for one second in fifteen.
+ * `eventsPerSecond` counts events, batched into at most five requests a
+ * second. `duplicateRate` and `lateRate` (up to three days back) are shares
+ * of events. Out-of-order shifts events up to ten minutes back; a burst is
+ * 5x the rate for one second in fifteen.
  */
 final readonly class GenerateTraffic
 {

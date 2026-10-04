@@ -8,8 +8,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Webhooks\Application\Command\WebhookNotFound;
 
 /**
- * An id from the path. Something that is not a UUID is answered like an id
- * that does not exist, so the two cannot be told apart from outside.
+ * A malformed id is answered like an unknown one (404).
  */
 final class WebhookIds
 {

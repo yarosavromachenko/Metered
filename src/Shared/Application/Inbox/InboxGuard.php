@@ -7,12 +7,7 @@ namespace Metered\Shared\Application\Inbox;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * Makes a consumer idempotent.
- *
- * Delivery is at-least-once, so a consumer will see the same message twice.
- * The guard records (consumer, message) under a unique constraint and runs the
- * handler only the first time — the second caller is told it has already been
- * done rather than doing it again.
+ * Runs a handler once per (consumer, message), backed by a unique constraint.
  */
 interface InboxGuard
 {

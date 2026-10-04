@@ -9,10 +9,7 @@ use Metered\Shared\Application\Health\CheckResult;
 use Metered\Shared\Application\Health\ReadinessCheck;
 
 /**
- * PostgreSQL answers a query on the connection web requests use.
- *
- * A query rather than a connect: through PgBouncer the socket opens even
- * when the server behind it is gone.
+ * Runs a query: through PgBouncer a connect succeeds even when PostgreSQL is down.
  */
 final readonly class DatabaseCheck implements ReadinessCheck
 {

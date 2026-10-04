@@ -8,10 +8,8 @@ use Metered\Shared\Infrastructure\Clock\ClockOffset;
 use Metered\Simulation\Application\Port\TimeMachine;
 
 /**
- * The offset the travelling clock reads. Each process reads it again at most
- * once a second, so after setting it this waits a little over a second: by
- * the time it returns, the app, the workers and this very process all agree
- * on the new time.
+ * Waits just over a second after setting the offset: processes re-read it at
+ * most once a second.
  */
 final readonly class SharedClockTimeMachine implements TimeMachine
 {

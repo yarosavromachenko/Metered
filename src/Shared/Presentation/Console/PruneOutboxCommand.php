@@ -8,8 +8,7 @@ use Illuminate\Console\Command;
 use Metered\Shared\Infrastructure\Outbox\OutboxPruner;
 
 /**
- * `outbox:prune` — removes outbox messages published more than the retention
- * window ago. Scheduled daily; never touches an unpublished message.
+ * Scheduled daily.
  */
 final class PruneOutboxCommand extends Command
 {

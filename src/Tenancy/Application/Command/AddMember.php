@@ -10,9 +10,7 @@ use Metered\Tenancy\Domain\Slug;
 use SensitiveParameter;
 
 /**
- * Give a new person a role in an existing organization — an operator's
- * command, as organizations are created by one. The demo uses it for the
- * read-only account a reviewer signs in with before signing up.
+ * Operator command. The demo uses it for the read-only showcase login.
  */
 final readonly class AddMember
 {
@@ -21,7 +19,7 @@ final readonly class AddMember
         public string $name,
         public string $email,
         #[SensitiveParameter]
-        public string $password,
+        public string $plainPassword,
         public Role $role,
         public Actor $actor,
     ) {}

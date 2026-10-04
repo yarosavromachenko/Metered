@@ -8,11 +8,7 @@ use Metered\Shared\Application\Health\CheckResult;
 use Metered\Shared\Application\Health\ReadinessCheck;
 
 /**
- * The ingestion backlog is below the depth at which ingestion sheds load.
- *
- * The same threshold and the same comparison as the backpressure decision:
- * an instance that would answer every ingestion request with 503 is not
- * ready, and it should say so before a load balancer sends it more.
+ * Fails at the same depth at which ingestion starts answering 503.
  */
 final readonly class BacklogCheck implements ReadinessCheck
 {

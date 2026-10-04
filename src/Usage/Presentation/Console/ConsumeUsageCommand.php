@@ -11,17 +11,8 @@ use Metered\Usage\Infrastructure\Redis\StreamConsumer;
 use Throwable;
 
 /**
- * `usage:consume` — the daemon that moves events from the stream into
- * PostgreSQL.
- *
- * A long-running process rather than a queued job, because everything that
- * makes this correct lives in the consumer group: batching, acknowledging
- * after the commit, reclaiming what a dead worker left behind. Horizon would
- * supervise it for free and take all three away (ADR-0003).
- *
- * `SIGTERM` finishes the batch in hand and exits. A container being replaced
- * gets a clean handover instead of a batch of five hundred events whose
- * acknowledgement never happened.
+ * A daemon, not a queued job: batching, ack-after-commit and reclaiming rely
+ * on the consumer group (ADR-0003). `SIGTERM` finishes the current batch.
  */
 final class ConsumeUsageCommand extends Command
 {
@@ -42,9 +33,7 @@ final class ConsumeUsageCommand extends Command
         $limit = $this->batchLimit();
         $passes = 0;
 
-        // Laravel's own trap: the signal sets a flag, and the flag is read
-        // between batches. Doing anything more inside a signal handler is how
-        // a shutdown corrupts the work it interrupted.
+        // The handler only sets a flag, checked between batches.
         $this->trap([SIGTERM, SIGINT], function (): void {
             $this->stopping = true;
             $this->line('Finishing the batch in hand, then stopping.');
@@ -56,11 +45,7 @@ final class ConsumeUsageCommand extends Command
             try {
                 $report = $consumer->consumeOnce($name);
             } catch (Throwable $failure) {
-                // The failed tenant's messages were not acknowledged, so
-                // nothing is lost: they will be reclaimed and tried again. The
-                // other tenants of the read were written and acknowledged
-                // before this was thrown. Reporting and continuing beats
-                // exiting, which would turn one bad batch into an outage.
+                // Report and continue; the failed messages stay pending.
                 $this->error('Batch failed: ' . $failure->getMessage());
                 report($failure);
 

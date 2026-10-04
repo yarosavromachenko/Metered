@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Infrastructure\Persistence;
 
+use DateTimeImmutable;
 use Illuminate\Database\DatabaseManager;
+use Illuminate\Database\Query\Builder;
 use JsonException;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
@@ -35,13 +37,20 @@ final readonly class DatabaseApiKeyRepository implements ApiKeyRepository
             'revoked_at' => $key->revokedAt,
             'last_used_at' => $key->lastUsedAt,
         ], ['id'], [
-            // Only the columns that a key's life can change. Its prefix, hash
-            // and tenant are what it is; an update that rewrote them would be
-            // a different key wearing the same id.
+            // Prefix, hash and tenant never change; last use is written by recordUse().
             'name',
             'revoked_at',
-            'last_used_at',
         ]);
+    }
+
+    public function recordUse(ApiKey $key, DateTimeImmutable $at): void
+    {
+        $instant = $at->format('Y-m-d H:i:s.uP');
+
+        $this->db->connection()->table('api_keys')
+            ->where('id', $key->id->value)
+            ->where(static fn(Builder $query): Builder => $query->whereNull('last_used_at')->orWhere('last_used_at', '<', $instant))
+            ->update(['last_used_at' => $instant]);
     }
 
     public function findByPrefix(string $prefix): ?ApiKey

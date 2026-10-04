@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Metered\Invoicing\Domain\Ledger;
 
 /**
- * The accounts a customer's money moves between (ADR-0008).
- *
- * Kept per customer and project: an account is the pair of this name and the
- * customer, so a customer's receivable is the balance of their entries on it.
+ * Per customer and project (ADR-0008).
  */
 enum Account: string
 {
@@ -22,9 +19,7 @@ enum Account: string
     case Cash = 'cash';
 
     /**
-     * Whether a debit increases the balance. Assets — what is owed to the
-     * business and what it holds — grow with debits; revenue grows with
-     * credits.
+     * True for asset accounts, false for revenue.
      */
     public function growsWithDebits(): bool
     {

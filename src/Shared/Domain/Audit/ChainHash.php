@@ -10,16 +10,9 @@ use JsonException;
 use RuntimeException;
 
 /**
- * Computes an entry's link in the chain.
- *
- * Each hash covers the entry's own contents together with the previous hash,
- * so changing any entry invalidates every entry after it. Verification is
- * therefore a single pass, and tampering cannot be local.
- *
- * The encoding is pinned deliberately: sorted keys, unescaped slashes and
- * unicode, and timestamps in UTC with microseconds. A hash whose input depends
- * on PHP's default JSON flags would start failing on an upgrade, and nobody
- * would know whether the chain or the encoder had changed.
+ * SHA-256 over the entry and the previous hash. The encoding is fixed (sorted
+ * keys, explicit JSON flags, UTC with microseconds) so a PHP upgrade cannot
+ * change existing hashes.
  */
 final class ChainHash
 {
@@ -50,9 +43,7 @@ final class ChainHash
             'occurred_at' => $occurredAt->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d\TH:i:s.uP'),
         ];
 
-        // Only when there is one: entries of the platform chain, written before
-        // chains were per organization, hash exactly as they always did, and an
-        // organization's entry cannot be moved to another chain and still match.
+        // Absent for platform-chain entries, so their existing hashes still match.
         if ($organizationId !== null) {
             $fields['organization_id'] = $organizationId;
         }

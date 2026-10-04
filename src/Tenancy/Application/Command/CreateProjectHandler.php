@@ -15,12 +15,7 @@ use Metered\Tenancy\Domain\Slug;
 use Psr\Clock\ClockInterface;
 
 /**
- * Opens another project inside an existing organization — the second
- * environment, the sandbox, the one for next year's product.
- *
- * The currency is fixed here and never again: everything priced beneath a
- * project uses it, and the system converts nothing (ADR-0007). A project in
- * the wrong currency is replaced, not corrected.
+ * The project's currency cannot be changed later (ADR-0007).
  */
 final readonly class CreateProjectHandler
 {

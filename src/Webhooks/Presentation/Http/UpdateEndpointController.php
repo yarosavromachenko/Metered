@@ -17,7 +17,7 @@ use Metered\Webhooks\Domain\Endpoint\EndpointRepository;
 use Metered\Webhooks\Domain\Endpoint\EventType;
 
 /**
- * Changes what is given and leaves the rest as it is.
+ * Partial update.
  */
 final readonly class UpdateEndpointController
 {

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Metered\Webhooks\Infrastructure\Http;
 
 /**
- * The resolver the operating system provides, asked for A and AAAA records.
+ * A and AAAA records from the OS resolver.
  */
 final readonly class SystemResolver implements Resolver
 {

@@ -7,12 +7,8 @@ namespace Metered\Usage\Application\Command;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * What the client is told: how many events were taken, and the handle to ask
- * about them later.
- *
- * "Accepted" means durably in the stream, not in PostgreSQL, and not
- * validated against the catalog. The API reference says so in those words,
- * because the failure mode people resent is the undocumented one.
+ * "Accepted" means stored in the stream, not yet validated against the
+ * catalog or written to PostgreSQL (documented in docs/api.md).
  */
 final readonly class IngestionReceipt
 {

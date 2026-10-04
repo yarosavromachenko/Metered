@@ -9,11 +9,7 @@ use Metered\Shared\Domain\Access\Permission;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * A person's place in one organization.
- *
- * Membership is where authorization starts: a user is nothing on their own,
- * and everything the panel allows is a question about the membership that
- * connects them to the organization they are currently looking at.
+ * A user's role in one organization; all panel authorization goes through it.
  */
 final readonly class Membership
 {

@@ -16,12 +16,7 @@ use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
 use Psr\Clock\ClockInterface;
 
 /**
- * `usage:reconcile` — proves that every aggregate equals the events under it.
- *
- * Exits non-zero when it finds drift, so a chaos scenario or a CI job can end
- * on it. `--repair` rewrites the window from the raw events, and is not
- * automatic: drift means something upstream is wrong, and an aggregate
- * silently repaired every night is a bug nobody ever finds.
+ * Exits non-zero on drift. `--repair` rebuilds the window from raw events.
  */
 final class ReconcileUsageCommand extends Command
 {
@@ -42,9 +37,7 @@ final class ReconcileUsageCommand extends Command
         $from = $this->instant('from') ?? $now->sub(new DateInterval('P1D'));
         $to = $this->instant('to') ?? $now;
 
-        // An empty window has no drift in it, and "no drift" is the answer
-        // nobody double-checks. PHP reads "-1h" as a timezone rather than an
-        // hour ago, which puts the start in the future without any error.
+        // Reject an empty window: PHP parses "-1h" as a timezone, not an hour ago.
         if ($from >= $to) {
             $this->error(sprintf(
                 'The window is empty: --from (%s) must be earlier than --to (%s). For a relative time write "-1 hour", not "-1h".',
@@ -55,8 +48,7 @@ final class ReconcileUsageCommand extends Command
             return self::FAILURE;
         }
 
-        // Said back as the whole hours compared, so the message never claims
-        // a window narrower than the one that was checked.
+        // Prints the window widened to whole hours.
         [$from, $to] = $reconciler->window($from, $to);
 
         $tenants = $this->tenants($projects);
@@ -91,7 +83,6 @@ final class ReconcileUsageCommand extends Command
             return self::SUCCESS;
         }
 
-        // Non-zero, because this is what a chaos run and a CI job assert on.
         return $this->option('repair') === true ? self::SUCCESS : self::FAILURE;
     }
 

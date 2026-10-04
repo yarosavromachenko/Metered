@@ -5,10 +5,8 @@ declare(strict_types=1);
 namespace Metered\Simulation\Application\Port;
 
 /**
- * Keeps generated traffic to its schedule: returns once the given number of
- * seconds has passed since the first call. Wall-clock time, not the
- * application's clock — pacing is about how fast requests leave this
- * process, whatever time the platform believes it is.
+ * Returns once the given seconds have passed since the first call, by wall
+ * clock (not the application clock).
  */
 interface Pacer
 {

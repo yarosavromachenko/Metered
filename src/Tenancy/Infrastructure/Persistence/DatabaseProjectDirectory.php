@@ -11,10 +11,6 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Metered\Tenancy\Application\Contract\ProjectDirectory;
 use stdClass;
 
-/**
- * The two ids of every project, and nothing else about them: this is what
- * operator tooling needs, and reading less means exposing less.
- */
 final readonly class DatabaseProjectDirectory implements ProjectDirectory
 {
     public function __construct(private DatabaseManager $db) {}

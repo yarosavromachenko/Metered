@@ -7,17 +7,8 @@ namespace Metered\Tenancy\Domain;
 use Metered\Shared\Domain\Access\Permission;
 
 /**
- * What a person may do inside one organization (ADR-0017).
- *
- * `admin` and `billing_operator` are deliberately not nested. Shaping the
- * catalog and deciding what a customer is charged are different kinds of
- * authority, and in a real billing organization they usually belong to
- * different people: one decides what a thing costs, the other signs off on the
- * invoice that says someone owes it.
- *
- * That split is also what makes these rules testable. The two roles overlap on
- * reads and are disjoint on writes, so a policy that quietly grants everything
- * to everyone fails a test instead of passing unnoticed.
+ * ADR-0017. `admin` (catalog) and `billing_operator` (money) are not nested:
+ * they share reads and have disjoint writes.
  */
 enum Role: string
 {

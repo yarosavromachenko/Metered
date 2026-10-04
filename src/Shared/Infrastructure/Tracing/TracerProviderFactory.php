@@ -14,11 +14,7 @@ use OpenTelemetry\SDK\Trace\SpanProcessor\BatchSpanProcessor;
 use OpenTelemetry\SDK\Trace\TracerProvider;
 
 /**
- * Builds the tracer provider, or a no-op one when tracing is switched off.
- *
- * A no-op provider rather than a conditional at every call site: code that
- * starts a span should not have to ask whether tracing is enabled, and a
- * provider that quietly does nothing is cheaper than a branch in every method.
+ * No-op provider when tracing is off, so call sites need no checks.
  */
 final readonly class TracerProviderFactory
 {
@@ -44,9 +40,7 @@ final readonly class TracerProviderFactory
             ->setResource(TelemetryResource::describe($this->serviceName, $this->deploymentEnvironment))
             ->build();
 
-        // The batch is exported when it fills or when a span ends after the
-        // delay has passed. A command that finishes first — a scheduled run,
-        // a worker being stopped — would take its last spans with it.
+        // Flush on shutdown, or a short command loses its last batch.
         ShutdownHandler::register($provider->shutdown(...));
 
         return $provider;

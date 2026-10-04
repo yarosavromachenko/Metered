@@ -12,13 +12,8 @@ use Metered\Usage\Application\Stream\StreamDepth;
 use Metered\Usage\Infrastructure\Persistence\PartitionManager;
 
 /**
- * Whether ingestion is keeping up, in four numbers.
- *
- * Stream depth is the one that matters: it is the difference between what was
- * accepted and what has been written, and a number that keeps climbing is the
- * only early warning this design gives. The others are the failures that are
- * quiet by nature — rejections a tenant has not looked at, and rows in the
- * default partition, which means a day went by without its partition.
+ * Stream depth (accepted but not yet written), recent events, rejections and
+ * rows in the default partition.
  */
 final class IngestionHealth extends StatsOverviewWidget
 {
@@ -42,11 +37,7 @@ final class IngestionHealth extends StatsOverviewWidget
             ->where('rejected_at', '>=', now()->subDay())
             ->count();
 
-        // Counted up to a cap and no further. The widget polls every few
-        // seconds, and an uncapped count of a busy hour is millions of index
-        // entries each time; past the cap, the exact number tells an operator
-        // nothing the cap does not. By occurred_at rather than received_at
-        // because that is the column the recent-events index covers.
+        // Capped count, since the widget polls. By occurred_at: indexed.
         $recent = DB::query()->fromSub(
             DB::table('usage_events')
                 ->select('occurred_at')

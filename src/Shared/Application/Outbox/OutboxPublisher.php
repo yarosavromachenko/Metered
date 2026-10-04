@@ -7,12 +7,8 @@ namespace Metered\Shared\Application\Outbox;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 
 /**
- * Hands a claimed message to whatever carries it onward — in production, a
- * queue.
- *
- * Publication is at-least-once: the relay can publish and then fail before
- * recording that it did. Consumers are expected to be idempotent, which is what
- * the inbox is for.
+ * At-least-once: the relay may publish and fail before marking the message
+ * published. Consumers deduplicate through the inbox.
  */
 interface OutboxPublisher
 {

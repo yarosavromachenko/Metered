@@ -5,21 +5,16 @@ declare(strict_types=1);
 namespace Metered\Simulation\Application\Seed;
 
 /**
- * Deterministic randomness: the same seed and the same key always give the
- * same number.
- *
- * Not a generator with state, deliberately. The live API seed and the
- * backfill produce different stretches of one customer's history in separate
- * processes; keyed noise lets both compute any hour on its own and agree on
- * it, and resending an hour produces the same event ids, which ingestion then
- * deduplicates rather than counting twice.
+ * Keyed, stateless randomness: same seed and key, same number. The API seed
+ * and the history load can compute any hour independently, and a resent hour
+ * has the same event ids.
  */
 final readonly class Noise
 {
     public function __construct(private int $seed) {}
 
     /**
-     * A number in [0, 1).
+     * In [0, 1).
      */
     public function unit(string $key): float
     {
@@ -29,7 +24,7 @@ final readonly class Noise
     }
 
     /**
-     * An integer in [min, max].
+     * In [min, max].
      */
     public function between(string $key, int $min, int $max): int
     {

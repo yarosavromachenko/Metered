@@ -22,11 +22,8 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use RuntimeException;
 
 /**
- * Translates a price to the columns of the `prices` table and back.
- *
- * Decimals travel as strings in both directions — the unit price column, and
- * each tier's limit and price inside the JSON — so nothing passes through a
- * float on the way to or from PostgreSQL.
+ * Maps a price to `prices` columns and back. Decimals stay strings, including
+ * inside the tiers JSON.
  */
 final class PriceColumns
 {

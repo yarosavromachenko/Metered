@@ -55,12 +55,8 @@ use Psr\Clock\ClockInterface;
 use RuntimeException;
 
 /**
- * Wires ingestion.
- *
- * Everything here that talks to PostgreSQL does so on the configured usage
- * connection, which is a direct one: the consumer and the partition commands
- * are long-running or DDL-issuing, and PgBouncer's transaction pooling suits
- * neither (ADR-0003).
+ * PostgreSQL access here uses the direct usage connection, not PgBouncer:
+ * the consumer is long-running and partition commands run DDL (ADR-0003).
  */
 final class UsageServiceProvider extends ServiceProvider
 {
@@ -74,9 +70,7 @@ final class UsageServiceProvider extends ServiceProvider
             ),
         );
 
-        // One object implements both stream ports. They are separate
-        // interfaces because writing and measuring are asked for by different
-        // callers, not because two implementations were wanted.
+        // One object implements both stream ports.
         $this->app->singleton(
             RedisEventStream::class,
             static fn(Application $app): RedisEventStream => new RedisEventStream(
@@ -208,11 +202,9 @@ final class UsageServiceProvider extends ServiceProvider
             ),
         );
 
-        // Removed with a purged demo tenant, by the module that owns the rows.
         $this->app->tag([DatabaseUsagePurger::class], TenantDataPurger::TAG);
 
-        // Not ready while ingestion would shed load: same depth, same threshold.
-        // The depth is deferred so that building the check opens no connection.
+        // Deferred, so building the check opens no connection.
         $this->app->bind(
             BacklogCheck::class,
             static fn(Application $app): BacklogCheck => new BacklogCheck(
@@ -246,19 +238,13 @@ final class UsageServiceProvider extends ServiceProvider
             ]);
         }
 
-        // The module carries its own routes, as it carries its own screens: a
-        // module that is deleted takes its endpoints with it, and
-        // routes/api.php never learns what any of them were.
         Route::middleware(['api', MeasureIngestion::class, 'api-key:usage:write', 'throttle-api-key'])
             ->prefix('api/v1')
             ->group(static function (): void {
                 Route::post('usage/events', IngestEventsController::class)->name('usage.events.ingest');
             });
 
-        // Reading somebody's usage is an admin key's business, not an
-        // ingestion key's: the key in a client's product should be able to
-        // report usage and nothing else, so that leaking it leaks nothing
-        // about their customers.
+        // Admin scope: an ingestion key can only write.
         Route::middleware(['api', 'api-key:admin', 'throttle-api-key'])
             ->prefix('api/v1')
             ->group(static function (): void {
@@ -273,9 +259,7 @@ final class UsageServiceProvider extends ServiceProvider
             self::configString($app, 'metered.usage.stream.connection', 'default'),
         );
 
-        // phpredis, specifically: streams are used through the client's own
-        // pipeline, and predis would need a different adapter rather than a
-        // different configuration value (ADR-0003).
+        // Requires phpredis (ADR-0003).
         return $connection instanceof PhpRedisConnection
             ? $connection
             : throw new RuntimeException('Usage ingestion needs the phpredis client.');

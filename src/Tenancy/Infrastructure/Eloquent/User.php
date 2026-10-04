@@ -13,12 +13,8 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 
 /**
- * A person who signs into the panel.
- *
- * The one Eloquent model the framework insists on: authentication, sessions
- * and Filament all expect an Authenticatable. Everything about what this
- * person may do lives elsewhere — in Membership, which is domain, and in the
- * policies built on it.
+ * Authenticatable for the session guard and Filament. Permissions come from
+ * Membership.
  *
  * @property string $id
  * @property string $name
@@ -37,17 +33,11 @@ final class User extends Authenticatable implements FilamentUser
     protected $hidden = ['password', 'remember_token'];
 
     /**
-     * Whether this person may enter the panel at all.
-     *
-     * Belonging to an organization is the whole condition: everything the
-     * panel shows belongs to one, and someone with no membership would see an
-     * empty shell and a switcher with nothing in it. What they may do once
-     * inside is their role's business, checked in the handlers.
+     * Any membership is enough; roles are checked in the handlers.
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        // toBase(): the relation's own count() resolves through Eloquent's
-        // magic forwarding, which static analysis cannot follow.
+        // toBase(): PHPStan cannot follow the relation's magic count().
         return $this->memberships()->toBase()->exists();
     }
 

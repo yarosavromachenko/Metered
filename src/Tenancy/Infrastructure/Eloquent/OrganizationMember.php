@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Metered\Tenancy\Domain\Role;
 
 /**
- * The read side of membership: who belongs to an organization, as what.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

@@ -15,16 +15,9 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use Psr\Clock\ClockInterface;
 
 /**
- * PostgreSQL is the source of truth for idempotency, deliberately, and Redis is
- * not.
- *
- * Redis would be faster and would evict under memory pressure — which happens
- * exactly when load is high, which is exactly when clients retry. A safety
- * mechanism that disappears under load is not one.
- *
- * The claim is a single INSERT ... ON CONFLICT DO NOTHING. No lock is held for
- * the duration of the request: holding a transaction open while a controller
- * runs is how connection pools are exhausted.
+ * Kept in PostgreSQL, not Redis, which may evict keys under load. The claim
+ * is one INSERT ... ON CONFLICT DO NOTHING; no transaction stays open while
+ * the request runs.
  */
 final readonly class DatabaseIdempotencyStore implements IdempotencyStore
 {
@@ -39,9 +32,7 @@ final readonly class DatabaseIdempotencyStore implements IdempotencyStore
     {
         $now = $this->clock->now();
 
-        // A key is remembered for the retention window and no longer. The
-        // hourly purge keeps the table small; this keeps the promise exact,
-        // so a key reused after the window is a new request, not a replay.
+        // Expired but not yet purged keys count as new.
         $this->table()
             ->where('scope', $scope)
             ->where('idempotency_key', $key)
@@ -68,8 +59,7 @@ final readonly class DatabaseIdempotencyStore implements IdempotencyStore
             ->first();
 
         if ($existing === null) {
-            // The row was purged between the insert and the read. Treating this
-            // as a fresh claim is safe: nothing recorded the first attempt.
+            // Purged between the insert and the read: treat as a new claim.
             return $this->claim($scope, $key, $fingerprint);
         }
 

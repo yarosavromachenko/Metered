@@ -8,18 +8,9 @@ use Metered\Billing\Domain\Exception\InvalidMeterCode;
 use Stringable;
 
 /**
- * The name a client's instrumentation calls a meter by.
- *
- * Unlike an internal id, this string is typed once into somebody else's code
- * and then sent on every event for years. That is why the shape is narrow —
- * lowercase letters, digits and single separators — and why it is the one
- * identifier in the system that is normalised rather than merely validated:
- * a deploy that changes `API.Calls` to `api.calls` must not silently start a
- * second meter, because the first anyone would hear of it is an invoice with
- * a month of usage missing.
- *
- * A customer reference, by contrast, keeps its case ({@see CustomerReference}):
- * it points into the tenant's own system, where the distinction may be real.
+ * The code events are sent with. Lowercase letters, digits and single
+ * separators; normalised to lowercase so `API.Calls` and `api.calls` are one
+ * meter. ({@see CustomerReference} keeps its case.)
  */
 final readonly class MeterCode implements Stringable
 {
@@ -39,9 +30,7 @@ final readonly class MeterCode implements Stringable
     {
         $normalised = strtolower(trim($value));
 
-        // Shape first, then length: "a" is a well-formed code that is merely
-        // too short, and telling its author about the character set would send
-        // them looking at the wrong thing.
+        // Shape before length, so "a" gets the length error.
         if (preg_match(self::PATTERN, $normalised) !== 1) {
             throw InvalidMeterCode::malformed($value);
         }

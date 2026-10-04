@@ -10,22 +10,19 @@ use Metered\Shared\Domain\Quantity\Quantity;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * What has already been billed, read from the invoices themselves — the
- * other half of every late line.
+ * What was already billed, for computing late lines.
  */
 interface BillingHistory
 {
     /**
-     * The periods the subscription has invoices for that ended after $after,
-     * oldest first: the ones late usage can still reach.
+     * Invoiced periods ended after $after, oldest first.
      *
      * @return list<InvoicePeriod>
      */
     public function periodsEndedAfter(TenantContext $tenant, Uuid $subscriptionId, DateTimeImmutable $after): array;
 
     /**
-     * The quantity billed so far for each meter over $covers, on the invoice
-     * for that period and on every late line since.
+     * Including late lines.
      *
      * @return array<string, Quantity> keyed by meter id
      */

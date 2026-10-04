@@ -14,14 +14,8 @@ use Redis;
 use RedisException;
 
 /**
- * The stream itself: one pipelined round trip per batch, and a backlog check
- * for the backpressure decision.
- *
- * Trimming is approximate (`MAXLEN ~`). Exact trimming makes every XADD walk
- * the stream looking for the boundary, and the entire argument for this design
- * is that XADD is cheap. The bound is a safety net against a stalled consumer
- * filling memory, not a retention policy — retention lives in PostgreSQL,
- * where the events end up.
+ * One pipelined round trip per batch. Approximate trimming (`MAXLEN ~`) keeps
+ * XADD cheap; the bound only protects memory from a stalled consumer.
  */
 final readonly class RedisEventStream implements EventStream, StreamDepth
 {
@@ -35,8 +29,7 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
 
     public function append(Batch $batch): void
     {
-        // The request's context goes into every message, so that the batch
-        // that eventually writes them can point back at this request.
+        // Trace context on every message.
         $messages = StreamEnvelope::encodeBatch($batch, $this->tracing->carrier());
 
         if ($messages === []) {
@@ -46,20 +39,14 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
         $key = $this->key;
         $maxLength = $this->maxLength;
 
-        // One round trip for the whole batch. A hundred sequential XADDs would
-        // be a hundred round trips, which at a millisecond each is most of the
-        // latency budget of an endpoint on somebody's hot path.
         try {
             $this->connection->pipeline(static function (Redis $pipe) use ($key, $messages, $maxLength): void {
                 foreach ($messages as $fields) {
-                    // '*' lets Redis assign the id: an id here is a position in
-                    // the stream, not an identity we have an opinion about.
                     $pipe->xadd($key, '*', $fields, $maxLength, true);
                 }
             });
         } catch (RedisException $refused) {
-            // Under `noeviction`, a Redis at `maxmemory` refuses writes with
-            // an OOM error. That is a full stream, not a broken one.
+            // OOM under `noeviction` means the stream is full.
             if (str_starts_with($refused->getMessage(), 'OOM ')) {
                 throw StreamFull::because($refused);
             }
@@ -69,17 +56,8 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
     }
 
     /**
-     * What the consumer group has not finished with: entries it has never
-     * been handed, plus entries it holds unacknowledged.
-     *
-     * Deliberately not `XLEN`. A stream keeps an entry after it has been read
-     * and acknowledged — only `MAXLEN` trimming removes it — so the length is
-     * mostly finished work. Backpressure on the length would start shedding
-     * load once the bound was half full and keep shedding until trimming
-     * caught up, with an idle consumer and an empty backlog, which is the
-     * opposite of what shedding is for. The panel's widget reads the same
-     * number and would have said "waiting in the stream" about work already
-     * written to PostgreSQL.
+     * Group lag plus pending entries. Not `XLEN`: acknowledged entries stay
+     * in the stream until trimmed.
      */
     public function pending(): int
     {
@@ -97,11 +75,7 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
             $unacknowledged = is_int($group['pending'] ?? null) ? $group['pending'] : 0;
             $undelivered = $group['lag'] ?? null;
 
-            // Redis cannot always compute the lag: trimming that removes
-            // entries the group had not reached leaves it unable to say how
-            // many those were, and reports null. The length is then the only
-            // number available, and erring towards shedding is the safe
-            // direction for a signal whose job is to protect the consumer.
+            // Lag is null after trimming unread entries; fall back to the length.
             if (! is_int($undelivered)) {
                 return $this->length();
             }
@@ -109,9 +83,7 @@ final readonly class RedisEventStream implements EventStream, StreamDepth
             return $undelivered + $unacknowledged;
         }
 
-        // No group means no consumer has ever read from this stream, so
-        // nothing in it has been dealt with and its length is exactly the
-        // backlog.
+        // No group yet: everything is backlog.
         return $this->length();
     }
 

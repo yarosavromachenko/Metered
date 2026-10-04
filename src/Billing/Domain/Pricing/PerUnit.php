@@ -8,9 +8,6 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Money\UnitPrice;
 use Metered\Shared\Domain\Quantity\Quantity;
 
-/**
- * Quantity times one unit price.
- */
 final readonly class PerUnit implements PricingModel
 {
     private function __construct(public UnitPrice $unitPrice) {}

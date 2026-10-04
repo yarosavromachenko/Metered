@@ -14,14 +14,12 @@ use Metered\Usage\Application\Contract\UsageTotals;
 use stdClass;
 
 /**
- * The invoice line build of docs/query-plans.md (4): one customer's buckets
- * over one period, as a range on the aggregate's primary key.
+ * docs/query-plans.md (4): a primary key range over one customer's buckets.
  */
 final readonly class DatabaseUsageTotals implements UsageTotals
 {
     /**
-     * Microseconds kept: a period starts wherever its subscription was
-     * anchored, and a bound rounded to the second could move a bucket across it.
+     * Keeps microseconds.
      */
     private const string INSTANT = 'Y-m-d H:i:s.uP';
 

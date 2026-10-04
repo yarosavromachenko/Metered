@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Metered\Shared\Application\Metrics;
 
-/**
- * One value of a gauge, with the labels that tell it apart from the gauge's
- * other values.
- */
 final readonly class GaugeReading
 {
     /**

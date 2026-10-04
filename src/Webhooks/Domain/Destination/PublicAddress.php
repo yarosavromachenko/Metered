@@ -5,16 +5,10 @@ declare(strict_types=1);
 namespace Metered\Webhooks\Domain\Destination;
 
 /**
- * Whether an IP address is one a webhook may be delivered to.
- *
- * A webhook URL is chosen by a tenant, which makes every delivery a request
- * from inside the network to an address someone else picked. Anything that
- * is not plainly on the public internet is refused: private ranges, loopback,
- * link-local (where cloud metadata lives), carrier-grade NAT, multicast,
- * documentation and reserved blocks. IPv4 is refused by range; IPv6 is
- * allowed only inside global unicast, minus the blocks that tunnel to IPv4.
- * The IPv6 forms that embed an IPv4 address are judged by the address they
- * embed.
+ * SSRF check. IPv4: private, loopback, link-local (cloud metadata), CGNAT,
+ * multicast, documentation and reserved ranges are refused. IPv6: only global
+ * unicast, minus IPv4 tunnelling blocks; forms embedding an IPv4 address are
+ * judged by that address.
  */
 final class PublicAddress
 {
@@ -98,10 +92,7 @@ final class PublicAddress
     }
 
     /**
-     * The only IPv6 space a webhook may reach. Everything outside it —
-     * loopback, unique local, link-local, multicast, the IPv4-compatible and
-     * local-use NAT64 forms, and whatever is assigned there later — is refused
-     * without having to be listed.
+     * Allow-list: anything outside is refused.
      *
      * @return list<string>
      */
@@ -113,8 +104,7 @@ final class PublicAddress
     }
 
     /**
-     * Inside global unicast, the blocks that are not an ordinary host: the
-     * transition mechanisms carry an IPv4 address the guard would never see.
+     * Transition blocks inside global unicast that carry an IPv4 address.
      *
      * @return list<string>
      */
@@ -140,9 +130,8 @@ final class PublicAddress
     }
 
     /**
-     * The first word of each line of a range table. A table rather than an
-     * array literal: it reads as the list it is, and mutation testing can
-     * reach it, which it cannot do with a constant (docs/testing.md).
+     * First word of each line; parsed at runtime so mutation testing covers it
+     * (docs/testing.md).
      *
      * @return list<string>
      */

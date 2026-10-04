@@ -7,7 +7,7 @@ namespace Metered\Tenancy\Application\Command;
 use SensitiveParameter;
 
 /**
- * A stranger signing up on the demo instance: one form, one whole tenant.
+ * Demo sign-up form.
  */
 final readonly class RegisterDemoTenant
 {
@@ -15,7 +15,7 @@ final readonly class RegisterDemoTenant
         public string $name,
         public string $email,
         #[SensitiveParameter]
-        public string $password,
+        public string $plainPassword,
         public string $organizationName,
     ) {}
 }

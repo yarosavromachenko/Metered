@@ -20,8 +20,7 @@ use Metered\Tenancy\Application\Contract\PanelScope;
 use UnitEnum;
 
 /**
- * The journal, one row per entry, newest first. Read-only by nature: the
- * schema refuses to change a row, and nothing here tries.
+ * Read-only, newest first.
  */
 final class LedgerEntryResource extends Resource
 {

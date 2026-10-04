@@ -11,8 +11,7 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 
 /**
- * The integration events a subscription announces: who it is for, which plan
- * version runs it, and when it ends if it does.
+ * Payloads of the subscription integration events.
  */
 final class SubscriptionMessages
 {

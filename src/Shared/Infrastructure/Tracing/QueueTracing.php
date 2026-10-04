@@ -17,16 +17,9 @@ use OpenTelemetry\API\Trace\StatusCode;
 use OpenTelemetry\Context\ScopeInterface;
 
 /**
- * Carries the trace across the queue.
- *
- * This is the hop that is usually lost. A job is created in one process and
- * run in another, minutes later, so unless the context travels inside the
- * payload the worker starts a brand new trace and the question "why was this
- * webhook late" has no answer that spans both halves.
- *
- * The carrier goes in under its own key rather than as a job property: a
- * payload written by one deployment is read by the next, and a job class that
- * gained a constructor argument would otherwise fail to unserialise.
+ * Puts the trace context into the job payload and restores it in the worker.
+ * It is a separate payload key, not a job property, so job classes stay
+ * compatible across deployments.
  */
 final class QueueTracing
 {
@@ -39,10 +32,8 @@ final class QueueTracing
     public function __construct(private readonly Tracing $tracing) {}
 
     /**
-     * Hooks the queue once per process. Each event is handed to the instance
-     * $current returns when it fires, not to one captured now, so that the
-     * hooks never need registering twice: a second set would open scopes of
-     * its own and close them out of order.
+     * Registers the queue hooks once per process; each event goes to the
+     * instance $current returns at that moment.
      *
      * @param  Closure(): self  $current
      */
@@ -61,17 +52,13 @@ final class QueueTracing
             $current()->finish();
         });
 
-        // An attempt that throws and will be retried raises neither of the
-        // events above: it ends here. Left open, its scope would still be
-        // active when the retry starts, and OpenTelemetry's complaint about
-        // that would fail the retry and bury the exception that caused it.
+        // A failed attempt that will be retried fires neither event above; its
+        // scope must be closed here or the retry fails on the open scope.
         $events->listen(JobExceptionOccurred::class, static function (JobExceptionOccurred $event) use ($current): void {
             $current()->finish($event->exception->getMessage());
         });
 
-        // A job can fail without an attempt throwing — too many attempts, a
-        // timeout. When an attempt did throw, the span is already closed and
-        // this does nothing.
+        // Covers failures without an exception (max attempts, timeout).
         $events->listen(JobFailed::class, static function (JobFailed $event) use ($current): void {
             $current()->finish($event->exception->getMessage());
         });

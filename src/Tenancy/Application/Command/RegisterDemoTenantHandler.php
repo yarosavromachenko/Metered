@@ -13,16 +13,9 @@ use Metered\Tenancy\Domain\Role;
 use Psr\Clock\ClockInterface;
 
 /**
- * Turns a sign-up form into a person who owns a tenant.
- *
- * The same provisioning path an operator takes with `org:create`, with the
- * account created first and handed in as the owner. Using one path for both is
- * deliberate: the demo then exercises what a real first user does, rather than
- * a shortcut written for the demo.
- *
- * Whether sign-up is open at all is not decided here — that is demo mode, and
- * the page that offers the form is what consults it. This handler's job is
- * that the result is a complete, usable tenant or nothing.
+ * Creates the account, then provisions the tenant the same way `org:create`
+ * does, with that account as owner. Whether sign-up is open is checked by the
+ * page, not here.
  */
 final readonly class RegisterDemoTenantHandler
 {
@@ -38,13 +31,12 @@ final readonly class RegisterDemoTenantHandler
     {
         return $this->transactions->run(function () use ($command): RegisteredDemoTenant {
             if ($this->users->existsWithEmail($command->email)) {
-                // The unique index would refuse it anyway; this turns a
-                // constraint violation into a sentence the form can show.
+                // The unique index enforces it; this gives the form a message.
                 throw EmailAlreadyRegistered::withEmail($command->email);
             }
 
             $now = $this->clock->now();
-            $userId = $this->users->register($command->name, $command->email, $command->password, $now);
+            $userId = $this->users->register($command->name, $command->email, $command->plainPassword, $now);
             $actor = Actor::user($userId, $command->email);
 
             $tenant = $this->provisionTenant->handle(new ProvisionTenant(

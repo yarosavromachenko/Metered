@@ -13,20 +13,9 @@ use Metered\Billing\Domain\MeterRepository;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * The published view of Billing's meters, for the modules that may not look
- * inside.
- *
- * It swallows {@see InvalidMeterCode} on purpose, and that is the whole of
- * why it exists. Ingestion asks about whatever string a client put in an
- * event; a code with a space in it is not an exception to unwind a batch of
- * five hundred events, it is one event that names no meter and is rejected
- * with a reason.
- *
- * Deliberately not cached. A meter defined a second ago has to answer on the
- * next batch — a stale negative would reject real usage, and the events that
- * arrive during the TTL are exactly the ones a tenant is watching for while
- * they test their integration. The consumer resolves each distinct code once
- * per batch, which is where the repetition actually is.
+ * Catches {@see InvalidMeterCode} and returns null, so a bad code rejects one
+ * event, not the batch. Not cached: a newly defined meter must resolve on the
+ * next batch.
  */
 final readonly class DatabaseMeterCatalog implements MeterCatalog
 {

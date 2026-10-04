@@ -15,20 +15,14 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use RuntimeException;
 
 /**
- * Appends to an organization's chain (ADR-0020), or to the platform chain for
- * an entry that belongs to none.
- *
- * Appending needs the chain's previous hash, so two concurrent writers to one
- * chain would otherwise build two entries claiming the same predecessor. A
- * transaction-scoped advisory lock serialises exactly that step, per chain —
- * transaction-scoped because PgBouncer's transaction pooling would lose a
- * session-scoped one. Writers to different chains do not wait for each other.
- * Should the lock ever fail to serialise them, the unique key on
- * (organization_id, prev_hash) refuses the second link.
+ * Appends to the organization's chain, or the platform chain (ADR-0020).
+ * A per-chain advisory lock serialises appends; it is transaction-scoped
+ * because PgBouncer runs in transaction pooling. The unique key on
+ * (organization_id, prev_hash) is the actual guarantee.
  */
 final readonly class DatabaseAuditLogger implements AuditLogger
 {
-    /** The lock's namespace: the first half of the two-key form, "AUDI". */
+    /** First key of the two-key advisory lock ("AUDI"). */
     private const int LOCK_CLASS = 0x4155_4449;
 
     private const string PLATFORM_CHAIN = 'platform';
@@ -72,9 +66,7 @@ final readonly class DatabaseAuditLogger implements AuditLogger
                 'subject_type' => $entry->subjectType,
                 'subject_id' => $entry->subjectId,
                 'payload' => $this->encode($entry->payload),
-                // Formatted here rather than handed over as a DateTimeInterface:
-                // the query grammar would render it to the second, and the hash
-                // covers microseconds.
+                // The query grammar would drop microseconds, which the hash covers.
                 'occurred_at' => $entry->occurredAt->format('Y-m-d H:i:s.uP'),
                 'prev_hash' => $previousHash,
                 'hash' => $hash,

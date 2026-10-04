@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Metered\Billing\Domain\Period\BillingInterval;
 
 /**
- * Read model for the panel. Writes go through the application handlers.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

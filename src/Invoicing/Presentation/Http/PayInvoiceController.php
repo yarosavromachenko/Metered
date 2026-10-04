@@ -14,9 +14,6 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
-/**
- * Collects a finalized invoice through the payment gateway.
- */
 final readonly class PayInvoiceController
 {
     public function __construct(

@@ -9,11 +9,8 @@ use Metered\Usage\Infrastructure\Redis\DeadLetter;
 use Metered\Usage\Infrastructure\Redis\DeadLetters;
 
 /**
- * `usage:dead-letters` — what the consumer set aside, newest first.
- *
- * Read this before replaying: `malformed` means the message itself is wrong
- * and replaying cannot help; `too_many_deliveries` means writing it kept
- * failing, and it is worth replaying once the cause is fixed.
+ * Newest first. `malformed` cannot be replayed; `too_many_deliveries` can,
+ * once the cause is fixed.
  */
 final class ListDeadLettersCommand extends Command
 {

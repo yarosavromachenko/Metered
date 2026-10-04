@@ -9,10 +9,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Quantity\Quantity;
 
 /**
- * What one price of a plan version charges for a period, with the working.
- *
- * A fixed charge has no meter and no quantity; a metered one has both, and the
- * quantity is the usage it was priced at.
+ * One price's charge for a period, with its calculation. Meter and quantity
+ * are null for fixed charges.
  */
 final readonly class Charge
 {

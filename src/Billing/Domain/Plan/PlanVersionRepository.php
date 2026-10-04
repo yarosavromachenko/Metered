@@ -10,8 +10,7 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 interface PlanVersionRepository
 {
     /**
-     * Stores the version with exactly the prices it holds. A published version
-     * cannot be saved again — the database refuses, as the type does.
+     * Saving a published version fails in the database as well.
      */
     public function save(PlanVersion $version): void;
 
@@ -23,8 +22,7 @@ interface PlanVersionRepository
     public function listForPlan(TenantContext $tenant, Uuid $planId): array;
 
     /**
-     * The number the plan's next version would take. A guess under
-     * concurrency; the unique (plan, number) constraint settles it.
+     * Not race-free; the unique (plan, number) constraint decides.
      */
     public function nextNumber(TenantContext $tenant, Uuid $planId): int;
 }

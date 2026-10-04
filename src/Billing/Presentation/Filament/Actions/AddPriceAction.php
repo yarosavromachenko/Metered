@@ -25,9 +25,7 @@ use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
- * Adds a price to a draft version. The form asks a person for amounts the way
- * they read them — "49.00", not 4900 — and the rest is the same parsing the
- * API uses, so the panel cannot build a price the API would refuse.
+ * Amounts are entered as "49.00"; otherwise the same parsing as the API.
  */
 final class AddPriceAction
 {
@@ -110,9 +108,7 @@ final class AddPriceAction
     }
 
     /**
-     * "49.00" in EUR is 4900. More places than the currency has is refused
-     * rather than rounded: the form must not charge something else than was
-     * typed.
+     * "49.00" EUR → 4900. Extra decimal places are refused, not rounded.
      */
     private static function minorUnits(string $amount, string $currency): int
     {

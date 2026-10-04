@@ -17,8 +17,7 @@ use Metered\Shared\Presentation\Filament\Attempt;
 use Metered\Tenancy\Application\Contract\PanelScope;
 
 /**
- * Discards a draft, or voids a finalized invoice with a credit note. A
- * finalized invoice needs a reason: it is printed on the credit note.
+ * A finalized invoice needs a reason, printed on the credit note.
  */
 final class VoidInvoiceAction
 {

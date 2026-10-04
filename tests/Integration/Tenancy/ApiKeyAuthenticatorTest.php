@@ -4,8 +4,14 @@ declare(strict_types=1);
 
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
+use Metered\Shared\Domain\Access\Actor;
+use Metered\Shared\Domain\Identifier\Uuid;
+use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Tenancy\Application\Authentication\ApiKeyAuthenticator;
 use Metered\Tenancy\Application\Authentication\AuthenticationFailed;
+use Metered\Tenancy\Application\Command\RevokeApiKey;
+use Metered\Tenancy\Application\Command\RevokeApiKeyHandler;
+use Metered\Tenancy\Domain\ApiKey;
 use Metered\Tenancy\Domain\ApiKeyRepository;
 use Metered\Tenancy\Domain\Scope;
 use Psr\Clock\ClockInterface;
@@ -122,6 +128,52 @@ it('stops accepting a key revoked elsewhere within the documented window', funct
     advance($clock, 2);
 
     expect(static fn(): mixed => $authenticator->authenticate($secret->reveal()))
+        ->toThrow(AuthenticationFailed::class, 'was revoked');
+});
+
+it('keeps a key revoked while a request that read it before the revocation finishes', function (): void {
+    $clock = mockClock();
+    $project = TenantFactory::tenant();
+    ['key' => $issued, 'secret' => $secret] = TenantFactory::apiKey($project);
+    $owner = TenantFactory::member($project->organizationId);
+
+    // The revocation commits between the request's read and its last-use write.
+    $revokedMidRequest = new readonly class (app(ApiKeyRepository::class), $issued, $owner) implements ApiKeyRepository {
+        public function __construct(private ApiKeyRepository $keys, private ApiKey $issued, private Actor $owner) {}
+
+        public function save(ApiKey $key): void
+        {
+            $this->keys->save($key);
+        }
+
+        public function recordUse(ApiKey $key, DateTimeImmutable $at): void
+        {
+            $this->keys->recordUse($key, $at);
+        }
+
+        public function findByPrefix(string $prefix): ?ApiKey
+        {
+            $read = $this->keys->findByPrefix($prefix);
+            app(RevokeApiKeyHandler::class)->handle(new RevokeApiKey($this->issued->tenant, $this->issued->id, $this->owner));
+
+            return $read;
+        }
+
+        public function find(TenantContext $tenant, Uuid $id): ?ApiKey
+        {
+            return $this->keys->find($tenant, $id);
+        }
+
+        public function listFor(TenantContext $tenant): array
+        {
+            return $this->keys->listFor($tenant);
+        }
+    };
+
+    new ApiKeyAuthenticator($revokedMidRequest, $clock, USAGE_INTERVAL_SECONDS)->authenticate($secret->reveal());
+
+    expect(DB::table('api_keys')->where('id', $issued->id->value)->value('revoked_at'))->not->toBeNull()
+        ->and(static fn(): mixed => authenticator($clock)->authenticate($secret->reveal()))
         ->toThrow(AuthenticationFailed::class, 'was revoked');
 });
 

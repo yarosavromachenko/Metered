@@ -11,12 +11,8 @@ use Metered\Webhooks\Domain\Exception\InvalidEndpoint;
 use Metered\Webhooks\Domain\Signing\SecretKey;
 
 /**
- * A URL in a tenant's systems, the events it wants, the secret its deliveries
- * are signed with, and whether it is taking them.
- *
- * Rotating the secret keeps the old one for a grace period, and deliveries
- * are signed with both until it ends: the receiver switches when it is ready,
- * not at the instant of the rotation (ADR-0011).
+ * After a rotation, deliveries are signed with both secrets until the old
+ * one's grace period ends (ADR-0011).
  */
 final readonly class Endpoint
 {
@@ -57,7 +53,7 @@ final readonly class Endpoint
     /**
      * @param non-empty-list<EventType> $eventTypes
      *
-     * @internal for the repository, rebuilding an endpoint exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         Uuid $id,
@@ -81,8 +77,7 @@ final readonly class Endpoint
     }
 
     /**
-     * What a delivery sent at $now is signed with: the current secret, and the
-     * previous one while its grace period lasts.
+     * Current secret, plus the previous one during its grace period.
      *
      * @return non-empty-list<SecretKey>
      */
@@ -127,8 +122,7 @@ final readonly class Endpoint
             $this->previousSecret,
             $this->previousSecretExpiresAt,
             $enabled,
-            // A new address is a new receiver: whatever the breaker learned
-            // about the old one says nothing about it.
+            // New URL: reset the breaker.
             $url->value === $this->url->value ? $this->breaker : CircuitBreaker::closed(),
             $this->createdAt,
         );

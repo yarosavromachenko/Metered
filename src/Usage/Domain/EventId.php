@@ -8,17 +8,8 @@ use Metered\Usage\Domain\Exception\InvalidEventId;
 use Stringable;
 
 /**
- * The client's own id for one event, and the thing that makes retrying safe.
- *
- * A timeout after a successful write is indistinguishable from a failure, so a
- * well-behaved client resends. Deduplication is therefore part of the contract
- * rather than an optimisation (ADR-0002), and this is the key it turns on: the
- * same event id for the same event, stable across retries.
- *
- * Kept exactly as sent, case included — it is the client's key, and two ids
- * differing only in case may be two events over there. Bounded at 128
- * characters because it sits in a unique index on a table meant to hold
- * hundreds of millions of rows.
+ * The client's id for an event, the deduplication key (ADR-0002). Kept as
+ * sent, case included; at most 128 characters since it is in a unique index.
  */
 final readonly class EventId implements Stringable
 {

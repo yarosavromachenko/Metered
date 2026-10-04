@@ -14,10 +14,7 @@ use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Infrastructure\Inbox\IntegrationEventDispatcher;
 
 /**
- * Carries one published integration event to its handlers.
- *
- * The message travels as plain scalars rather than as a serialised object, so
- * a job queued by one deployment is still readable by the next one.
+ * Holds scalars only, so a job queued by one deployment runs on the next.
  */
 final class DeliverIntegrationEvent implements ShouldQueue
 {

@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Metered\Webhooks\Application\Delivery;
 
 /**
- * A draw for the retry schedule's jitter, in thousandths of the wait. A port
- * so that tests can pin it.
+ * Retry jitter in thousandths of the wait; a port so tests can fix it.
  */
 interface Jitter
 {

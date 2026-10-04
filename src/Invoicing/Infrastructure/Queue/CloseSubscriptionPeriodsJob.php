@@ -18,12 +18,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * One subscription's period close, on the billing queue.
- *
- * WithoutOverlapping keeps two workers from building the same invoice at once
- * and throwing one away. It is an economy, not the guarantee: two closes that
- * slip past it still produce one invoice, because the unique key on
- * (subscription, period) lets only one draft in (ADR-0010).
+ * WithoutOverlapping avoids wasted work; the unique key on (subscription,
+ * period) is what guarantees one invoice (ADR-0010).
  */
 final class CloseSubscriptionPeriodsJob implements ShouldQueue
 {

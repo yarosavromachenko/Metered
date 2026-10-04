@@ -10,13 +10,8 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Domain\Text\Name;
 
 /**
- * The party a tenant bills, as this system knows them.
- *
- * The identity that matters to a client is {@see CustomerReference} — the id
- * they already use — because that is what their instrumentation can put in an
- * event without looking anything up first. The UUID is ours, and it is what
- * subscriptions, aggregates and invoices point at, so that renaming a
- * reference in a later milestone cannot orphan a year of billing history.
+ * Events name a customer by {@see CustomerReference} (the tenant's own id);
+ * subscriptions, aggregates and invoices reference the UUID.
  */
 final readonly class Customer
 {

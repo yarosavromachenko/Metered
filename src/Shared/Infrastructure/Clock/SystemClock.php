@@ -9,12 +9,7 @@ use DateTimeZone;
 use Psr\Clock\ClockInterface;
 
 /**
- * The only place in the application allowed to ask the operating system what
- * time it is. Everything else receives a ClockInterface.
- *
- * Always UTC, regardless of the host's timezone: a billing period boundary is
- * an instant, not a wall-clock reading, and a machine configured in a different
- * zone must not move it.
+ * Always UTC, whatever the host's timezone.
  */
 final class SystemClock implements ClockInterface
 {

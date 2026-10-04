@@ -18,15 +18,7 @@ use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Filament\Resources\ApiKeys\Pages\ListApiKeys;
 
 /**
- * The keys of the project currently in scope.
- *
- * Scoped by both tenant columns rather than by project alone. The pair is what
- * ADR-0013 calls the tenant, and a screen that filtered by project id only
- * would still be correct today and wrong the first time an id arrives from
- * somewhere unexpected.
- *
- * There is nothing here that could show a secret, because there is nothing
- * stored that could be shown: the table holds a prefix and a hash.
+ * Filtered by organization and project (ADR-0013).
  */
 final class ApiKeyResource extends Resource
 {
@@ -42,9 +34,7 @@ final class ApiKeyResource extends Resource
     {
         $tenant = app(PanelScope::class)->tenant();
 
-        // No scope means nothing to show. The columns are NOT NULL, so a null
-        // on either side matches no row — a filter quietly omitted would show
-        // every tenant's keys instead.
+        // Without a scope, null matches no row (NOT NULL columns).
         return parent::getEloquentQuery()
             ->where('organization_id', $tenant?->organizationId->value)
             ->where('project_id', $tenant?->projectId->value);

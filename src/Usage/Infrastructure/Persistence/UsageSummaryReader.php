@@ -12,16 +12,8 @@ use Metered\Shared\Infrastructure\Persistence\RowReader;
 use stdClass;
 
 /**
- * What a customer has used, read from the aggregates.
- *
- * The read side, and it says so: a query builder against the tables, no
- * repository, no mapping into domain objects on the way to being serialised
- * back out. There is nothing to protect here — reads cannot break an
- * invariant — and the shape of the answer is the shape of the response.
- *
- * Totals are folded the same way the buckets were: added for `sum` and
- * `count`, and taken as the peak for `max`. Adding hourly peaks together
- * would produce a number that means nothing and looks plausible.
+ * Query-side read from aggregates, no domain mapping. Sum and count are
+ * added; max takes the peak.
  */
 final readonly class UsageSummaryReader
 {
@@ -40,17 +32,13 @@ final readonly class UsageSummaryReader
         DateTimeImmutable $to,
         ?string $meterCode = null,
     ): array {
-        // One join, to meters, and only for the aggregation mode: the
-        // aggregate already carries the code and the reference it was folded
-        // under, so neither label needs looking up.
+        // Joined only for the aggregation mode; codes are on the aggregate.
         $query = $this->db->connection($this->connection)
             ->table('usage_aggregates as a')
             ->join('meters as m', 'm.id', '=', 'a.meter_id')
             ->where('a.project_id', $tenant->projectId->value)
             ->where('a.organization_id', $tenant->organizationId->value)
-            // By id, not by the reference the aggregate also carries: the id
-            // is the second column of the primary key, so the read is a range
-            // over one customer's buckets rather than a scan of the project's.
+            // By id: second primary key column, so this is a range scan.
             ->where('a.customer_id', $customerId->value)
             ->where('a.bucket_start', '>=', $from->format('Y-m-d H:i:sP'))
             ->where('a.bucket_start', '<', $to->format('Y-m-d H:i:sP'))

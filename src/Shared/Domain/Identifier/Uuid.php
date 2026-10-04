@@ -8,18 +8,9 @@ use Metered\Shared\Domain\Exception\InvalidIdentifier;
 use Stringable;
 
 /**
- * An RFC 9562 identifier.
- *
- * Every id in this system is a UUIDv7, whose leading 48 bits are a millisecond
- * timestamp. That is the reason for the choice: ids generated over time sort in
- * roughly the order they were created, so inserts land at the right-hand edge
- * of a B-tree instead of scattering across it. On a table taking a few thousand
- * rows a second, that difference is the difference between a healthy index and
- * one that is rewritten constantly.
- *
- * The type accepts any valid UUID rather than v7 alone, because data arrives
- * from migrations, fixtures and other systems. Where the version matters, ask
- * for it: {@see self::version()}.
+ * RFC 9562 UUID. Generated ids are v7 (time-ordered, so inserts stay at the
+ * end of the B-tree), but any version parses; check {@see self::version()}
+ * where it matters.
  */
 final readonly class Uuid implements Stringable
 {
@@ -50,8 +41,7 @@ final readonly class Uuid implements Stringable
 
     public function version(): int
     {
-        // The pattern admits versions 1 to 8 only, so the nibble is always a
-        // decimal digit and a plain cast is enough — no hex conversion needed.
+        // PATTERN allows versions 1-8 only, so the nibble is a decimal digit.
         return (int) $this->value[14];
     }
 

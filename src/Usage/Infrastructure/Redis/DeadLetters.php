@@ -8,13 +8,9 @@ use Illuminate\Redis\Connections\PhpRedisConnection;
 use Redis;
 
 /**
- * The dead-letter stream, read and emptied by an operator.
- *
- * The consumer writes here (`StreamConsumer`): the message as it was, plus
- * three fields of its own. Replaying strips those fields and puts the message
- * back on the ingestion stream, where it is an ordinary message again. That
- * is safe to repeat: the event keeps its id and its `occurred_at`, so the
- * deduplication claim lets it through and the unique index lets it in once.
+ * Written by `StreamConsumer` (original message plus three fields). Replay
+ * strips those fields and re-adds the message to the ingestion stream; safe
+ * to repeat thanks to deduplication.
  */
 final readonly class DeadLetters
 {
@@ -91,8 +87,7 @@ final readonly class DeadLetters
         $deadLetterKey = $this->deadLetterKey;
         $maxLength = $this->maxLength;
 
-        // Both or neither: a message added back and still dead-lettered would
-        // be replayed twice, and one removed and not added back would be lost.
+        // Atomic: add and delete together.
         $this->connection->transaction(static function (Redis $transaction) use ($streamKey, $deadLetterKey, $maxLength, $id, $message): void {
             $transaction->xadd($streamKey, '*', $message, $maxLength, true);
             $transaction->xdel($deadLetterKey, [$id]);

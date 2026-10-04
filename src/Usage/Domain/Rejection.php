@@ -10,17 +10,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * An event that arrived and was not counted, kept with the reason.
- *
- * First-class rather than a log line, because validation here is asynchronous:
- * a client is told `202` before anything knows whether the meter exists
- * (ADR-0003), so this is the only place the answer can be found afterwards. A
- * tenant whose totals look short opens the rejections screen; without it they
- * open a support ticket.
- *
- * The payload is kept as it arrived, so that "what exactly did we send?" has
- * an answer. It is the tenant's own data, visible only inside their own
- * project.
+ * Stored because validation happens after the 202 (ADR-0003); the tenant sees
+ * rejections in the panel and the API. The payload is kept as received.
  */
 final readonly class Rejection
 {
@@ -58,11 +49,7 @@ final readonly class Rejection
     }
 
     /**
-     * The id the event claimed, when it claimed one this column can hold.
-     *
-     * Read leniently on purpose: this row exists because something about the
-     * event was wrong, and the id is the one thing a tenant will search by.
-     * A number sent unquoted is still an id; a nested structure is not.
+     * Lenient: an unquoted number counts as an id, a nested value does not.
      *
      * @param  array<string, mixed>  $payload
      */

@@ -46,13 +46,6 @@ use Metered\Tenancy\Presentation\Filament\PanelScope;
 use Metered\Tenancy\Presentation\Http\Middleware\ThrottleApiKey;
 use Psr\Clock\ClockInterface;
 
-/**
- * Wires the tenant model's ports to their database adapters.
- *
- * As in the shared kernel, the module owns its own wiring: everything Tenancy
- * needs in order to work travels with Tenancy rather than accumulating in
- * app/Providers.
- */
 final class TenancyServiceProvider extends ServiceProvider
 {
     public function register(): void
@@ -61,17 +54,11 @@ final class TenancyServiceProvider extends ServiceProvider
         $this->app->singleton(ProjectRepository::class, DatabaseProjectRepository::class);
         $this->app->singleton(MembershipRepository::class, DatabaseMembershipRepository::class);
         $this->app->singleton(UserAccounts::class, EloquentUserAccounts::class);
-        // The answer other modules ask for. They hold the contract; the guard
-        // that reads memberships is Tenancy's business and stays here.
         $this->app->singleton(Authorizer::class, PermissionGuard::class);
         $this->app->singleton(ProjectDirectory::class, DatabaseProjectDirectory::class);
-        // Bound, never shared: the scope reads the current request's session,
-        // and a singleton would hand the next request the previous person's
-        // organization while every query kept succeeding.
+        // Not a singleton: it reads the current session (Octane).
         $this->app->bind(PanelScopeContract::class, PanelScope::class);
-        // The port everyone asks for is the cached one; the database
-        // repository is what it decorates. Nothing else in the system needs
-        // to know which of the two it is talking to.
+        // The cache decorates the database repository.
         $this->app->singleton(
             ApiKeyRepository::class,
             static fn(Application $app): ApiKeyRepository => new CachingApiKeyRepository(
@@ -90,9 +77,7 @@ final class TenancyServiceProvider extends ServiceProvider
             ),
         );
 
-        // Each module tags its own purger; they run in the reverse of the order
-        // the modules were registered, so a module's rows go before the rows
-        // of the modules it builds on (TenantDataPurger).
+        // Reverse registration order (see TenantDataPurger).
         $this->app->bind(
             PurgeDemoOrganizationHandler::class,
             static fn(Application $app): PurgeDemoOrganizationHandler => new PurgeDemoOrganizationHandler(
@@ -143,8 +128,6 @@ final class TenancyServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
-        // Before anything else is wired: demo mode outside local and demo
-        // stops the application from starting at all.
         DemoMode::assertAllowed(
             $this->app->make('config')->get('metered.demo.enabled') === true,
             (string) $this->app->environment(),
@@ -154,9 +137,7 @@ final class TenancyServiceProvider extends ServiceProvider
             $this->commands([CreateOrganizationCommand::class, AddMemberCommand::class, PurgeIdleDemosCommand::class, ResetDemosCommand::class]);
         }
 
-        // The module carries its own views and its own piece of the panel
-        // chrome. The panel shell in src/Admin never learns that Tenancy has a
-        // switcher; it renders whatever the modules have registered.
+        // The project switcher is registered as a render hook.
         $this->loadViewsFrom(base_path('src/Tenancy/Presentation/Filament/views'), 'tenancy');
 
         Livewire::component('tenancy.project-switcher', ProjectSwitcher::class);
@@ -166,8 +147,7 @@ final class TenancyServiceProvider extends ServiceProvider
             static fn(): string => Blade::render('@livewire(\'tenancy.project-switcher\')'),
         );
 
-        // On a demo, the sign-in page says how to look around before signing
-        // up: the showcase's read-only account (ADR-0016). Nowhere else.
+        // Demo only: the sign-in page shows the showcase login (ADR-0016).
         if ($this->app->make('config')->get('metered.demo.enabled') === true) {
             FilamentView::registerRenderHook(
                 PanelsRenderHook::AUTH_LOGIN_FORM_AFTER,

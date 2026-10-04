@@ -10,8 +10,7 @@ use Illuminate\Database\Eloquent\Model;
 use Metered\Webhooks\Domain\Endpoint\BreakerState;
 
 /**
- * Read model for the panel and the API. The secret columns are hidden: they
- * are ciphertext, and nothing that reads this model has any use for them.
+ * Read model; the encrypted secret columns are hidden.
  *
  * @property string $id
  * @property string $organization_id

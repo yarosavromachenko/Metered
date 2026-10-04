@@ -18,16 +18,8 @@ use Metered\Tenancy\Domain\Scope;
 use Psr\Clock\ClockInterface;
 
 /**
- * Issues a key for a project and hands the secret back exactly once.
- *
- * A key is a credential for everything the project holds, so issuing one is
- * owner authority — the same authority as adding a member. The check happens
- * here rather than in the screen that offers the button, because a button is
- * not a control.
- *
- * The audit entry records the prefix, never the secret: an audit trail that
- * leaks the credential it was written to protect has made the incident worse
- * than no trail at all.
+ * Requires ManageTenant. The secret is returned once; the audit entry records
+ * only the prefix.
  */
 final readonly class IssueApiKeyHandler
 {
@@ -50,10 +42,7 @@ final readonly class IssueApiKeyHandler
 
         $this->guard->ensure($command->actor, $project->organizationId, Permission::ManageTenant);
 
-        // The environment comes from the project, not from the caller. A key
-        // whose environment disagrees with its project is refused by a foreign
-        // key anyway; taking it from the project means nobody has to discover
-        // that.
+        // Environment comes from the project; a foreign key enforces the match.
         $secret = ApiKeySecret::generate($project->environment);
 
         $key = ApiKey::issue(

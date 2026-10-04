@@ -17,16 +17,8 @@ use Metered\Tenancy\Presentation\Filament\PanelActor;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 
 /**
- * Issuing a key from the panel, through the handler the API uses.
- *
- * The work lives in a method rather than inside the action's closure, so it
- * can be called by a test without driving a Livewire component. A closure that
- * only runs in a browser is a closure nothing checks — and the first version of
- * this one had a bug in its very first line.
- *
- * The secret is shown once, in a notification that does not close by itself,
- * and it exists nowhere else: not in the row, not in the session, not in the
- * page's state once the request ends.
+ * The work is in a method, not the closure, so tests can call it directly.
+ * The secret is shown once in a persistent notification and stored nowhere.
  */
 final class IssueKeyAction
 {
@@ -87,8 +79,7 @@ final class IssueKeyAction
     }
 
     /**
-     * The scopes a checkbox list produced, as the domain's own type. Anything
-     * else in that array is dropped rather than trusted.
+     * Unknown values are dropped.
      *
      * @return list<Scope>
      */

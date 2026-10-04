@@ -7,12 +7,7 @@ namespace Metered\Usage\Application\Command;
 use RuntimeException;
 
 /**
- * The stream is deeper than the consumer is draining it, or has no memory
- * left, so ingestion stops accepting rather than accepting work it is
- * visibly failing to do.
- *
- * Carries how long to wait, because a client that is told to back off without
- * being told for how long will retry immediately.
+ * Backlog over the limit or stream out of memory. Carries the Retry-After value.
  */
 final class IngestionOverloaded extends RuntimeException
 {

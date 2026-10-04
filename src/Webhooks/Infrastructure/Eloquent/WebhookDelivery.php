@@ -13,7 +13,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Metered\Webhooks\Domain\Delivery\DeliveryStatus;
 
 /**
- * Read model for the panel and the API.
+ * Read model.
  *
  * @property string $id
  * @property string $organization_id

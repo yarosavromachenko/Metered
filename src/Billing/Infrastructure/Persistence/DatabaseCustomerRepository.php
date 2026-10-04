@@ -26,8 +26,7 @@ final readonly class DatabaseCustomerRepository implements CustomerRepository
             'reference' => $customer->reference->value,
             'name' => $customer->name,
             'created_at' => $customer->registeredAt,
-            // As with a meter, the identity a client sends events under is not
-            // editable: the reference is what a year of usage points at.
+            // The reference never changes.
         ], ['id'], ['name']);
     }
 

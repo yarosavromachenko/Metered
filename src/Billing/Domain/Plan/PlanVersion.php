@@ -13,13 +13,8 @@ use Metered\Shared\Domain\Money\Money;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * The terms of a plan at one point in its history: a currency, a billing
- * interval, and the prices charged on it.
- *
- * A version is a draft until it is published, and immutable from then on.
- * Only a published version can be subscribed to, which is a stronger form of
- * the glossary's rule that a version in use never changes: there is no window
- * between "subscribed to" and "locked" in which it could (assumptions.md).
+ * Currency, interval and prices. Editable as a draft, immutable once
+ * published; only published versions can be subscribed to (assumptions.md).
  */
 final readonly class PlanVersion
 {
@@ -51,8 +46,6 @@ final readonly class PlanVersion
             throw InvalidPlanVersion::numberBelowOne($number);
         }
 
-        // Normalised and checked against the currency table by the type that
-        // will later hold every amount this version charges.
         $currency = Money::zero($currency)->currency();
 
         return new self($id, $tenant, $planId, $number, $currency, $interval, [], $at, null);
@@ -61,7 +54,7 @@ final readonly class PlanVersion
     /**
      * @param list<Price> $prices
      *
-     * @internal for the repository, rebuilding a version exactly as it was stored
+     * @internal for the repository
      */
     public static function restore(
         Uuid $id,

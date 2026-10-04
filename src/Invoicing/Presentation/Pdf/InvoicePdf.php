@@ -9,12 +9,7 @@ use Dompdf\Options;
 use Metered\Invoicing\Infrastructure\Eloquent\Invoice;
 
 /**
- * An invoice as a PDF document: the lines, each with its working, the total,
- * and — for a voided one — the credit note that reversed it.
- *
- * Rendered from HTML by dompdf, which is PHP all the way down: no browser, no
- * binary in the image. Remote resources are off, so a document never fetches
- * anything while it is being drawn.
+ * Rendered with dompdf (pure PHP, no browser). Remote resources are disabled.
  */
 final class InvoicePdf
 {

@@ -8,11 +8,7 @@ use Metered\Invoicing\Domain\Exception\UnbalancedLedger;
 use Metered\Shared\Domain\Money\Money;
 
 /**
- * One side of a movement: an amount debited or credited to one account.
- *
- * Always positive. Which way the money moves is the direction, not the sign,
- * so a negative amount would be a second way of saying the same thing — and
- * the one that reverses a figure by accident.
+ * The amount is always positive; the direction says debit or credit.
  */
 final readonly class LedgerEntry
 {

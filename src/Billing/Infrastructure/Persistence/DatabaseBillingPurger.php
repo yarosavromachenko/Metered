@@ -9,13 +9,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
 
 /**
- * A purged tenant's catalog, customers and subscriptions, in the order the
- * schema allows.
- *
- * Phases refuse to lose their plan version and prices refuse to change on a
- * published one, so subscriptions go first and plans take their versions and
- * prices with them by cascade — by the time the cascade reaches a price, its
- * version is already gone and the price trigger has nothing to protect.
+ * Subscriptions first (phases reference plan versions), then plans, whose
+ * versions and prices cascade.
  */
 final readonly class DatabaseBillingPurger implements TenantDataPurger
 {

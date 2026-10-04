@@ -13,9 +13,6 @@ use Metered\Invoicing\Domain\Invoice\InvoiceRepository;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
-/**
- * One invoice, with its lines and the working behind each.
- */
 final readonly class ShowInvoiceController
 {
     public function __construct(

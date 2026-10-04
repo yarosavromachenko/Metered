@@ -19,22 +19,13 @@ use Metered\Tenancy\Domain\ProjectRepository;
 use Psr\Clock\ClockInterface;
 
 /**
- * Deletes a demo tenant: every module's rows, then the organization with its
- * projects, keys and memberships, then the accounts that belonged to nothing
- * else — all in one transaction, so a purge that fails halfway leaves the
- * tenant whole rather than half gone.
+ * In one transaction: every module's rows, the organization (projects, keys,
+ * memberships cascade), then accounts left without an organization. Demo
+ * organizations only, enforced by the database (ADR-0008, ADR-0016).
  *
- * Only demo organizations, checked here for a readable refusal and again by
- * the database, which is what actually guarantees it (ADR-0008, ADR-0016).
- *
- * The audit log keeps its entries about the tenant. It is a hash chain, and
- * removing a link would break every link after it; what it records about a
- * demo — slugs, key prefixes, e-mail addresses typed into a sign-up form — is
- * what a purge is audited against.
- *
- * A key cached by the authenticator may still be accepted for up to its cache
- * lifetime, the same bound revocation has; anything it then tries to write
- * refers to a project that no longer exists and is refused.
+ * Audit entries stay: deleting them would break the hash chain. A cached key
+ * may authenticate until its cache entry expires, but its writes fail on the
+ * missing project.
  */
 final readonly class PurgeDemoOrganizationHandler
 {

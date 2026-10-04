@@ -13,8 +13,7 @@ use Metered\Webhooks\Application\Command\RegisterEndpoint;
 use Metered\Webhooks\Application\Command\RegisterEndpointHandler;
 
 /**
- * Registers an endpoint. The answer carries `signing_secret` in the clear —
- * the only time it is ever shown.
+ * The response is the only place `signing_secret` is shown.
  */
 final readonly class RegisterEndpointController
 {

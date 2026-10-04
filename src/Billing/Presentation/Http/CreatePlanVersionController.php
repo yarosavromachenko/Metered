@@ -28,12 +28,8 @@ use Metered\Shared\Presentation\Http\ApiCaller;
 use Metered\Shared\Presentation\Http\TenantRequest;
 
 /**
- * Creates a plan version with its prices in one request, published unless
- * `publish` is false.
- *
- * Three use cases run here — draft, price, publish — each authorized and
- * audited on its own, inside one transaction: a price the domain refuses
- * halfway through leaves no half-built draft behind.
+ * Draft, prices and publish (unless `publish` is false) in one transaction;
+ * each step is authorised and audited by its own handler.
  */
 final readonly class CreatePlanVersionController
 {

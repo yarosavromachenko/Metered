@@ -8,14 +8,8 @@ use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 
 /**
- * Which projects exist, for the work that runs outside any one tenant.
- *
- * The repository behind Tenancy deliberately refuses to fetch a project by id
- * alone: every request-time lookup names the organization too, so asking for
- * somebody else's project returns nothing. Operator work has the opposite
- * need — `usage:reconcile` across every project, a scheduled sweep, a chaos
- * scenario — and giving it a separate, obviously named door is better than
- * widening the one the request path uses.
+ * Unscoped project lookups for operator work (`usage:reconcile`, scheduled
+ * sweeps). The request path uses the organization-scoped repository.
  */
 interface ProjectDirectory
 {
@@ -27,8 +21,7 @@ interface ProjectDirectory
     public function find(Uuid $projectId): ?TenantContext;
 
     /**
-     * The ISO 4217 code the project declared at creation, which everything
-     * priced beneath it uses; null when the tenant names no project.
+     * ISO 4217 code; null when the project does not exist.
      */
     public function currencyOf(TenantContext $tenant): ?string;
 }

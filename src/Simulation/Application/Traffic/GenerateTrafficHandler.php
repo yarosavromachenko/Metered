@@ -16,14 +16,8 @@ use Psr\Clock\ClockInterface;
 use RuntimeException;
 
 /**
- * The "frontend" of the plan's section 10: a stream of usage from a tenant's
- * customers, sent the way their integrations would send it — mostly on time,
- * sometimes twice, sometimes days late, now and then all at once.
- *
- * It reads the tenant's customers and meters from the API rather than
- * assuming a seed made them, so it runs against any tenant, including one a
- * reviewer set up by hand in the panel. Event ids carry the run's start, so a
- * second run is not deduplicated against the first.
+ * Reads customers and meters from the API, so it works on any tenant. Event
+ * ids include the run's start time, so separate runs are not deduplicated.
  */
 final readonly class GenerateTrafficHandler
 {

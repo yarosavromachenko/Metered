@@ -11,9 +11,8 @@ use Metered\Webhooks\Domain\Signing\SecretKey;
 use Psr\Clock\ClockInterface;
 
 /**
- * Gives an endpoint a new secret and hands it back, once. The old one keeps
- * signing alongside it for the grace period, so the receiver can switch when
- * it is ready (ADR-0011).
+ * The old secret keeps signing alongside the new one for the grace period
+ * (ADR-0011).
  */
 final readonly class RotateEndpointSecretHandler
 {

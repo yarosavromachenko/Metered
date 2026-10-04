@@ -11,15 +11,8 @@ use Metered\Tenancy\Domain\Slug;
 use Psr\Clock\ClockInterface;
 
 /**
- * Demo tenants are deleted once nobody has signed in to them for the idle
- * period — a week by default (ADR-0016).
- *
- * One transaction per organization rather than one for all of them: a purge
- * that fails leaves that tenant whole and the rest of the sweep still runs.
- *
- * The showcase — the seeded organization every visitor can look around
- * before signing up — is a demo, so that `demo:reset` can rebuild it, but it
- * is nobody's to be idle in, and the sweep leaves it alone.
+ * Purges demo organizations with no sign-in for the idle period, a week by
+ * default (ADR-0016), one transaction each. The showcase is skipped.
  */
 final readonly class PurgeIdleDemosHandler
 {

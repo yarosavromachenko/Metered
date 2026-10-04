@@ -8,7 +8,7 @@ use Metered\Shared\Application\Metrics\Counter;
 use Metered\Shared\Application\Metrics\Histogram;
 
 /**
- * The billing close's instruments, named once (docs/observability.md).
+ * See docs/observability.md.
  */
 final class InvoicingMetrics
 {

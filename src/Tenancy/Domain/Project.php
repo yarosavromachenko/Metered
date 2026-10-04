@@ -11,13 +11,8 @@ use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Domain\Text\Name;
 
 /**
- * An isolated environment inside an organization, typically `live` and `test`.
- *
- * The project is the unit everything is scoped to: keys authenticate to one,
- * meters and customers belong to one, and every tenant-owned row carries its
- * id. It also declares the currency, once — every price, invoice and ledger
- * entry beneath it uses that currency, and no conversion exists anywhere in
- * the system (ADR-0007).
+ * The unit of tenant scoping, usually `live` or `test`. Its currency is set
+ * once and used by everything beneath it (ADR-0007).
  */
 final readonly class Project
 {
@@ -48,19 +43,12 @@ final readonly class Project
             Name::of($name, 'project', self::NAME_LIMIT),
             $slug,
             $environment,
-            // Validated by constructing an amount in it: the currency a
-            // project stores must be one the money type can hold, and finding
-            // that out at invoice time would be far too late.
+            // Fails here, not at invoicing, if Money does not know the currency.
             Money::zero($currency)->currency(),
             $at,
         );
     }
 
-    /**
-     * The scope to hand to a repository. Reading it off the project rather
-     * than assembling it at the call site removes the chance of pairing a
-     * project with the wrong organization.
-     */
     public function tenant(): TenantContext
     {
         return new TenantContext($this->organizationId, $this->id);

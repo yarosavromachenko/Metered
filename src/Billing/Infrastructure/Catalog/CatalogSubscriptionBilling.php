@@ -40,9 +40,7 @@ final readonly class CatalogSubscriptionBilling implements SubscriptionBilling
 
     public function billable(DateTimeImmutable $endedAfter): array
     {
-        // Across tenants, on purpose: this is the scheduler asking what exists,
-        // not a tenant asking what is theirs. Each answer carries its tenant,
-        // and everything after this call is scoped by it.
+        // All tenants (scheduler); each result carries its tenant.
         $rows = $this->db->connection()->table('subscriptions as s')
             ->join('customers as c', 'c.id', '=', 's.customer_id')
             ->where(static function (Builder $query) use ($endedAfter): void {
@@ -152,8 +150,7 @@ final readonly class CatalogSubscriptionBilling implements SubscriptionBilling
         $versionId = $this->subscriptions->find($tenant, $subscriptionId)?->versionAt($at);
         $version = $versionId instanceof Uuid ? $this->versions->find($tenant, $versionId) : null;
 
-        // Invoicing only asks about periods this contract listed, and every
-        // one of those lies inside a phase. Anything else is a broken caller.
+        // Listed periods always fall inside a phase.
         if (! $version instanceof PlanVersion) {
             throw new RuntimeException(sprintf('Subscription %s has no plan version at %s.', $subscriptionId, $at->format(DATE_ATOM)));
         }

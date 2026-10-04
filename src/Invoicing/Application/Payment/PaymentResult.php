@@ -4,10 +4,6 @@ declare(strict_types=1);
 
 namespace Metered\Invoicing\Application\Payment;
 
-/**
- * What the provider answered: collected, with its reference, or declined,
- * with its reason.
- */
 final readonly class PaymentResult
 {
     private function __construct(

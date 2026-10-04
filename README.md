@@ -5,16 +5,30 @@
 ![Laravel](https://img.shields.io/badge/Laravel-13-FF2D20)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
+A SaaS that charges by use — API calls, gigabytes, seats — needs a system
+behind its pricing page: one that takes in every usage event the product
+reports, adds them up per customer, applies the customer's plan, issues the
+invoice when the period ends, and tells the company's other systems what
+happened. Metered is that system: the backend shape of Stripe Billing, Lago or
+Orb, built as a Laravel modular monolith.
+
+For example, a customer on a plan that charges the first 1,000 API calls at
+€0.10 and the rest at €0.08 makes 1,500 calls in October. Metered records each
+call, and when the period closes it issues an invoice for €140.00 whose line
+shows how it was reached:
+
+```
+up to 1000: 1000 × 0.1 EUR = 100
+over 1000: 500 × 0.08 EUR = 40
+total 140.00 EUR, rounded once
+```
+
 > **Status: 1.1 — every milestone on the [roadmap](docs/roadmap.md) is done.**
 > Usage ingestion through Redis Streams into partitioned PostgreSQL, four
 > pricing models, invoices with gapless numbering and an append-only
 > double-entry ledger, signed webhooks with retries, a circuit breaker and an
 > SSRF guard, a Filament admin panel scoped per tenant, a simulator that keeps
 > the demo under live load, and traces, metrics and alerts for all of it.
-
-Metered meters what customers consume, prices it, invoices it, books it into a
-double-entry ledger, and notifies the customer's systems over signed webhooks —
-the backend shape of Stripe Billing, Lago, or Orb.
 
 It exists as a portfolio project with two jobs: **be readable** (a reviewer
 understands the architecture in ten minutes) and **be runnable** (`make demo`

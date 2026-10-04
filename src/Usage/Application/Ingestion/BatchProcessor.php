@@ -18,18 +18,9 @@ use Metered\Usage\Domain\UsageEvent;
 use Psr\Clock\ClockInterface;
 
 /**
- * What happens to one batch of events between the stream and the database.
- *
- * The order is deliberate, and each step is cheaper than the next: the window
- * costs arithmetic, resolving the meter and the customer costs a query each
- * per distinct value, the deduplication claim costs a Redis round trip, and
- * the write costs a transaction. An event that will be rejected should be
- * rejected before anything expensive happens to it.
- *
- * Nothing here knows about Redis, consumer groups or acknowledgements. This
- * decides; the daemon around it delivers and acknowledges, which is what makes
- * "what does the system do with a late event" a question answerable by a test
- * with no broker in it.
+ * Window check, meter/customer resolution, deduplication claim, write: cheapest
+ * first, so rejected events cost little. Knows nothing of Redis or
+ * acknowledgements; the consumer daemon handles those.
  */
 final readonly class BatchProcessor
 {
@@ -53,11 +44,7 @@ final readonly class BatchProcessor
         $rejections = [];
         $claimable = [];
 
-        // Resolved once per distinct code and reference rather than once per
-        // event: a batch of five hundred is usually a handful of meters, and
-        // the difference is five hundred queries or five. A miss is remembered
-        // too: a misconfigured client sends the same unknown code in every
-        // event of a batch.
+        // One lookup per distinct code/reference, misses included.
         $meters = [];
         $customers = [];
 
@@ -123,10 +110,7 @@ final readonly class BatchProcessor
 
         $written = $this->writeClaimed($tenant, $resolved, array_values($claimable));
 
-        // After the write, not before: until it commits the batch has not
-        // been dealt with and will be delivered again, and rejections
-        // recorded on an attempt that failed would be recorded once more on
-        // every retry.
+        // After the write: a failed attempt is redelivered and would log them twice.
         $this->rejections->record($rejections);
 
         return $written->plus(new IngestionOutcome(rejected: count($rejections)));
@@ -161,10 +145,8 @@ final readonly class BatchProcessor
             $toWrite[] = $resolved[$event->eventId->value];
         }
 
-        // No claim is given back if this throws. A claim records the
-        // timestamp it was taken for, so the redelivery passes it again and
-        // the unique key decides — which is also all that could happen after
-        // a crash, when there is nobody left to give anything back.
+        // Claims are not released on failure: the redelivery has the same
+        // timestamp, passes the claim, and the unique key decides.
         $outcome = $this->writer->write($tenant, $toWrite);
 
         return new IngestionOutcome(

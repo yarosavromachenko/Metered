@@ -17,7 +17,7 @@ use stdClass;
 
 final readonly class DatabasePlanVersionRepository implements PlanVersionRepository
 {
-    /** Microseconds kept: the query builder's own format stops at seconds. */
+    /** Keeps microseconds, which the query builder's format drops. */
     private const string INSTANT = 'Y-m-d H:i:s.uP';
 
     public function __construct(private DatabaseManager $db) {}
@@ -27,9 +27,8 @@ final readonly class DatabasePlanVersionRepository implements PlanVersionReposit
         $connection = $this->db->connection();
 
         $connection->transaction(function () use ($connection, $version): void {
-            // The version row first without its publication, then the prices,
-            // then the publication: the database refuses prices written under a
-            // version that is already published, so the order is the rule.
+            // Row, then prices, then published_at: a trigger refuses prices on
+            // a published version.
             $connection->table('plan_versions')->upsert([
                 'id' => $version->id->value,
                 'organization_id' => $version->tenant->organizationId->value,
@@ -40,9 +39,7 @@ final readonly class DatabasePlanVersionRepository implements PlanVersionReposit
                 'interval' => $version->interval->value,
                 'created_at' => $version->createdAt->format(self::INSTANT),
                 'published_at' => null,
-                // Nothing on a version's row changes after it is drafted, but an
-                // empty update list turns upsert into a plain insert, and saving
-                // a draft a second time would collide with itself.
+                // A non-empty update list, or upsert becomes a plain insert.
             ], ['id'], ['currency']);
 
             $connection->table('prices')->where('plan_version_id', $version->id->value)->delete();

@@ -10,11 +10,7 @@ use OpenTelemetry\API\Metrics\MeterProviderInterface;
 use OpenTelemetry\SDK\Metrics\MeterProviderInterface as ExportingMeterProvider;
 
 /**
- * The one process that reads the gauges — stream depth, outbox lag, queue
- * depth, open breakers — and exports them (ADR-0019).
- *
- * One reader rather than every worker: the values are the same whoever reads
- * them, and each reader would add its own queries and its own series.
+ * The single process that reads and exports gauges (ADR-0019).
  */
 final class ObserveMetricsCommand extends Command
 {
@@ -46,7 +42,7 @@ final class ObserveMetricsCommand extends Command
                 return self::SUCCESS;
             }
 
-            // Short sleeps, so a stop signal is not held up by the interval.
+            // Short sleeps so a stop signal is handled quickly.
             for ($slept = 0; $slept < $interval && ! $this->stopping; ++$slept) {
                 sleep(1);
             }

@@ -8,11 +8,7 @@ use Psr\Log\LoggerInterface;
 use Throwable;
 
 /**
- * Runs every readiness check and reports each one.
- *
- * All checks run even after one fails: an operator looking at a failing
- * probe wants to know everything that is wrong, not the first thing in
- * registration order.
+ * Runs all checks, also after a failure, so the probe shows everything wrong.
  */
 final readonly class Readiness
 {
@@ -35,8 +31,7 @@ final readonly class Readiness
             try {
                 $results[$check->name()] = $check->check();
             } catch (Throwable $exception) {
-                // The reason goes to the log, where the operator can read it;
-                // the probe's caller learns only that the dependency failed.
+                // Exception details go to the log, not to the probe response.
                 $this->logger->warning('Readiness check failed.', [
                     'check' => $check->name(),
                     'exception' => $exception,

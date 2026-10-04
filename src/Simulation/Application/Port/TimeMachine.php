@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace Metered\Simulation\Application\Port;
 
 /**
- * The offset between the stack's clock and real time. Setting it returns
- * once every process of the stack, this one included, keeps the new time.
+ * Setting the offset returns once every process sees the new time.
  */
 interface TimeMachine
 {

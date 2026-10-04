@@ -11,8 +11,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Metered\Tenancy\Domain\Environment;
 
 /**
- * The read side of an API key. There is no secret to read: the table holds a
- * prefix and a hash, and this model exposes exactly what the panel shows.
+ * Read model. The hash column is hidden.
  *
  * @property string $id
  * @property string $organization_id
@@ -34,8 +33,6 @@ final class ApiKey extends Model
 
     protected $guarded = [];
 
-    // The column exists and holds a hash; there is no view or export in which
-    // it belongs, so it never leaves the model.
     protected $hidden = ['secret_hash'];
 
     /**

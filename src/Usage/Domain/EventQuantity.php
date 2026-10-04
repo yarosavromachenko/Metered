@@ -9,18 +9,12 @@ use Metered\Shared\Domain\Quantity\Quantity;
 use Metered\Usage\Domain\Exception\InvalidEventQuantity;
 
 /**
- * The quantity one event may carry.
- *
- * A quantity in general has no upper bound: totals and invoice lines are
- * stored in `numeric(38, 6)`. One event is stored in `numeric(20, 6)`, which
- * holds fourteen digits before the point. A larger value would be accepted
- * with a 202 and then fail the write, and with it every event of the tenant
- * written in the same batch; refused here, the client gets a 422 that names
- * the event instead.
+ * Bounded by the `numeric(20, 6)` column: a larger value is a 422 here instead
+ * of a failed write for the whole batch later.
  */
 final class EventQuantity
 {
-    /** Exclusive: the column holds 99999999999999.999999 and nothing above. */
+    /** Exclusive. */
     public const string LIMIT = '100000000000000';
 
     public static function fromString(string $value): Quantity

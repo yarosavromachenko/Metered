@@ -6,10 +6,6 @@ namespace Metered\Billing\Presentation\Http;
 
 use Metered\Billing\Domain\Meter;
 
-/**
- * Meter codes by meter id: prices are stored against a meter's id and shown
- * with its code, the name a client actually uses.
- */
 final class MeterCodes
 {
     /**

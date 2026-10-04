@@ -7,9 +7,7 @@ namespace Metered\Shared\Presentation\Http;
 use Illuminate\Http\Request;
 
 /**
- * Reads the scope from a request attribute: the project id the API key
- * authentication sets. A request that reached this without it shares the
- * `unscoped` bucket — stated here rather than left to be discovered.
+ * The project id set by API key authentication; `unscoped` when absent.
  */
 final class RequestAttributeScope implements IdempotencyScope
 {

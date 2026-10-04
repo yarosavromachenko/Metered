@@ -8,11 +8,7 @@ use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Usage\Application\Metrics\UsageMetrics;
 
 /**
- * Counts rejections by reason on their way into the log.
- *
- * A decorator, so the log stays about storing rejections for the tenant to
- * read, and the count about telling an operator that, say, a client started
- * sending an unknown meter an hour ago.
+ * Decorator: counts rejections by reason.
  */
 final readonly class CountingRejectionLog implements RejectionLog
 {

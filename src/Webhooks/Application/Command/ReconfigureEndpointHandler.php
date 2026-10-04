@@ -11,8 +11,7 @@ use Metered\Webhooks\Domain\Endpoint\EndpointRepository;
 use Metered\Webhooks\Domain\Endpoint\EndpointUrl;
 
 /**
- * Points an endpoint elsewhere, changes what it listens to, or switches it
- * on and off. Its secret is untouched.
+ * URL, event types, enabled flag; the secret is unchanged.
  */
 final readonly class ReconfigureEndpointHandler
 {

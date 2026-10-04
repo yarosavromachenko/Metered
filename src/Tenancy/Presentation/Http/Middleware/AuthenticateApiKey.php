@@ -14,15 +14,9 @@ use Metered\Tenancy\Domain\Scope;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Turns `Authorization: Bearer mk_…` into a tenant, or into a problem.
- *
- * Routes declare the scope they need — `api-key:usage:write` — so the
- * authority a route requires is visible in the route file rather than buried
- * in a controller. A route that declares no scope only requires a valid key.
- *
- * Nothing is cached on this object and nothing is written to the container:
- * the middleware is a singleton that outlives the request under Octane, and
- * the only per-request state it produces goes onto the request itself.
+ * `Authorization: Bearer mk_…`. Routes name the required scope
+ * (`api-key:usage:write`); without one any valid key passes. Keeps no state:
+ * it is a singleton under Octane, so the tenant goes onto the request.
  */
 final readonly class AuthenticateApiKey
 {
@@ -49,9 +43,7 @@ final readonly class AuthenticateApiKey
             return $this->unauthorized($request, $failure->problem, $failure->getMessage());
         }
 
-        // Scope::from rather than tryFrom: a scope named in a route file that
-        // does not exist is a typo in the route, and silently requiring
-        // nothing is the worst available answer to it.
+        // from(), not tryFrom(): a typo in a route must throw.
         $required = $scope === null ? null : Scope::from($scope);
 
         if ($required !== null && ! $key->allows($required)) {

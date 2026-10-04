@@ -9,16 +9,8 @@ use Livewire\Component;
 use Metered\Tenancy\Presentation\Filament\PanelScope;
 
 /**
- * The control that says which project everything on screen belongs to.
- *
- * It offers only what the signed-in person can reach, and the scope it sets is
- * validated again when it is read — so a project id pushed into the component
- * by hand changes nothing.
- *
- * Switching reloads the page rather than updating tables in place. The scope
- * is read by every query on the screen, and a partial refresh would leave one
- * table showing the previous project's rows next to another showing the new
- * one's.
+ * Lists reachable projects only; PanelScope validates the choice again.
+ * Switching reloads the page so no table keeps the old project's rows.
  */
 final class ProjectSwitcher extends Component
 {

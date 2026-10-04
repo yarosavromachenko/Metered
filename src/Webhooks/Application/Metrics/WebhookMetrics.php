@@ -9,7 +9,7 @@ use Metered\Shared\Application\Metrics\Gauge;
 use Metered\Shared\Application\Metrics\Histogram;
 
 /**
- * The delivery path's instruments, named once (docs/observability.md).
+ * See docs/observability.md.
  */
 final class WebhookMetrics
 {

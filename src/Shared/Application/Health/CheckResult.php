@@ -5,11 +5,8 @@ declare(strict_types=1);
 namespace Metered\Shared\Application\Health;
 
 /**
- * What one readiness check found.
- *
- * The detail is shown on an unauthenticated endpoint, so it names the
- * condition ("unreachable", a depth against its limit) and never carries an
- * exception message, which can hold a host name or a credential.
+ * The detail is public (unauthenticated endpoint): a condition such as
+ * "unreachable", never an exception message.
  */
 final readonly class CheckResult
 {

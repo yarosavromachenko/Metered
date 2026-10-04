@@ -12,15 +12,9 @@ use Psr\Clock\ClockInterface;
 use RuntimeException;
 
 /**
- * Moves the demo's clock and lets the platform catch up: every period that
- * has ended by the new time is closed at once, the way the scheduler would
- * close it five minutes later.
- *
- * Forward only. Everything the platform wrote while the clock was ahead —
- * invoices, their numbers, the ledger — carries the later time, and moving
- * back would put "now" before them: a period would look open that is already
- * invoiced. Going back to real time is still possible, with --reset, for a
- * stack about to be wiped by demo:reset anyway.
+ * Moves the clock and closes ended periods immediately. Forward only: data
+ * written in the future would otherwise be "ahead of now". --reset returns to
+ * real time, for a stack about to be wiped by demo:reset.
  */
 final readonly class TravelInTimeHandler
 {

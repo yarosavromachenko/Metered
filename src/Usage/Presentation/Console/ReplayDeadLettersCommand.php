@@ -9,14 +9,8 @@ use Metered\Usage\Infrastructure\Redis\DeadLetters;
 use Metered\Usage\Infrastructure\Redis\ReplayOutcome;
 
 /**
- * `usage:dead-letters:replay` — puts dead letters back on the ingestion
- * stream, by id or all of them.
- *
- * Replaying twice writes once (see `DeadLetters`). A malformed message, and
- * one whose project was deleted, is refused and stays: the consumer would set
- * it aside again at once.
- * Exits non-zero when any id was refused or not found, so a script that
- * replays a list notices the ones that did not go.
+ * By id or `--all`. Malformed messages and deleted projects are refused.
+ * Exits non-zero if any id was refused or not found.
  */
 final class ReplayDeadLettersCommand extends Command
 {

@@ -15,13 +15,9 @@ use Metered\Simulation\Application\Port\MeteredApi;
 use SensitiveParameter;
 
 /**
- * The API over HTTP, as a well-behaved client uses it: an Idempotency-Key on
- * every write, and a wait — as long as `Retry-After` asks, or a second — when
- * the answer is 429 (the key's rate limit) or 503 (ingestion backpressure).
- * A usage batch that fails in any way that is not a refusal of its content is
- * sent again as it was.
- * Anything else that is not a success stops the simulation with the problem
- * the API described.
+ * Idempotency-Key on every write; on 429 or 503 waits for `Retry-After` (or
+ * one second). Usage batches are resent unchanged unless their content was
+ * refused; other failures throw ApiRefused.
  */
 final readonly class HttpMeteredApi implements MeteredApi
 {
@@ -30,8 +26,7 @@ final readonly class HttpMeteredApi implements MeteredApi
     private const int CONCURRENCY = 8;
 
     /**
-     * Batches taken from the caller at a time: enough to keep every
-     * connection busy, few enough that a day of usage never sits in memory.
+     * Batches pulled at a time.
      */
     private const int WINDOW = self::CONCURRENCY * 4;
 
@@ -129,9 +124,7 @@ final readonly class HttpMeteredApi implements MeteredApi
                         continue;
                     }
 
-                    // Throttled, shed, broken or not answered at all: the batch is
-                    // sent again with the same event ids, which is what makes
-                    // resending safe — ingestion deduplicates by them.
+                    // Resent with the same event ids; ingestion deduplicates.
                     if ($attempt < self::ATTEMPTS && (! $response instanceof Response || in_array($response->status(), [429, 503], true) || $response->serverError())) {
                         $retry[] = $batch;
                         $wait = $response instanceof Response ? max($wait, $this->retryAfter($response)) : $wait;
@@ -143,9 +136,7 @@ final readonly class HttpMeteredApi implements MeteredApi
                 }
             }
 
-            // As long as the longest Retry-After asked: a key whose minute is
-            // spent — by a seed that just ran on it — is refused until the
-            // minute is over, and resending sooner only spends attempts.
+            // Wait for the longest Retry-After.
             if ($retry !== []) {
                 Sleep::for($wait)->seconds();
             }
@@ -182,7 +173,7 @@ final readonly class HttpMeteredApi implements MeteredApi
     }
 
     /**
-     * Seconds the answer asks to wait, at least one and at most a minute.
+     * Between 1 and 60 seconds.
      */
     private function retryAfter(Response $response): int
     {

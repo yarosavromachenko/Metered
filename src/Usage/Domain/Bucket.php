@@ -8,13 +8,7 @@ use DateTimeImmutable;
 use DateTimeZone;
 
 /**
- * The hour an aggregate is keyed by.
- *
- * One hour, everywhere, in UTC. Coarser would make a period boundary fall
- * inside a bucket — a subscription anchored at 09:30 would have to split one;
- * finer would multiply the rows invoicing reads without telling anyone
- * anything new. Aggregates are what an invoice is built from, so the
- * granularity is the smallest unit a period boundary can land on cleanly.
+ * The UTC hour an aggregate is keyed by; period boundaries fall on whole hours.
  */
 final readonly class Bucket
 {
@@ -24,9 +18,7 @@ final readonly class Bucket
     {
         $utc = $instant->setTimezone(new DateTimeZone('UTC'));
 
-        // setTime clears the microseconds along with the minutes; the key has
-        // second precision at most, and a stray microsecond would make two
-        // aggregates where there should be one.
+        // Also clears microseconds, which would split one bucket into two.
         return new self($utc->setTime((int) $utc->format('G'), 0));
     }
 

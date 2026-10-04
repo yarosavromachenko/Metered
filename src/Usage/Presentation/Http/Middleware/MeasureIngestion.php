@@ -11,11 +11,8 @@ use Metered\Usage\Application\Metrics\UsageMetrics;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
- * Counts and times every answer the ingestion endpoint gives, by status.
- *
- * Placed before authentication and the rate limiter, so a 401, a 429 and a
- * 503 are measured as well: an endpoint that answers quickly because it is
- * refusing everything should not look healthy on a dashboard.
+ * Runs before authentication and rate limiting, so 401, 429 and 503 are
+ * measured too.
  */
 final readonly class MeasureIngestion
 {

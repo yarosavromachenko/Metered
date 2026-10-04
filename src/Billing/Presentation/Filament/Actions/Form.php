@@ -7,14 +7,12 @@ namespace Metered\Billing\Presentation\Filament\Actions;
 use Metered\Shared\Domain\Identifier\Uuid;
 
 /**
- * Reads the loosely typed arrays Filament hands an action.
+ * Typed reads from Filament's form data.
  */
 final class Form
 {
     /**
-     * An id that names nothing, for a select left empty or tampered with. The
-     * handler then answers "not found" like for any id outside the project,
-     * instead of each action inventing its own message.
+     * Placeholder for an empty or tampered select; the handler answers "not found".
      */
     private const string NOTHING = '00000000-0000-7000-8000-000000000000';
 

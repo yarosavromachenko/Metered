@@ -8,10 +8,7 @@ use Illuminate\Console\Command;
 use Metered\Shared\Application\Audit\ChainVerifier;
 
 /**
- * Verifies the audit chain, on a schedule and on demand.
- *
- * Scheduled, because a broken chain found during the incident it would have
- * explained is found too late.
+ * Also scheduled.
  */
 final class VerifyAuditChainCommand extends Command
 {

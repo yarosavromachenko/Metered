@@ -11,8 +11,7 @@ use Metered\Simulation\Application\Chaos\RunChaosHandler;
 use Metered\Simulation\Application\Chaos\Scenario;
 
 /**
- * One failure against the running stack, ending with the invariants checked.
- * Exits non-zero when any of them did not hold.
+ * Exits non-zero when an invariant fails.
  */
 final class ChaosCommand extends Command
 {
@@ -24,8 +23,7 @@ final class ChaosCommand extends Command
 
     public function handle(RunChaosHandler $handler): int
     {
-        // Narrowed here rather than cast: the signature only types the input
-        // where the command is registered, and it is not in every environment.
+        // Narrowed, not cast: the command is not registered in every environment.
         $name = $this->argument('scenario');
         $scenario = is_string($name) ? Scenario::tryFrom($name) : null;
 

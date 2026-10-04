@@ -12,21 +12,10 @@ use Metered\Tenancy\Application\Contract\Authorizer;
 use Metered\Tenancy\Domain\MembershipRepository;
 
 /**
- * Authorization at the handler boundary, which is the only boundary that
- * counts.
- *
- * Hiding a button is a courtesy to the person looking at the screen; it is not
- * a control. An `admin` who calls an owner-only handler directly — by URL, by
- * a replayed request, by a Livewire message — is refused here, and ADR-0017
- * says so explicitly.
- *
- * Membership is per organization, so every check names one. A person with no
- * membership in the organization they are asking about is refused for the same
- * reason as a person with the wrong role: the guard asks what the membership
- * permits, and no membership permits nothing.
- *
- * This is the only implementation of {@see Authorizer}, the contract the other
- * modules hold: they name an actor and a permission, and Tenancy answers.
+ * {@see Authorizer} over memberships. Handlers call it, so a direct call
+ * (URL, replayed request, Livewire message) is refused even when the UI hides
+ * the button (ADR-0017). No membership in the organization means no
+ * permissions.
  */
 final readonly class PermissionGuard implements Authorizer
 {
@@ -42,8 +31,7 @@ final readonly class PermissionGuard implements Authorizer
     public function allows(Actor $actor, Uuid $organizationId, Permission $permission): bool
     {
         if (!$actor->userId instanceof Uuid) {
-            // The console and the scheduler answer to whoever can run them,
-            // which is the operator of the installation.
+            // System actors (console, scheduler) are the operator.
             return true;
         }
 

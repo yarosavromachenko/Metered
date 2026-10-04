@@ -10,9 +10,6 @@ use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Component;
 use Metered\Webhooks\Domain\Endpoint\EventType;
 
-/**
- * The fields an endpoint is registered and edited with.
- */
 final class EndpointForm
 {
     /**
