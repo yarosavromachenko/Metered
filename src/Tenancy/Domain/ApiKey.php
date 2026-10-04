@@ -116,11 +116,6 @@ final readonly class ApiKey
         return $this->revokedAt instanceof DateTimeImmutable ? $this : $this->with(revokedAt: $at);
     }
 
-    public function usedAt(DateTimeImmutable $at): self
-    {
-        return $this->with(lastUsedAt: $at);
-    }
-
     /**
      * @param  list<Scope>  $scopes
      * @return list<Scope>
@@ -136,7 +131,7 @@ final readonly class ApiKey
         return $unique;
     }
 
-    private function with(?DateTimeImmutable $revokedAt = null, ?DateTimeImmutable $lastUsedAt = null): self
+    private function with(DateTimeImmutable $revokedAt): self
     {
         return new self(
             $this->id,
@@ -147,8 +142,8 @@ final readonly class ApiKey
             $this->environment,
             $this->scopes,
             $this->createdAt,
-            $revokedAt ?? $this->revokedAt,
-            $lastUsedAt ?? $this->lastUsedAt,
+            $revokedAt,
+            $this->lastUsedAt,
         );
     }
 }

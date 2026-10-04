@@ -88,10 +88,50 @@ it('records the moment a key was last used', function (): void {
     $project = TenantFactory::tenant();
     ['key' => $key, 'secret' => $secret] = TenantFactory::apiKey($project);
 
-    app(ApiKeyRepository::class)->save($key->usedAt(new DateTimeImmutable('2026-09-14T09:00:00+00:00')));
+    app(ApiKeyRepository::class)->recordUse($key, new DateTimeImmutable('2026-09-14T09:00:00+00:00'));
 
     expect(app(ApiKeyRepository::class)->findByPrefix($secret->prefix())?->lastUsedAt?->format(DATE_RFC3339))
         ->toBe('2026-09-14T09:00:00+00:00');
+});
+
+it('keeps the last use when a key read before it is revoked', function (): void {
+    $project = TenantFactory::tenant();
+    ['key' => $key, 'secret' => $secret] = TenantFactory::apiKey($project);
+    $keys = app(ApiKeyRepository::class);
+
+    $read = $keys->findByPrefix($secret->prefix()) ?? $key;
+    $keys->recordUse($read, new DateTimeImmutable('2026-09-14T09:00:00+00:00'));
+    $keys->save($read->revoke(new DateTimeImmutable('2026-09-14T09:00:01+00:00')));
+
+    expect($keys->findByPrefix($secret->prefix())?->lastUsedAt?->format(DATE_RFC3339))
+        ->toBe('2026-09-14T09:00:00+00:00');
+});
+
+it('records a use without undoing a revocation made after the key was read', function (): void {
+    $project = TenantFactory::tenant();
+    ['key' => $key, 'secret' => $secret] = TenantFactory::apiKey($project);
+    $keys = app(ApiKeyRepository::class);
+
+    $read = $keys->findByPrefix($secret->prefix()) ?? $key;
+    $keys->save($read->revoke(new DateTimeImmutable('2026-09-14T09:00:00+00:00')));
+    $keys->recordUse($read, new DateTimeImmutable('2026-09-14T09:00:01+00:00'));
+
+    $stored = $keys->findByPrefix($secret->prefix());
+
+    expect($stored?->revokedAt?->format(DATE_RFC3339))->toBe('2026-09-14T09:00:00+00:00')
+        ->and($stored?->lastUsedAt?->format(DATE_RFC3339))->toBe('2026-09-14T09:00:01+00:00');
+});
+
+it('keeps the later use when an earlier one is recorded after it', function (): void {
+    $project = TenantFactory::tenant();
+    ['key' => $key, 'secret' => $secret] = TenantFactory::apiKey($project);
+    $keys = app(ApiKeyRepository::class);
+
+    $keys->recordUse($key, new DateTimeImmutable('2026-09-14T09:05:00+00:00'));
+    $keys->recordUse($key, new DateTimeImmutable('2026-09-14T09:00:00+00:00'));
+
+    expect($keys->findByPrefix($secret->prefix())?->lastUsedAt?->format(DATE_RFC3339))
+        ->toBe('2026-09-14T09:05:00+00:00');
 });
 
 it('refuses a second key with the same prefix', function (): void {

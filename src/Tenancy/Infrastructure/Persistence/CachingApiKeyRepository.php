@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Metered\Tenancy\Infrastructure\Persistence;
 
+use DateTimeImmutable;
 use Illuminate\Contracts\Cache\Repository as Cache;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
@@ -30,7 +31,17 @@ final readonly class CachingApiKeyRepository implements ApiKeyRepository
     {
         $this->keys->save($key);
 
-        // After the write, so a concurrent read cannot cache the old row.
+        // After the write. A read already in flight can still cache the old
+        // row; the TTL bounds how long it lasts.
+        $this->cache->forget(self::KEY_PREFIX . $key->prefix);
+    }
+
+    public function recordUse(ApiKey $key, DateTimeImmutable $at): void
+    {
+        $this->keys->recordUse($key, $at);
+
+        // The cached copy holds the old last-use time and would write again
+        // on every request until it expires.
         $this->cache->forget(self::KEY_PREFIX . $key->prefix);
     }
 

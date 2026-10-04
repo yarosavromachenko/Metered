@@ -78,12 +78,6 @@ it('keeps the first revocation when it is revoked twice', function (): void {
     expect($key->revokedAt?->format(DATE_RFC3339))->toBe('2026-09-14T09:00:00+00:00');
 });
 
-it('records when it was last used', function (): void {
-    $key = issue()->usedAt(new DateTimeImmutable('2026-09-14T09:00:00+00:00'));
-
-    expect($key->lastUsedAt?->format(DATE_RFC3339))->toBe('2026-09-14T09:00:00+00:00');
-});
-
 it('comes back from storage as the key it was', function (): void {
     $secret = ApiKeySecret::generate(Environment::Live);
     $stored = ApiKey::fromStorage(

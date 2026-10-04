@@ -61,6 +61,6 @@ final readonly class ApiKeyAuthenticator
             return;
         }
 
-        $this->keys->save($key->usedAt($now));
+        $this->keys->recordUse($key, $now);
     }
 }
