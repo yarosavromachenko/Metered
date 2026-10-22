@@ -5,6 +5,22 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
+## [1.1.2] - 2026-10-22
+
+No change to the API, the webhook payloads or the schema; no upgrade steps
+beyond pulling the new image.
+
+### Security
+- The image is built on PHP 8.4.27, which fixes two critical remote code
+  execution flaws in the PHP core (CVE-2026-109618 and CVE-2026-109619).
+  Images of 1.1.1 and earlier run an affected PHP and should be replaced.
+- PHP's session upload progress tracking is turned off in the image's
+  `php.ini`; the application does not use it.
+
+### Changed
+- The image build always pulls the base image, so a cached base layer cannot
+  keep an older PHP.
+
 ## [1.1.1] - 2026-10-04
 
 No change to the API, the webhook payloads or the schema.
