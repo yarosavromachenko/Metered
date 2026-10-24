@@ -56,6 +56,20 @@ it('refuses a mutating request that carries no key', function (): void {
     expect($log->entries)->toBe([]);
 });
 
+it('refuses a key longer than the store keeps, and takes one of exactly that length', function (): void {
+    $log = idempotentRoutes();
+
+    $tooLong = postJson('/api/v1/test-subscriptions', ['name' => 'acme'], [EnsureIdempotency::HEADER => str_repeat('k', 256)]);
+    $longest = postJson('/api/v1/test-subscriptions', ['name' => 'acme'], [EnsureIdempotency::HEADER => str_repeat('é', 255)]);
+
+    $tooLong->assertStatus(400)
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://metered.dev/problems/idempotency-key-too-long');
+    $longest->assertStatus(201);
+
+    expect($log->entries)->toBe(['executed']);
+});
+
 it('executes the first request and remembers what it answered', function (): void {
     $log = idempotentRoutes();
 

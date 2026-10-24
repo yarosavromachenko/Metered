@@ -86,7 +86,8 @@ must not spend everybody's budget.
 `Idempotency-Key: <uuid>`. Replaying the same key with the same body returns the
 stored response with `Idempotent-Replayed: true`; the same key with a different
 body is `422`; a key whose first request is still running is `409`. A key is
-remembered for 24 hours; the same key after that is a new request. Usage
+remembered for 24 hours; the same key after that is a new request. A missing key,
+or one longer than 255 characters, is `400`. Usage
 ingestion does not use this header — each event carries its own `event_id`.
 
 **All timestamps are RFC 3339 in UTC.** Money is `{"amount": 1999, "currency": "EUR"}`

@@ -24,12 +24,15 @@ use Throwable;
  * | Same key, first request still open | 409                         |
  * | Same key, different request        | 422                         |
  * | No key                             | 400                         |
+ * | Key longer than 255 characters     | 400                         |
  *
  * `Idempotent-Replayed` is Stripe's header, not part of the draft.
  */
 final readonly class EnsureIdempotency
 {
     public const string HEADER = 'Idempotency-Key';
+
+    public const int MAX_KEY_LENGTH = 255;
 
     public function __construct(
         private IdempotencyStore $store,
@@ -54,6 +57,17 @@ final readonly class EnsureIdempotency
         }
 
         $key = trim($key);
+
+        if (mb_strlen($key) > self::MAX_KEY_LENGTH) {
+            return Problem::response(
+                'idempotency-key-too-long',
+                'Idempotency key too long',
+                400,
+                sprintf('The %s header is at most %d characters; a UUID is enough.', self::HEADER, self::MAX_KEY_LENGTH),
+                Problem::instanceFor($request),
+            );
+        }
+
         $scope = $this->scope->forRequest($request);
         $fingerprint = $this->fingerprint($request);
 
