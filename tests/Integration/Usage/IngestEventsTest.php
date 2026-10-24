@@ -157,6 +157,20 @@ it('takes a batch of a hundred and refuses a hundred and one', function (): void
     expect(streamed())->toHaveCount(100);
 });
 
+it('keeps a quantity sent as a string exactly, and one sent as a JSON number only to 14 significant digits', function (): void {
+    $project = TenantFactory::tenant();
+
+    postJson('/api/v1/usage/events', ['events' => [
+        anEvent(['event_id' => 'evt_string', 'quantity' => '1234567890.123456']),
+        anEvent(['event_id' => 'evt_number', 'quantity' => 1234567890.123456]),
+    ]], ingestionHeaders($project))->assertStatus(202);
+
+    expect(array_column(streamed(), 'quantity', 'event_id'))->toBe([
+        'evt_string' => '1234567890.123456',
+        'evt_number' => '1234567890.123500',
+    ]);
+});
+
 it('answers a malformed event with a pointer to the one that was wrong', function (array $event, string $expected): void {
     $project = TenantFactory::tenant();
 
@@ -184,6 +198,10 @@ it('answers a malformed event with a pointer to the one that was wrong', functio
     'a timestamp that is not one' => [[...anEvent(), 'occurred_at' => 'yesterday afternoon'], 'occurred_at'],
     'an event id with a space in it' => [[...anEvent(), 'event_id' => 'evt 1'], 'event id'],
     'nested properties' => [[...anEvent(), 'properties' => ['tags' => ['a']]], 'nested'],
+    // PostgreSQL refuses \u0000 in jsonb: accepted, the event could never be stored.
+    'a NUL in a property' => [[...anEvent(), 'properties' => ['region' => "eu\u{0}central"]], 'control character'],
+    'a NUL in the meter code' => [[...anEvent(), 'meter_code' => "api\u{0}requests"], 'meter_code'],
+    'a NUL in the customer reference' => [[...anEvent(), 'customer_ref' => "cus\u{0}1"], 'customer_ref'],
 ]);
 
 it('refuses a key that may write usage for another project', function (): void {

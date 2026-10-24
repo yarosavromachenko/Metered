@@ -91,8 +91,9 @@ or one longer than 255 characters, is `400`. Usage
 ingestion does not use this header — each event carries its own `event_id`.
 
 **All timestamps are RFC 3339 in UTC.** Money is `{"amount": 1999, "currency": "EUR"}`
-in minor units. Quantities are decimal strings, never JSON numbers, because a
-JSON number is a float in most clients.
+in minor units. Quantities are written as decimal strings, because a JSON
+number is a float in most clients and on the server; a quantity sent as a JSON
+number is accepted but keeps only 14 significant digits.
 
 ## Surface
 
@@ -244,11 +245,11 @@ The key needs the `usage:write` scope.
 | Field | Rule |
 |---|---|
 | `event_id` | Required, up to 128 characters. The client's own identifier for this event, and the deduplication key |
-| `meter_code` | Required, up to 64 characters. The code the meter was defined with; matched case-insensitively |
-| `customer_ref` | Required, up to 128 characters. The reference the customer was registered with |
-| `quantity` | Required, a non-negative decimal with at most six decimal places, less than `100000000000000` (10^14, what one stored event holds). A string is preferred (`"2.5"`); a JSON number is accepted and converted before any arithmetic |
+| `meter_code` | Required, up to 64 characters, no control characters. The code the meter was defined with; matched case-insensitively |
+| `customer_ref` | Required, up to 128 characters, no control characters. The reference the customer was registered with |
+| `quantity` | Required, a non-negative decimal with at most six decimal places, less than `100000000000000` (10^14, what one stored event holds). Send it as a string (`"2.5"`) to keep it exact; a JSON number is accepted but read as a float, and keeps only 14 significant digits (`1234567890.123456` arrives as `1234567890.1235`) |
 | `occurred_at` | Required, RFC 3339. Any offset is accepted and converted to UTC |
-| `properties` | Optional object, stored with the event |
+| `properties` | Optional object, stored with the event: at most 32 named scalar values, each string up to 256 bytes, with no control characters in names or values |
 
 `202` means the batch is durably in the stream, not that it is in PostgreSQL.
 That distinction is the central trade-off of the ingestion design and is spelled
