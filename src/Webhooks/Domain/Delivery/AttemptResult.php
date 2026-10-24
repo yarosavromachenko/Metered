@@ -21,12 +21,12 @@ final readonly class AttemptResult
 
     public static function responded(int $statusCode, int $durationMs, string $body): self
     {
-        return new self($statusCode, null, false, $durationMs, mb_strcut($body, 0, self::EXCERPT_LIMIT));
+        return new self($statusCode, null, false, $durationMs, mb_strcut(self::text($body), 0, self::EXCERPT_LIMIT));
     }
 
     public static function unreachable(string $error, int $durationMs): self
     {
-        return new self(null, $error, false, $durationMs, '');
+        return new self(null, self::text($error), false, $durationMs, '');
     }
 
     /**
@@ -34,7 +34,7 @@ final readonly class AttemptResult
      */
     public static function refused(string $reason): self
     {
-        return new self(null, $reason, true, 0, '');
+        return new self(null, self::text($reason), true, 0, '');
     }
 
     public function verdict(): Verdict
@@ -55,5 +55,13 @@ final readonly class AttemptResult
         $notNow = $this->statusCode === 408 || $this->statusCode === 429 || $this->statusCode >= 500;
 
         return $notNow ? Verdict::Retry : Verdict::GiveUp;
+    }
+
+    /**
+     * The receiver chooses these bytes; PostgreSQL refuses a text value that is not valid UTF-8.
+     */
+    private static function text(string $bytes): string
+    {
+        return mb_scrub($bytes, 'UTF-8');
     }
 }

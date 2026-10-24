@@ -150,6 +150,22 @@ it('attempts only what is due, and records every attempt', function (): void {
         ]);
 });
 
+it('records an answer that is not valid UTF-8, and does not send the delivery again', function (): void {
+    ['tenant' => $tenant, 'transport' => $transport, 'clock' => $clock] = webhookProject([
+        AttemptResult::responded(200, 12, "caf\xE9"),
+    ]);
+    app(IntegrationEventDispatcher::class)->dispatch(invoicePaidEvent($tenant));
+    $delivery = onlyDelivery($tenant);
+
+    attempt($tenant, $delivery);
+    $clock->modify('+120 seconds');
+    attempt($tenant, $delivery);
+
+    expect($transport->sent)->toHaveCount(1)
+        ->and(DB::table('webhook_attempts')->where('delivery_id', $delivery->value)->pluck('response_excerpt')->all())->toBe(['caf?'])
+        ->and(app(DeliveryRepository::class)->find($tenant, $delivery)?->status)->toBe(DeliveryStatus::Succeeded);
+});
+
 it('dead-letters a delivery after ten failures, and replays it from the start', function (): void {
     ['tenant' => $tenant, 'endpoint' => $registered, 'transport' => $transport, 'clock' => $clock] = webhookProject([
         AttemptResult::unreachable('connection refused', 3),
