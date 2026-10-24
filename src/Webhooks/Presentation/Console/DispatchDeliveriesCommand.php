@@ -19,7 +19,9 @@ use Psr\Clock\ClockInterface;
  */
 final class DispatchDeliveriesCommand extends Command
 {
-    protected $signature = 'webhooks:dispatch {--limit=500 : How many due deliveries to queue in one pass}';
+    protected $signature = 'webhooks:dispatch
+        {--limit=500 : How many due deliveries to queue in one pass}
+        {--per-endpoint= : How many of them one endpoint may take, defaults to metered.webhooks.dispatch_per_endpoint}';
 
     protected $description = 'Queue an attempt for every webhook delivery that is due';
 
@@ -32,10 +34,15 @@ final class DispatchDeliveriesCommand extends Command
         Repository $config,
     ): int {
         $limit = $this->option('limit');
+        $perEndpoint = $this->option('per-endpoint') ?? $config->get('metered.webhooks.dispatch_per_endpoint');
         $queue = $config->get('metered.webhooks.queue');
         $queued = 0;
 
-        $due = $deliveries->dueAt($clock->now(), is_numeric($limit) ? max(1, (int) $limit) : 500);
+        $due = $deliveries->dueAt(
+            $clock->now(),
+            is_numeric($limit) ? max(1, (int) $limit) : 500,
+            is_numeric($perEndpoint) ? max(1, (int) $perEndpoint) : 50,
+        );
         $contexts = $traces->of($due);
 
         foreach ($due as $delivery) {

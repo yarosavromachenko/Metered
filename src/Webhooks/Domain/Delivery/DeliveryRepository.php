@@ -22,9 +22,10 @@ interface DeliveryRepository
     public function findForUpdate(TenantContext $tenant, Uuid $id): ?Delivery;
 
     /**
-     * All tenants, oldest first.
+     * All tenants, at most $perEndpoint of any one endpoint, taken from the
+     * projects in turns: each project's oldest first, then each one's next.
      *
      * @return list<Delivery>
      */
-    public function dueAt(DateTimeImmutable $now, int $limit): array;
+    public function dueAt(DateTimeImmutable $now, int $limit, int $perEndpoint): array;
 }

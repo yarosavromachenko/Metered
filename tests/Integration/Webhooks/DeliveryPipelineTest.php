@@ -5,10 +5,12 @@ declare(strict_types=1);
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Infrastructure\Inbox\IntegrationEventDispatcher;
+use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Role;
 use Metered\Webhooks\Application\Command\RegisteredEndpoint;
 use Metered\Webhooks\Application\Command\RegisterEndpoint;
@@ -292,6 +294,77 @@ it('makes no delivery for an event nobody listens to, or for another project', f
     app(IntegrationEventDispatcher::class)->dispatch(invoicePaidEvent($other, '01924b7c-0000-7000-8000-00000000d004'));
 
     expect(DB::table('webhook_deliveries')->count())->toBe(0);
+});
+
+it('queues at most an endpoint\'s share of its backlog, and another project\'s delivery in the same run', function (): void {
+    Queue::fake();
+    $insert = static function (Project $project, string $endpoint, string $id, string $next): void {
+        DB::table('webhook_deliveries')->insert([
+            'id' => $id, 'organization_id' => $project->organizationId->value, 'project_id' => $project->id->value,
+            'endpoint_id' => $endpoint, 'event_id' => $id, 'event_type' => 'invoice.paid',
+            'body' => '{}', 'status' => 'pending', 'attempts' => 0, 'next_attempt_at' => $next, 'created_at' => '2026-09-25 00:00:00+00',
+        ]);
+    };
+    $noisy = TenantFactory::tenant('noisy');
+    $quiet = TenantFactory::tenant('quiet');
+    $noisyEndpoint = app(RegisterEndpointHandler::class)->handle(new RegisterEndpoint($noisy->tenant(), 'https://noisy.example.com', '', ['invoice.paid'], TenantFactory::member($noisy->organizationId, Role::Admin, 'noisy@example.com')))->endpoint->id->value;
+    $quietEndpoint = app(RegisterEndpointHandler::class)->handle(new RegisterEndpoint($quiet->tenant(), 'https://quiet.example.com', '', ['invoice.paid'], TenantFactory::member($quiet->organizationId, Role::Admin, 'quiet@example.com')))->endpoint->id->value;
+
+    // The noisy backlog is older than anything else that is due.
+    foreach (range(1, 5) as $index) {
+        $insert($noisy, $noisyEndpoint, sprintf('01924b7c-0000-7000-8000-00000000e10%d', $index), sprintf('2020-01-01 00:0%d:00+00', $index));
+    }
+    $insert($quiet, $quietEndpoint, '01924b7c-0000-7000-8000-00000000e201', '2020-01-02 00:00:00+00');
+
+    expect(Artisan::call('webhooks:dispatch', ['--limit' => '3', '--per-endpoint' => '2']))->toBe(0);
+
+    $queued = [];
+    Queue::assertPushed(AttemptDeliveryJob::class, static function (AttemptDeliveryJob $job) use (&$queued): bool {
+        $queued[] = $job->deliveryId;
+
+        return true;
+    });
+
+    expect($queued)->toBe([
+        '01924b7c-0000-7000-8000-00000000e101',
+        '01924b7c-0000-7000-8000-00000000e201',
+        '01924b7c-0000-7000-8000-00000000e102',
+    ]);
+});
+
+it('takes the projects in turns, so a project with many endpoints does not fill the run', function (): void {
+    Queue::fake();
+    $busy = TenantFactory::tenant('busy');
+    $quiet = TenantFactory::tenant('quiet');
+    $busyAdmin = TenantFactory::member($busy->organizationId, Role::Admin, 'busy@example.com');
+    $endpoint = static fn(Project $project, string $url, Actor $actor): string => app(RegisterEndpointHandler::class)
+        ->handle(new RegisterEndpoint($project->tenant(), $url, '', ['invoice.paid'], $actor))->endpoint->id->value;
+    $insert = static function (Project $project, string $endpoint, string $id, string $next): void {
+        DB::table('webhook_deliveries')->insert([
+            'id' => $id, 'organization_id' => $project->organizationId->value, 'project_id' => $project->id->value,
+            'endpoint_id' => $endpoint, 'event_id' => $id, 'event_type' => 'invoice.paid',
+            'body' => '{}', 'status' => 'pending', 'attempts' => 0, 'next_attempt_at' => $next, 'created_at' => '2026-09-25 00:00:00+00',
+        ]);
+    };
+    $first = $endpoint($busy, 'https://busy.example.com/1', $busyAdmin);
+    $second = $endpoint($busy, 'https://busy.example.com/2', $busyAdmin);
+    $quietEndpoint = $endpoint($quiet, 'https://quiet.example.com', TenantFactory::member($quiet->organizationId, Role::Admin, 'quiet@example.com'));
+
+    $insert($busy, $first, '01924b7c-0000-7000-8000-00000000e301', '2020-01-01 00:01:00+00');
+    $insert($busy, $second, '01924b7c-0000-7000-8000-00000000e302', '2020-01-01 00:02:00+00');
+    $insert($busy, $first, '01924b7c-0000-7000-8000-00000000e303', '2020-01-01 00:03:00+00');
+    $insert($quiet, $quietEndpoint, '01924b7c-0000-7000-8000-00000000e401', '2020-01-02 00:00:00+00');
+
+    expect(Artisan::call('webhooks:dispatch', ['--limit' => '2']))->toBe(0);
+
+    $queued = [];
+    Queue::assertPushed(AttemptDeliveryJob::class, static function (AttemptDeliveryJob $job) use (&$queued): bool {
+        $queued[] = $job->deliveryId;
+
+        return true;
+    });
+
+    expect($queued)->toBe(['01924b7c-0000-7000-8000-00000000e301', '01924b7c-0000-7000-8000-00000000e401']);
 });
 
 it('queues an attempt for every due delivery and nothing else', function (): void {

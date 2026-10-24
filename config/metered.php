@@ -232,6 +232,11 @@ return [
         // handed to a second worker while the first is still waiting on it.
         'lease_seconds' => (int) env('WEBHOOKS_LEASE_SECONDS', 60),
 
+        // How many of one endpoint's due deliveries a dispatch run queues. The
+        // run takes the projects in turns, so one project's backlog does not
+        // hold the others' behind it.
+        'dispatch_per_endpoint' => (int) env('WEBHOOKS_DISPATCH_PER_ENDPOINT', 50),
+
         // Plain http, for a receiver on a developer's machine or the demo's
         // own. Never outside local and demo: the URL check refuses it there.
         'allow_http' => in_array(env('APP_ENV'), ['local', 'demo'], true),

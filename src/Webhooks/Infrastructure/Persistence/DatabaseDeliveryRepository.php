@@ -72,12 +72,27 @@ final readonly class DatabaseDeliveryRepository implements DeliveryRepository
         return $row instanceof stdClass ? $this->toDelivery($row) : null;
     }
 
-    public function dueAt(DateTimeImmutable $now, int $limit): array
+    public function dueAt(DateTimeImmutable $now, int $limit, int $perEndpoint): array
     {
-        $rows = $this->db->connection()->table('webhook_deliveries')
+        $connection = $this->db->connection();
+        $ranked = $connection->table('webhook_deliveries')
+            ->select('*')
+            ->selectRaw('row_number() over (partition by endpoint_id order by next_attempt_at, id) as endpoint_rank')
             ->where('status', DeliveryStatus::Pending->value)
-            ->where('next_attempt_at', '<=', $now->format(self::INSTANT))
+            ->where('next_attempt_at', '<=', $now->format(self::INSTANT));
+
+        $shared = $connection->query()
+            ->fromSub($ranked, 'due')
+            ->select('*')
+            ->selectRaw('row_number() over (partition by project_id order by next_attempt_at, id) as project_rank')
+            ->where('endpoint_rank', '<=', $perEndpoint);
+
+        // Taken in turns: every project's oldest due delivery before any project's second.
+        $rows = $connection->query()
+            ->fromSub($shared, 'shared')
+            ->orderBy('project_rank')
             ->orderBy('next_attempt_at')
+            ->orderBy('id')
             ->limit($limit)
             ->get();
 
