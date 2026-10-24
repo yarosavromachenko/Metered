@@ -5,14 +5,19 @@ declare(strict_types=1);
 namespace Metered\Usage\Presentation\Console;
 
 use Illuminate\Console\Command;
+use Illuminate\Support\Sleep;
 use Metered\Shared\Infrastructure\Tracing\TelemetryFlush;
 use Metered\Usage\Infrastructure\Redis\ConsumeReport;
+use Metered\Usage\Infrastructure\Redis\DatabaseUnavailable;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
+use RedisException;
 use Throwable;
 
 /**
  * A daemon, not a queued job: batching, ack-after-commit and reclaiming rely
  * on the consumer group (ADR-0003). `SIGTERM` finishes the current batch.
+ * When PostgreSQL or Redis cannot be reached it waits between passes, doubling
+ * the wait up to a limit, until a pass succeeds.
  */
 final class ConsumeUsageCommand extends Command
 {
@@ -32,6 +37,11 @@ final class ConsumeUsageCommand extends Command
         $name = $this->consumerName();
         $limit = $this->batchLimit();
         $passes = 0;
+        $initialBackoff = max(1, $this->configInt('metered.usage.consumer.backoff_initial_milliseconds', 500));
+        $maxBackoff = max($initialBackoff, $this->configInt('metered.usage.consumer.backoff_max_milliseconds', 30_000));
+        $backoff = $initialBackoff;
+        $failed = false;
+        $unreachable = false;
 
         // The handler only sets a flag, checked between batches.
         $this->trap([SIGTERM, SIGINT], function (): void {
@@ -42,29 +52,37 @@ final class ConsumeUsageCommand extends Command
         $this->info(sprintf('usage:consume started as "%s".', $name));
 
         while (! $this->stopping) {
+            $passes++;
+
             try {
-                $report = $consumer->consumeOnce($name);
+                $this->report($consumer->consumeOnce($name));
+                $failed = false;
+                $unreachable = false;
+                $backoff = $initialBackoff;
             } catch (Throwable $failure) {
-                // Report and continue; the failed messages stay pending.
+                // The failed messages stay pending.
                 $this->error('Batch failed: ' . $failure->getMessage());
                 report($failure);
-
-                continue;
+                $failed = true;
+                // One tenant's failed write is retried at once; the others' events are waiting.
+                $unreachable = $failure instanceof DatabaseUnavailable || $failure instanceof RedisException;
             }
 
-            $this->report($report);
             $telemetry->flushIfDue();
-
-            $passes++;
 
             if ($this->option('once') === true || ($limit !== null && $passes >= $limit)) {
                 break;
+            }
+
+            if ($unreachable) {
+                Sleep::for($backoff)->milliseconds();
+                $backoff = min($backoff * 2, $maxBackoff);
             }
         }
 
         $this->info('usage:consume stopped.');
 
-        return self::SUCCESS;
+        return $failed ? self::FAILURE : self::SUCCESS;
     }
 
     private function report(ConsumeReport $report): void
@@ -95,6 +113,13 @@ final class ConsumeUsageCommand extends Command
         $host = gethostname();
 
         return ($host === false ? 'consumer' : $host) . '-' . getmypid();
+    }
+
+    private function configInt(string $key, int $default): int
+    {
+        $value = config($key);
+
+        return is_int($value) ? $value : $default;
     }
 
     private function batchLimit(): ?int

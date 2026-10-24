@@ -163,6 +163,11 @@ return [
             // stream. Retrying a poison message forever is how one bad payload
             // becomes an outage.
             'max_deliveries' => (int) env('USAGE_CONSUMER_MAX_DELIVERIES', 5),
+
+            // After a failed pass the consumer waits, doubling from the first
+            // value up to the second, until a pass succeeds.
+            'backoff_initial_milliseconds' => (int) env('USAGE_CONSUMER_BACKOFF_INITIAL_MS', 500),
+            'backoff_max_milliseconds' => (int) env('USAGE_CONSUMER_BACKOFF_MAX_MS', 30_000),
         ],
 
         // The deduplication layer the database cannot provide: it catches a
