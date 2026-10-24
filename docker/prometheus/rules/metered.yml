@@ -60,8 +60,14 @@ groups:
           summary: The usage Redis has used over 80% of its maxmemory.
           runbook: docs/runbook.md#the-usage-redis-is-running-out-of-memory
 
+      # The counter keeps rising once the stream is trimmed at its length. A
+      # series that appears already above zero (a consumer that started since)
+      # has no increase to show, and is caught by the middle term.
       - alert: UsageDeadLettersGrowing
-        expr: max(dlq_size) > max(dlq_size offset 15m)
+        expr: >-
+          sum(increase(usage_dead_letters_total[15m])) > 0
+          or sum(usage_dead_letters_total unless usage_dead_letters_total offset 15m) > 0
+          or max(dlq_size) > max(dlq_size offset 15m)
         labels:
           severity: warning
         annotations:

@@ -47,7 +47,7 @@ http://localhost:9093.
 | `IngestionLatencyHigh` | p99 of accepted requests above 150 ms, for 5 min | [Ingestion is slow](#ingestion-is-slow) |
 | `UsageBacklogHigh` | backlog above 250 000, half the backpressure threshold, for 2 min | [Ingestion is returning 503](#ingestion-is-returning-503) |
 | `UsageRedisMemoryHigh` | the usage Redis above 80% of its `maxmemory`, for 5 min | [The usage Redis is running out of memory](#the-usage-redis-is-running-out-of-memory) |
-| `UsageDeadLettersGrowing` | the dead-letter stream grew in the last 15 min | [Messages in the dead-letter stream](#messages-in-the-dead-letter-stream) |
+| `UsageDeadLettersGrowing` | messages were dead-lettered in the last 15 min (the counter, or the stream's growth) | [Messages in the dead-letter stream](#messages-in-the-dead-letter-stream) |
 | `OutboxLagging` | the oldest unpublished message is over 2 min old, for 2 min | [Outbox is falling behind](#outbox-is-falling-behind) |
 | `WebhookBreakerOpen` | an endpoint's breaker is open, for 1 min (one line per endpoint) | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
 | `WebhookSuccessRateLow` | under 90% of attempts delivered over 15 min, for 10 min | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
@@ -164,6 +164,20 @@ Nothing is lost by design, but verify it rather than believing it:
 2. `php artisan usage:reconcile --from="-2 hours"` compares aggregates against raw events.
 3. Expect zero drift. A non-zero result is a bug worth an issue, not a manual correction.
 
+## The consumer is waiting for the database
+
+The consumer's log shows `Batch failed: The database could not be reached: …`,
+and the backlog (`usage_stream_pending`) grows while ingestion keeps answering
+`202`. Nothing is lost: the consumer reads nothing while `select 1` fails, and
+gives back the delivery counts of a pass the outage interrupted, so no message
+goes to the dead-letter stream for waiting. It retries after 0.5 s, doubling
+up to 30 s.
+
+1. Bring PostgreSQL (or PgBouncer) back; [Health](#health) shows which one is down.
+2. The consumer resumes within 30 s on its own; no restart is needed.
+3. If the backlog reaches the backpressure threshold first, ingestion answers
+   `503` — see [Ingestion is returning 503](#ingestion-is-returning-503).
+
 ## Messages in the dead-letter stream
 
 ```bash
@@ -175,7 +189,7 @@ The reason decides what to do:
 
 | Reason | Meaning | What to do |
 |---|---|---|
-| `too_many_deliveries` | Writing it failed five times in a row | Find why in the consumer's log (`Batch failed: …`), fix that, then replay |
+| `too_many_deliveries` | Writing it failed five times in a row with the database reachable; passes during an outage do not count | Find why in the consumer's log (`Batch failed: …`), fix that, then replay |
 | `malformed` | The message could not be read as an event; the tenant sees a `malformed` rejection | Nothing to replay — the sender has to send it again, correctly. Replay refuses it |
 | `project_gone` | Its project was deleted (a demo reset or purge) before it was written | Nothing; there is nowhere for it to go. Replay refuses it |
 
@@ -186,6 +200,10 @@ replayed. It also keeps the time it was first received, and the acceptance
 window is judged against that: an event that waited weeks in the dead-letter
 stream is still accepted. If its period has been invoiced since, it is billed
 as a late line on the next invoice.
+
+The stream keeps about 100 000 entries (`USAGE_STREAM_DLQ_MAX_LENGTH`) and
+drops the oldest beyond that; `usage_dead_letters_total{reason}` counts every
+arrival, trimmed or not. Replay what matters before it is trimmed.
 
 The command exits non-zero when any id was refused or not found, so a script
 replaying a list notices the ones that did not go back. It checks the reason

@@ -49,6 +49,11 @@ final class UsageMetrics
         return new Gauge('usage.stream.pending', '{message}', 'Entries accepted and not yet written: the backpressure depth');
     }
 
+    public static function deadLettered(): Counter
+    {
+        return new Counter('usage.dead_letters', '{message}', 'Messages moved to the ingestion dead-letter stream, by reason');
+    }
+
     public static function deadLetters(): Gauge
     {
         return new Gauge('dlq.size', '{message}', 'Entries in the ingestion dead-letter stream');

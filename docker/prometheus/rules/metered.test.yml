@@ -159,6 +159,50 @@ tests:
         alertname: UsageDeadLettersGrowing
         exp_alerts: []
 
+  - name: dead letters that arrive while the stream is trimmed at its length
+    interval: 1m
+    input_series:
+      - series: 'dlq_size{instance="observer"}'
+        values: '100000x40'
+      - series: 'usage_dead_letters_total{reason="malformed", instance="consumer"}'
+        values: '0x10 300x30'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts: []
+      - eval_time: 15m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Usage messages were dead-lettered in the last 15 minutes.
+              runbook: docs/runbook.md#messages-in-the-dead-letter-stream
+      - eval_time: 35m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts: []
+
+  - name: dead letters from a consumer whose counter series starts above zero
+    interval: 1m
+    input_series:
+      - series: 'dlq_size{instance="observer"}'
+        values: '100000x40'
+      - series: 'usage_dead_letters_total{reason="too_many_deliveries", instance="consumer-2"}'
+        values: '_x10 300x30'
+    alert_rule_test:
+      - eval_time: 8m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: Usage messages were dead-lettered in the last 15 minutes.
+              runbook: docs/runbook.md#messages-in-the-dead-letter-stream
+      - eval_time: 35m
+        alertname: UsageDeadLettersGrowing
+        exp_alerts: []
+
   - name: an outbox the relay is not draining
     interval: 1m
     input_series:
