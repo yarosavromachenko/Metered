@@ -145,10 +145,6 @@ return [
             // being behind.
             'backpressure_threshold' => (int) env('USAGE_STREAM_BACKPRESSURE', 500_000),
             'retry_after_seconds' => (int) env('USAGE_STREAM_RETRY_AFTER', 5),
-
-            // Approximate trimming of the dead-letter stream; the oldest go first.
-            // usage_dead_letters_total counts what arrives, whatever is trimmed.
-            'dead_letter_max_length' => (int) env('USAGE_STREAM_DLQ_MAX_LENGTH', 100_000),
         ],
 
         'consumer' => [

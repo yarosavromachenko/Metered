@@ -202,9 +202,8 @@ window is judged against that: an event that waited weeks in the dead-letter
 stream is still accepted. If its period has been invoiced since, it is billed
 as a late line on the next invoice.
 
-The stream keeps about 100 000 entries (`USAGE_STREAM_DLQ_MAX_LENGTH`) and
-drops the oldest beyond that; `usage_dead_letters_total{reason}` counts every
-arrival, trimmed or not. Replay what matters before it is trimmed.
+The stream is not trimmed: what is set aside stays until it is replayed.
+`usage_dead_letters_total{reason}` counts every arrival.
 
 The command exits non-zero when any id was refused or not found, so a script
 replaying a list notices the ones that did not go back. It checks the reason

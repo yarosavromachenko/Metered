@@ -191,7 +191,6 @@ final class UsageServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.usage.consumer.block_milliseconds', 2000),
                 self::configInt($app, 'metered.usage.consumer.reclaim_idle_milliseconds', 60_000),
                 self::configInt($app, 'metered.usage.consumer.max_deliveries', 5),
-                self::configInt($app, 'metered.usage.stream.dead_letter_max_length', 100_000),
                 new DatabaseCheck($app->make(DatabaseManager::class), self::connection($app)),
                 $app->make(DatabaseOutage::class),
                 $app->make(Tracing::class),

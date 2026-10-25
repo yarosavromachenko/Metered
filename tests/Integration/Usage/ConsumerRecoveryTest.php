@@ -776,10 +776,8 @@ it('reads and claims nothing when the database does not answer before the pass',
         ->and(deadLettered())->toBe([]);
 });
 
-it('trims the dead-letter stream to about its configured length, and counts every arrival by reason', function (): void {
+it('keeps every dead letter, and counts each by reason', function (): void {
     $metrics = InMemoryMetrics::install();
-    config(['metered.usage.stream.dead_letter_max_length' => 10]);
-    app()->forgetInstance(StreamConsumer::class);
 
     foreach (range(1, 300) as $index) {
         usageRedis()->command('xadd', [UsageStream::key(), '*', ['nonsense' => (string) $index]]);
@@ -787,6 +785,6 @@ it('trims the dead-letter stream to about its configured length, and counts ever
 
     runConsumer();
 
-    expect(usageRedis()->command('xlen', [UsageStream::deadLetter()]))->toBeLessThan(300)
+    expect(usageRedis()->command('xlen', [UsageStream::deadLetter()]))->toBe(300)
         ->and($metrics->counted('usage.dead_letters', ['reason' => 'malformed']))->toBe(300);
 });

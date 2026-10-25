@@ -215,9 +215,11 @@ pass succeeds; it used to retry at once, which with Redis down meant a loop of
 errors. A pass that failed on one tenant's write is retried at once, as
 before, because the other tenants' events are waiting behind it.
 
-**The dead-letter stream is trimmed** at about 100 000 entries
-(`USAGE_STREAM_DLQ_MAX_LENGTH`), oldest first. Its length no longer shows how
-many messages were set aside, so `usage_dead_letters_total{reason}` counts
-them, and `UsageDeadLettersGrowing` fires on that counter as well as on the
-stream's growth.
+**Only an unreachable database is an outage.** A write that fails with
+PostgreSQL still answering `select 1` — a read-only primary after a failover,
+a statement timeout, a full disk — counts as a delivery as before, and enough
+of them dead-letter the batch. The dead-letter stream is not trimmed, so such
+messages wait there until they are replayed; `usage_dead_letters_total{reason}`
+counts what is set aside, and `UsageDeadLettersGrowing` fires on that counter
+as well as on the stream's growth.
 

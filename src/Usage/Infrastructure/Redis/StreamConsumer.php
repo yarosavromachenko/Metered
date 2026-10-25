@@ -63,7 +63,6 @@ final readonly class StreamConsumer
         private int $blockMilliseconds,
         private int $reclaimIdleMilliseconds,
         private int $maxDeliveries,
-        private int $deadLetterMaxLength,
         private ReadinessCheck $database,
         private DatabaseOutage $outage,
         private Tracing $tracing,
@@ -343,11 +342,10 @@ final readonly class StreamConsumer
         }
 
         $key = $this->deadLetterKey;
-        $maxLength = $this->deadLetterMaxLength;
         $at = $this->clock->now()->format(DATE_ATOM);
         $written = 0;
 
-        $this->connection->pipeline(static function (Redis $pipe) use ($ids, $byId, $key, $maxLength, $reason, $at, &$written): void {
+        $this->connection->pipeline(static function (Redis $pipe) use ($ids, $byId, $key, $reason, $at, &$written): void {
             foreach ($ids as $id) {
                 $delivery = $byId[$id] ?? null;
 
@@ -355,13 +353,13 @@ final readonly class StreamConsumer
                     continue;
                 }
 
-                // Original fields plus reason, delivery count and time; the oldest are trimmed.
+                // Original fields plus reason, delivery count and time.
                 $pipe->xadd($key, '*', [
                     ...$delivery->fields,
                     DeadLetters::REASON => $reason,
                     DeadLetters::DELIVERIES => (string) $delivery->deliveries,
                     DeadLetters::DEAD_LETTERED_AT => $at,
-                ], $maxLength, true);
+                ]);
                 $written++;
             }
         });

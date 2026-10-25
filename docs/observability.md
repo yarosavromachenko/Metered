@@ -66,7 +66,7 @@ metric goes out over OTLP; Prometheus scrapes the collector and nothing else.
 | `invoices_finalized_total`, `billing_close_duration_seconds` | Whether period close keeps up. |
 | `invoices_drafts_overdue` | Drafts older than the grace window. The close finalizes what it builds, so each one is a finalization that failed. |
 | `dlq_size` | Anything in a dead-letter queue is work someone must decide about. |
-| `usage_dead_letters_total` | By reason. What was set aside, including what the trimmed dead-letter stream no longer holds. |
+| `usage_dead_letters_total` | By reason. What was set aside since the consumer started. |
 
 Ages beat counts for queue alarms: a backlog of 10,000 rows draining in two
 seconds is healthy, while three rows stuck for an hour is an incident.
