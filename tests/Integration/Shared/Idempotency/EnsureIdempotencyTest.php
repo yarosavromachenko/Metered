@@ -70,6 +70,16 @@ it('refuses a key longer than the store keeps, and takes one of exactly that len
     expect($log->entries)->toBe(['executed']);
 });
 
+it('refuses a key that is not UTF-8', function (): void {
+    $log = idempotentRoutes();
+
+    postJson('/api/v1/test-subscriptions', ['name' => 'acme'], [EnsureIdempotency::HEADER => "k\xFF\xFE"])
+        ->assertStatus(400)
+        ->assertJsonPath('type', 'https://metered.dev/problems/idempotency-key-malformed');
+
+    expect($log->entries)->toBe([]);
+});
+
 it('executes the first request and remembers what it answered', function (): void {
     $log = idempotentRoutes();
 

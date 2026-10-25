@@ -25,6 +25,7 @@ use Throwable;
  * | Same key, different request        | 422                         |
  * | No key                             | 400                         |
  * | Key longer than 255 characters     | 400                         |
+ * | Key that is not UTF-8              | 400                         |
  *
  * `Idempotent-Replayed` is Stripe's header, not part of the draft.
  */
@@ -57,6 +58,16 @@ final readonly class EnsureIdempotency
         }
 
         $key = trim($key);
+
+        if (! mb_check_encoding($key, 'UTF-8')) {
+            return Problem::response(
+                'idempotency-key-malformed',
+                'Idempotency key malformed',
+                400,
+                sprintf('The %s header has to be UTF-8 text; a UUID is enough.', self::HEADER),
+                Problem::instanceFor($request),
+            );
+        }
 
         if (mb_strlen($key) > self::MAX_KEY_LENGTH) {
             return Problem::response(
