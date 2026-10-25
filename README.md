@@ -219,6 +219,16 @@ Thresholds are never lowered to make a build pass — see
   its message can be delivered again, and nothing tracks that — ADR-0005.
 - No password reset. There is no mail infrastructure behind one, and the demo
   sign-up says so on the form.
+- Amounts are stored as 64-bit integers of minor units. A period whose total
+  would pass about 9.2 × 10^18 of them cannot be invoiced, and the
+  subscription's later periods wait behind it (assumptions, 55).
+- Authentication is not rate limited. The per-key limit applies once a key is
+  known; a well-formed token with an unknown prefix costs one indexed lookup in
+  PostgreSQL, and misses are not cached (assumptions, 56).
+- A webhook attempt's DNS lookup is not bounded by the delivery's lease. Only a
+  resolver whose three nameservers all time out outlasts the 60 seconds, and
+  then a second worker may send the same delivery — at least once, as
+  receivers already expect (assumptions, 57).
 
 ## Documentation
 
