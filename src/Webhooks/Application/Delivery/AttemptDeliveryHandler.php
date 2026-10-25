@@ -41,6 +41,7 @@ final readonly class AttemptDeliveryHandler
         private int $breakerThreshold,
         private int $breakerCooldownSeconds,
         private int $leaseSeconds,
+        private int $breakerSlowMilliseconds,
         private Metrics $metrics,
     ) {}
 
@@ -72,11 +73,11 @@ final readonly class AttemptDeliveryHandler
     }
 
     /**
-     * Labelled by endpoint; the number of endpoints is small.
+     * Labelled by project and endpoint; ten endpoints per project bound the series.
      */
     private function measure(Endpoint $endpoint, AttemptResult $result): void
     {
-        $endpointLabel = ['endpoint' => $endpoint->id->value];
+        $endpointLabel = ['project' => $endpoint->tenant->projectId->value, 'endpoint' => $endpoint->id->value];
         $outcome = $result->refusedDestination ? 'refused' : match ($result->verdict()) {
             Verdict::Delivered => 'delivered',
             Verdict::Retry => 'retry',
@@ -142,8 +143,8 @@ final readonly class AttemptDeliveryHandler
         $this->deliveries->save($attempted);
         $this->attempts->record($attempted, $attempted->attempts, $sentAt, $result);
 
-        // Any HTTP answer means the receiver is up; only unreachability trips the breaker.
-        $down = $result->refusedDestination || $result->verdict() === Verdict::Retry;
+        // A slow answer counts against the breaker even when it is delivered.
+        $down = $result->saysReceiverIsStruggling($this->breakerSlowMilliseconds);
 
         $this->endpoints->save($endpoint->withBreaker(
             $down ? $endpoint->breaker->failed($now, $this->breakerThreshold) : $endpoint->breaker->succeeded(),

@@ -189,3 +189,37 @@ now stored only once the write has committed. One window remains: a consumer
 that dies after storing them and before acknowledging stores them again on
 the redelivery, because a rejection has no natural key to conflict on. A
 duplicated rejection overstates what was refused and never what is billed.
+
+## Amended in 1.1.3: an outage is not a poison message
+
+A review of 1.1.1 found that a database outage of about five minutes moved
+every pending message to the dead-letter stream. The delivery count is the
+only thing that marks a message as poison, and each reclaim during the outage
+added one, so healthy messages reached the limit by waiting.
+
+**A pass that cannot reach PostgreSQL does not count.** The consumer runs
+`select 1` on its connection before it reclaims or reads anything; when that
+fails, the pass reads nothing. When the database goes away mid-pass — SQLSTATE
+class 08 or 53, 57P01–57P03, or what Laravel recognises as a lost connection,
+which covers PgBouncer's own errors — the consumer stops the pass at that
+tenant and checks the database again. If it still does not answer, the
+delivery count of everything the pass had read goes back to what it was
+before the pass (`XCLAIM … RETRYCOUNT`). If it answers, the connection was
+lost but the database was not, and the delivery counts: an event that breaks
+the connection it is written on is still set aside after five. Only failures
+with the database reachable bring a message closer to the dead-letter stream.
+
+**The daemon backs off.** When PostgreSQL or Redis cannot be reached,
+`usage:consume` waits 0.5 s before the next pass, doubling up to 30 s, until a
+pass succeeds; it used to retry at once, which with Redis down meant a loop of
+errors. A pass that failed on one tenant's write is retried at once, as
+before, because the other tenants' events are waiting behind it.
+
+**Only an unreachable database is an outage.** A write that fails with
+PostgreSQL still answering `select 1` — a read-only primary after a failover,
+a statement timeout, a full disk — counts as a delivery as before, and enough
+of them dead-letter the batch. The dead-letter stream is not trimmed, so such
+messages wait there until they are replayed; `usage_dead_letters_total{reason}`
+counts what is set aside, and `UsageDeadLettersGrowing` fires on that counter
+as well as on the stream's growth.
+

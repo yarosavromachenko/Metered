@@ -5,6 +5,62 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
+## [1.1.3] - 2026-10-25
+
+Fixes from a review of 1.1.1. One migration; no change to the webhook
+payloads. A few requests that used to answer `500` or `202` are now refused,
+and a project is limited to ten webhook endpoints.
+
+### Fixed
+- A webhook receiver that answered with bytes that are not valid UTF-8 made
+  recording the attempt fail, and the same delivery was sent again every
+  minute without end. The answer is stored with the invalid bytes replaced.
+- An event whose properties, meter code or customer reference held a control
+  character such as `\u0000` was accepted with `202` and could never be
+  written; it ended in the dead-letter stream with no rejection recorded. It is
+  now answered `422`.
+- An `Idempotency-Key` longer than 255 characters, or not UTF-8, was answered
+  `500`; it is now `400` (`idempotency-key-too-long`,
+  `idempotency-key-malformed`).
+- A PostgreSQL outage of about five minutes moved every pending usage event to
+  the dead-letter stream. While the database does not answer, the consumer
+  reads nothing, and a pass the database dropped out of does not count as a
+  delivery. `usage:consume` waits between passes, 0.5 s doubling to 30 s,
+  while PostgreSQL or Redis cannot be reached, and exits with a failure when
+  its last pass failed.
+- One project could hold every other project's webhooks back: by registering
+  many endpoints, by a backlog older than everyone else's, or by a receiver
+  that answered slowly.
+
+### Changed
+- A project has at most ten webhook endpoints, disabled ones included; an
+  eleventh is answered `422 rule-violated`. Endpoints a project already has
+  above the limit stay.
+- `webhooks:dispatch` takes the projects in turns and at most 50 due
+  deliveries of one endpoint per run (`WEBHOOKS_DISPATCH_PER_ENDPOINT`,
+  `--per-endpoint`). One endpoint's backlog drains at up to 300 a minute.
+- An answer that takes five seconds or longer counts against the endpoint's
+  circuit breaker, whatever its status; the delivery itself still succeeds
+  (`WEBHOOKS_BREAKER_SLOW_MS`, 0 turns it off).
+- Webhook metrics carry a `project` label next to `endpoint`.
+- The docs say what a quantity sent as a JSON number keeps: it is read as a
+  float, to 14 significant digits. A string stays exact.
+
+### Added
+- `usage_dead_letters_total{reason}`, and `UsageDeadLettersGrowing` fires on
+  it as well as on the dead-letter stream's growth.
+- `invoices_drafts_overdue` and the alert `InvoiceDraftStuck`: a draft older
+  than the grace window is a finalization that failed.
+- The README and the assumptions list the limits that stay: amounts beyond
+  64-bit minor units, no rate limit before authentication, and DNS lookups not
+  bounded by a webhook delivery's lease.
+
+### Upgrading from 1.1.2
+Run `php artisan migrate`: it adds the trigger that limits webhook endpoints.
+New settings, all optional: `USAGE_CONSUMER_BACKOFF_INITIAL_MS` (500),
+`USAGE_CONSUMER_BACKOFF_MAX_MS` (30000), `WEBHOOKS_DISPATCH_PER_ENDPOINT` (50)
+and `WEBHOOKS_BREAKER_SLOW_MS` (5000).
+
 ## [1.1.2] - 2026-10-22
 
 No change to the API, the webhook payloads or the schema; no upgrade steps

@@ -21,14 +21,17 @@ final readonly class BreakerGauges implements GaugeSource
     {
         $readings = [];
 
-        foreach ($this->db->connection()->table('webhook_endpoints')->where('enabled', true)->get(['id', 'breaker_state']) as $row) {
+        foreach ($this->db->connection()->table('webhook_endpoints')->where('enabled', true)->get(['id', 'project_id', 'breaker_state']) as $row) {
             $values = get_object_vars($row);
             $open = RowReader::string($values['breaker_state'] ?? null, 'breaker_state') !== 'closed';
 
             $readings[] = new GaugeReading(
                 WebhookMetrics::breakerOpen(),
                 $open ? 1 : 0,
-                ['endpoint' => RowReader::string($values['id'] ?? null, 'id')],
+                [
+                    'project' => RowReader::string($values['project_id'] ?? null, 'project_id'),
+                    'endpoint' => RowReader::string($values['id'] ?? null, 'id'),
+                ],
             );
         }
 

@@ -19,13 +19,16 @@ use Metered\Usage\Application\Ingestion\IncomingEvent;
 use Metered\Usage\Application\Ingestion\WriteOutcome;
 use Metered\Usage\Infrastructure\Persistence\DatabaseEventWriter;
 use Metered\Usage\Infrastructure\Persistence\UsageReconciler;
+use Metered\Usage\Infrastructure\Redis\DatabaseUnavailable;
 use Metered\Usage\Infrastructure\Redis\StreamConsumer;
 use Metered\Usage\Infrastructure\Redis\StreamEnvelope;
 
 use function Pest\Laravel\postJson;
 
 use Psr\Clock\ClockInterface;
+use Tests\Support\CallLog;
 use Tests\Support\CatalogFactory;
+use Tests\Support\InMemoryMetrics;
 use Tests\Support\TenantFactory;
 use Tests\Support\UsageStream;
 
@@ -579,4 +582,209 @@ it('writes and acknowledges the other tenants of a read when one tenant’s writ
     expect(DB::table('usage_events')->where('project_id', $healthy->projectId->value)->count())->toBe(1)
         ->and(DB::table('usage_events')->where('project_id', $failing->projectId->value)->count())->toBe(0)
         ->and(is_array($pending) ? $pending[0] : -1)->toBe(1);
+});
+
+function unreachableDatabase(): QueryException
+{
+    $failure = new PDOException('SQLSTATE[08006]: could not send data to server');
+    new ReflectionProperty(PDOException::class, 'code')->setValue($failure, '08006');
+
+    return new QueryException(testConnection(), 'insert into usage_events values (?)', [], $failure);
+}
+
+/**
+ * The consumer's connection is a copy of the test database's; the writer
+ * takes it down (port 1) before it fails, so the consumer's own check after
+ * the failure finds the database gone too. With $stayDown false the writer
+ * fails the same way while the database keeps answering.
+ */
+function bindUnreachableWriter(CallLog $writes, bool $stayDown = true): void
+{
+    $connection = config('database.connections.' . testConnection());
+    config([
+        'database.connections.flaky' => is_array($connection) ? $connection : [],
+        'metered.usage.connection' => 'flaky',
+    ]);
+    DB::purge('flaky');
+
+    app()->bind(EventWriter::class, static fn(): EventWriter => new readonly class ($writes, $stayDown) implements EventWriter {
+        public function __construct(private CallLog $writes, private bool $stayDown) {}
+
+        public function write(TenantContext $tenant, array $events): WriteOutcome
+        {
+            $this->writes->record($tenant->projectId->value);
+
+            if ($this->stayDown) {
+                config(['database.connections.flaky.port' => 1]);
+                DB::purge('flaky');
+            }
+
+            throw unreachableDatabase();
+        }
+    });
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+}
+
+function bringFlakyDatabaseBack(): void
+{
+    $connection = config('database.connections.' . testConnection());
+    config(['database.connections.flaky' => is_array($connection) ? $connection : []]);
+    DB::purge('flaky');
+}
+
+function pendingDeliveries(): int
+{
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group(), '-', '+', 100]);
+    $deliveries = 0;
+
+    foreach (is_array($pending) ? $pending : [] as $entry) {
+        $deliveries = max($deliveries, is_array($entry) && is_numeric($entry[3] ?? null) ? (int) $entry[3] : 0);
+    }
+
+    return $deliveries;
+}
+
+it('does not dead-letter healthy messages while the database cannot be reached', function (): void {
+    ['tenant' => $tenant, 'headers' => $headers] = recoveryTenant();
+    post($headers);
+
+    $real = app(EventWriter::class);
+    config([
+        'metered.usage.consumer.reclaim_idle_milliseconds' => 0,
+        'metered.usage.consumer.max_deliveries' => 1,
+        'metered.usage.consumer.block_milliseconds' => 1,
+    ]);
+    bindUnreachableWriter(new CallLog());
+
+    foreach (range(1, 5) as $pass) {
+        bringFlakyDatabaseBack();
+
+        expect(static function (): void {
+            runConsumer();
+        })->toThrow(DatabaseUnavailable::class);
+    }
+
+    bringFlakyDatabaseBack();
+
+    // Every pass gave its delivery back.
+    expect(deadLettered())->toBe([])
+        ->and(pendingDeliveries())->toBe(0);
+
+    app()->bind(EventWriter::class, static fn(): EventWriter => $real);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    runConsumer();
+
+    expect(DB::table('usage_events')->where('project_id', $tenant->projectId->value)->count())->toBe(1)
+        ->and(deadLettered())->toBe([]);
+});
+
+it('counts the delivery when the database answers again right after the failure', function (): void {
+    ['headers' => $headers] = recoveryTenant();
+    post($headers);
+
+    config([
+        'metered.usage.consumer.reclaim_idle_milliseconds' => 0,
+        'metered.usage.consumer.max_deliveries' => 1,
+        'metered.usage.consumer.block_milliseconds' => 1,
+    ]);
+    // An event that breaks the connection it is written on would otherwise
+    // never be set aside.
+    bindUnreachableWriter(new CallLog(), stayDown: false);
+
+    foreach (range(1, 2) as $pass) {
+        expect(static function (): void {
+            runConsumer();
+        })->toThrow(QueryException::class);
+    }
+
+    runConsumer();
+
+    expect(deadLettered())->toHaveCount(1)
+        ->and(deadLettered()[0]['_reason'])->toBe('too_many_deliveries');
+});
+
+it('still counts a delivery whose write failed for a reason other than an outage', function (): void {
+    ['headers' => $headers] = recoveryTenant();
+    post($headers);
+
+    config([
+        'metered.usage.consumer.reclaim_idle_milliseconds' => 0,
+        'metered.usage.consumer.max_deliveries' => 1,
+        'metered.usage.consumer.block_milliseconds' => 1,
+    ]);
+    app()->bind(EventWriter::class, static fn(): EventWriter => new class implements EventWriter {
+        public function write(TenantContext $tenant, array $events): WriteOutcome
+        {
+            throw new RuntimeException('This event cannot be written.');
+        }
+    });
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    foreach (range(1, 2) as $pass) {
+        try {
+            runConsumer();
+        } catch (RuntimeException) {
+            // Pending, delivered once more.
+        }
+    }
+
+    runConsumer();
+
+    expect(deadLettered())->toHaveCount(1)
+        ->and(deadLettered()[0]['_reason'])->toBe('too_many_deliveries');
+});
+
+it('stops the pass at the first tenant the database cannot be reached for', function (): void {
+    ['headers' => $first] = recoveryTenantCalled('first');
+    ['headers' => $second] = recoveryTenantCalled('second');
+    post($first);
+    post($second);
+
+    $writes = new CallLog();
+    bindUnreachableWriter($writes);
+
+    expect(static function (): void {
+        runConsumer();
+    })->toThrow(DatabaseUnavailable::class);
+
+    expect($writes->entries)->toHaveCount(1);
+});
+
+it('reads and claims nothing when the database does not answer before the pass', function (): void {
+    ['headers' => $headers] = recoveryTenant();
+    post($headers);
+
+    $connection = config('database.connections.' . testConnection());
+    config([
+        'database.connections.unreachable' => [...(is_array($connection) ? $connection : []), 'host' => '127.0.0.1', 'port' => 1],
+        'metered.usage.connection' => 'unreachable',
+    ]);
+    app()->forgetInstance(BatchProcessor::class);
+    app()->forgetInstance(StreamConsumer::class);
+
+    expect(static function (): void {
+        runConsumer();
+    })->toThrow(DatabaseUnavailable::class);
+
+    $pending = usageRedis()->command('xpending', [UsageStream::key(), UsageStream::group()]);
+
+    expect(is_array($pending) ? $pending[0] : -1)->toBe(0)
+        ->and(deadLettered())->toBe([]);
+});
+
+it('keeps every dead letter, and counts each by reason', function (): void {
+    $metrics = InMemoryMetrics::install();
+
+    foreach (range(1, 300) as $index) {
+        usageRedis()->command('xadd', [UsageStream::key(), '*', ['nonsense' => (string) $index]]);
+    }
+
+    runConsumer();
+
+    expect(usageRedis()->command('xlen', [UsageStream::deadLetter()]))->toBe(300)
+        ->and($metrics->counted('usage.dead_letters', ['reason' => 'malformed']))->toBe(300);
 });

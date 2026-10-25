@@ -29,6 +29,14 @@ final class InvalidProperties extends DomainException
 
     public static function valueTooLong(string $key): self
     {
-        return new self(sprintf('The property "%s" is too long: at most 256 characters.', $key));
+        return new self(sprintf('The property "%s" is too long: at most 256 bytes.', $key));
+    }
+
+    public static function controlCharacter(string $key): self
+    {
+        return new self(sprintf(
+            'The property "%s" contains a control character; names and values are plain text.',
+            addcslashes($key, "\0..\37\177"),
+        ));
     }
 }

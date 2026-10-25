@@ -98,7 +98,10 @@ flaky, slow, down (its breaker opens) and gone.
   late lines.
 - **No additional caps on demo tenants.** They are bounded by the per-key
   rate limit every tenant has and by the idle purge; nothing a visitor can do
-  in a demo tenant reaches another tenant.
+  in a demo tenant reaches another tenant. Until 1.1.3 that did not hold for
+  webhook workers; the limits added then — ten endpoints per project, a
+  dispatch share per endpoint, slow answers against the breaker — apply to
+  every tenant alike ([ADR-0011](0011-webhook-delivery.md#amended-in-113-one-project-cannot-starve-the-others)).
 
 ## Consequences
 

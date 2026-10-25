@@ -86,12 +86,14 @@ must not spend everybody's budget.
 `Idempotency-Key: <uuid>`. Replaying the same key with the same body returns the
 stored response with `Idempotent-Replayed: true`; the same key with a different
 body is `422`; a key whose first request is still running is `409`. A key is
-remembered for 24 hours; the same key after that is a new request. Usage
+remembered for 24 hours; the same key after that is a new request. A missing key,
+one longer than 255 characters or one that is not UTF-8 is `400`. Usage
 ingestion does not use this header — each event carries its own `event_id`.
 
 **All timestamps are RFC 3339 in UTC.** Money is `{"amount": 1999, "currency": "EUR"}`
-in minor units. Quantities are decimal strings, never JSON numbers, because a
-JSON number is a float in most clients.
+in minor units. Quantities are written as decimal strings, because a JSON
+number is a float in most clients and on the server; a quantity sent as a JSON
+number is accepted but keeps only 14 significant digits.
 
 ## Surface
 
@@ -148,7 +150,8 @@ POST /api/v1/webhook-endpoints
 ```
 
 `signing_secret` appears in this answer and in the answer to `rotate-secret`,
-and nowhere else, ever. Store it then. `PATCH` changes only the fields it names
+and nowhere else, ever. Store it then. A project has at most ten endpoints,
+disabled ones included; registering an eleventh is a `422 rule-violated`. `PATCH` changes only the fields it names
 (`url`, `description`, `events`, `enabled`). `DELETE` removes the endpoint and
 its delivery log; `"enabled": false` keeps both, and holds its deliveries until
 it is enabled again.
@@ -243,11 +246,11 @@ The key needs the `usage:write` scope.
 | Field | Rule |
 |---|---|
 | `event_id` | Required, up to 128 characters. The client's own identifier for this event, and the deduplication key |
-| `meter_code` | Required, up to 64 characters. The code the meter was defined with; matched case-insensitively |
-| `customer_ref` | Required, up to 128 characters. The reference the customer was registered with |
-| `quantity` | Required, a non-negative decimal with at most six decimal places, less than `100000000000000` (10^14, what one stored event holds). A string is preferred (`"2.5"`); a JSON number is accepted and converted before any arithmetic |
+| `meter_code` | Required, up to 64 characters, no control characters. The code the meter was defined with; matched case-insensitively |
+| `customer_ref` | Required, up to 128 characters, no control characters. The reference the customer was registered with |
+| `quantity` | Required, a non-negative decimal with at most six decimal places, less than `100000000000000` (10^14, what one stored event holds). Send it as a string (`"2.5"`) to keep it exact; a JSON number is accepted but read as a float, and keeps only 14 significant digits (`1234567890.123456` arrives as `1234567890.1235`) |
 | `occurred_at` | Required, RFC 3339. Any offset is accepted and converted to UTC |
-| `properties` | Optional object, stored with the event |
+| `properties` | Optional object, stored with the event: at most 32 named scalar values, each string up to 256 bytes, with no control characters in names or values |
 
 `202` means the batch is durably in the stream, not that it is in PostgreSQL.
 That distinction is the central trade-off of the ingestion design and is spelled

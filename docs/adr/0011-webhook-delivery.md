@@ -139,3 +139,36 @@ application does not boot. A tunnel to a public URL was rejected because
 `make demo` has to work offline, and ranges of private addresses because
 `172.16.0.0/12` is the whole compose network, database included.
 
+## Amended in 1.1.3: one project cannot starve the others
+
+A review of 1.1.1 found that webhook workers were shared without limits. A
+project could register any number of endpoints, `webhooks:dispatch` queued the
+500 oldest due deliveries of all projects, and an endpoint that answered `2xx`
+after nine seconds kept its breaker closed while holding a worker as long as a
+timeout does. One project's backlog or slow receiver delayed every other
+project's webhooks.
+
+**At most ten endpoints per project**, disabled ones included. The limit is a
+trigger on `webhook_endpoints` (`AFTER INSERT`, under an advisory lock per
+project), so two registrations racing for the last place admit one, whatever
+path they take. It is `AFTER INSERT` because saving an endpoint is an upsert,
+and a `BEFORE INSERT` trigger would also fire for the breaker updates of an
+endpoint that exists. The eleventh is answered `422 rule-violated`. Endpoints a
+project already had above the limit stay.
+
+**A dispatch run takes the projects in turns**: every project's oldest due
+delivery, then every project's next, until the run's 500 are taken. It takes at
+most 50 due deliveries of one endpoint (`WEBHOOKS_DISPATCH_PER_ENDPOINT`). A
+backlog of thousands drains every ten seconds while other projects' due
+deliveries go in the same run, ahead of most of it; a job already queued is not
+queued twice, so the share also bounds how much of the queue one endpoint
+holds.
+
+**An answer that takes five seconds or longer counts against the breaker**
+(`WEBHOOKS_BREAKER_SLOW_MS`, 0 turns it off), whatever its status. The delivery
+is still `succeeded`; only the breaker reacts. Five slow answers in a row open
+it, and the endpoint gets one probe per cooldown until it answers faster.
+
+**Webhook metrics carry `project` as well as `endpoint`.** It adds no series —
+an endpoint belongs to one project — and `sum by (project)` shows which project
+is using the workers. The cap bounds the endpoint label per project.

@@ -60,8 +60,14 @@ groups:
           summary: The usage Redis has used over 80% of its maxmemory.
           runbook: docs/runbook.md#the-usage-redis-is-running-out-of-memory
 
+      # The counter, by reason; a series that appears already above zero (a
+      # consumer that started since) has no increase to show, and is caught by
+      # the middle term. The stream's growth covers a consumer not reporting.
       - alert: UsageDeadLettersGrowing
-        expr: max(dlq_size) > max(dlq_size offset 15m)
+        expr: >-
+          sum(increase(usage_dead_letters_total[15m])) > 0
+          or sum(usage_dead_letters_total unless usage_dead_letters_total offset 15m) > 0
+          or max(dlq_size) > max(dlq_size offset 15m)
         labels:
           severity: warning
         annotations:
@@ -98,6 +104,17 @@ groups:
         annotations:
           summary: Fewer than 90% of webhook attempts are delivered.
           runbook: docs/runbook.md#a-webhook-endpoint-is-failing
+
+  - name: billing
+    rules:
+      - alert: InvoiceDraftStuck
+        expr: max(invoices_drafts_overdue) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: An invoice has been a draft for longer than the grace window; its finalization failed.
+          runbook: docs/runbook.md#an-invoice-is-stuck-as-a-draft
 
   - name: telemetry
     rules:

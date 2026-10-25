@@ -99,6 +99,7 @@ final class WebhooksServiceProvider extends ServiceProvider
             self::configInt($app, 'metered.webhooks.breaker_threshold', 5),
             self::configInt($app, 'metered.webhooks.breaker_cooldown_seconds', 300),
             self::configInt($app, 'metered.webhooks.lease_seconds', 60),
+            self::configInt($app, 'metered.webhooks.breaker_slow_milliseconds', 5000),
             $app->make(Metrics::class),
         ));
 

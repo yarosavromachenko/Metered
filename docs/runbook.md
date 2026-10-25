@@ -47,10 +47,11 @@ http://localhost:9093.
 | `IngestionLatencyHigh` | p99 of accepted requests above 150 ms, for 5 min | [Ingestion is slow](#ingestion-is-slow) |
 | `UsageBacklogHigh` | backlog above 250 000, half the backpressure threshold, for 2 min | [Ingestion is returning 503](#ingestion-is-returning-503) |
 | `UsageRedisMemoryHigh` | the usage Redis above 80% of its `maxmemory`, for 5 min | [The usage Redis is running out of memory](#the-usage-redis-is-running-out-of-memory) |
-| `UsageDeadLettersGrowing` | the dead-letter stream grew in the last 15 min | [Messages in the dead-letter stream](#messages-in-the-dead-letter-stream) |
+| `UsageDeadLettersGrowing` | messages were dead-lettered in the last 15 min (the counter, or the stream's growth) | [Messages in the dead-letter stream](#messages-in-the-dead-letter-stream) |
 | `OutboxLagging` | the oldest unpublished message is over 2 min old, for 2 min | [Outbox is falling behind](#outbox-is-falling-behind) |
 | `WebhookBreakerOpen` | an endpoint's breaker is open, for 1 min (one line per endpoint) | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
 | `WebhookSuccessRateLow` | under 90% of attempts delivered over 15 min, for 10 min | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
+| `InvoiceDraftStuck` | a draft older than the grace window, for 15 min | [An invoice is stuck as a draft](#an-invoice-is-stuck-as-a-draft) |
 | `TelemetryCollectorDown` | Prometheus cannot scrape the collector, for 1 min | [Telemetry is missing](#telemetry-is-missing) |
 | `GaugesMissing` | no gauge reported for 2 min | [Telemetry is missing](#telemetry-is-missing) |
 
@@ -164,6 +165,20 @@ Nothing is lost by design, but verify it rather than believing it:
 2. `php artisan usage:reconcile --from="-2 hours"` compares aggregates against raw events.
 3. Expect zero drift. A non-zero result is a bug worth an issue, not a manual correction.
 
+## The consumer is waiting for the database
+
+The consumer's log shows `Batch failed: The database could not be reached: …`,
+and the backlog (`usage_stream_pending`) grows while ingestion keeps answering
+`202`. Nothing is lost: the consumer reads nothing while `select 1` fails, and
+gives back the delivery counts of a pass the outage interrupted, so no message
+goes to the dead-letter stream for waiting. It retries after 0.5 s, doubling
+up to 30 s.
+
+1. Bring PostgreSQL (or PgBouncer) back; [Health](#health) shows which one is down.
+2. The consumer resumes within 30 s on its own; no restart is needed.
+3. If the backlog reaches the backpressure threshold first, ingestion answers
+   `503` — see [Ingestion is returning 503](#ingestion-is-returning-503).
+
 ## Messages in the dead-letter stream
 
 ```bash
@@ -175,7 +190,7 @@ The reason decides what to do:
 
 | Reason | Meaning | What to do |
 |---|---|---|
-| `too_many_deliveries` | Writing it failed five times in a row | Find why in the consumer's log (`Batch failed: …`), fix that, then replay |
+| `too_many_deliveries` | Writing it failed five times in a row with the database reachable; passes during an outage do not count | Find why in the consumer's log (`Batch failed: …`), fix that, then replay |
 | `malformed` | The message could not be read as an event; the tenant sees a `malformed` rejection | Nothing to replay — the sender has to send it again, correctly. Replay refuses it |
 | `project_gone` | Its project was deleted (a demo reset or purge) before it was written | Nothing; there is nowhere for it to go. Replay refuses it |
 
@@ -186,6 +201,9 @@ replayed. It also keeps the time it was first received, and the acceptance
 window is judged against that: an event that waited weeks in the dead-letter
 stream is still accepted. If its period has been invoiced since, it is billed
 as a late line on the next invoice.
+
+The stream is not trimmed: what is set aside stays until it is replayed.
+`usage_dead_letters_total{reason}` counts every arrival.
 
 The command exits non-zero when any id was refused or not found, so a script
 replaying a list notices the ones that did not go back. It checks the reason
@@ -221,8 +239,10 @@ A period is invoiced one grace window (an hour) after it ends, by
 ## An invoice is stuck as a draft
 
 The close finalizes what it builds. A draft left behind means the finalization
-failed after the draft was committed. Open it in the panel and finalize or
-discard it. Never edit an invoice or a ledger row by hand: the schema refuses,
+failed after the draft was committed; `invoices_drafts_overdue` counts drafts
+older than the grace window, and `InvoiceDraftStuck` fires on it. Find why in
+the `billing` queue's failed jobs in Horizon, then open the draft in the panel
+and finalize or discard it. Never edit an invoice or a ledger row by hand: the schema refuses,
 and a correction is a credit note.
 
 ## A webhook endpoint is failing
@@ -243,6 +263,14 @@ and a correction is a credit note.
 6. Nothing is being attempted at all? `webhooks:dispatch` runs every ten seconds
    from the `scheduler` service, and the `webhooks` queue runs on Horizon —
    check both are up, and restart Horizon after a deploy.
+7. Every project's deliveries slow? Find the project using the workers:
+   `sum by (project) (rate(webhook_deliveries_total[5m]))` and
+   `sum by (project) (rate(webhook_delivery_duration_seconds_sum[5m]))`. An
+   endpoint answering in five seconds or more opens its breaker after five
+   such answers; a backlog drains 50 deliveries per endpoint per dispatch run,
+   and other projects' deliveries are taken first in each run.
+   Neither needs action unless the receiver's owner asks why — the answer is
+   [Sharing the workers](webhooks.md#sharing-the-workers).
 
 ## Rotating a webhook secret
 

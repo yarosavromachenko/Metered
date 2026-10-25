@@ -159,6 +159,11 @@ return [
             // stream. Retrying a poison message forever is how one bad payload
             // becomes an outage.
             'max_deliveries' => (int) env('USAGE_CONSUMER_MAX_DELIVERIES', 5),
+
+            // After a failed pass the consumer waits, doubling from the first
+            // value up to the second, until a pass succeeds.
+            'backoff_initial_milliseconds' => (int) env('USAGE_CONSUMER_BACKOFF_INITIAL_MS', 500),
+            'backoff_max_milliseconds' => (int) env('USAGE_CONSUMER_BACKOFF_MAX_MS', 30_000),
         ],
 
         // The deduplication layer the database cannot provide: it catches a
@@ -217,11 +222,20 @@ return [
         'queue' => env('WEBHOOKS_QUEUE', 'webhooks'),
         'breaker_threshold' => (int) env('WEBHOOKS_BREAKER_THRESHOLD', 5),
         'breaker_cooldown_seconds' => (int) env('WEBHOOKS_BREAKER_COOLDOWN_SECONDS', 300),
+
+        // An answer this slow counts against the breaker even when it is a
+        // 2xx: it holds a worker as long as a timeout does. 0 turns it off.
+        'breaker_slow_milliseconds' => (int) env('WEBHOOKS_BREAKER_SLOW_MS', 5000),
         'rotation_grace_seconds' => (int) env('WEBHOOKS_ROTATION_GRACE_SECONDS', 24 * 60 * 60),
 
         // Longer than an attempt can take (10s total), so a delivery is not
         // handed to a second worker while the first is still waiting on it.
         'lease_seconds' => (int) env('WEBHOOKS_LEASE_SECONDS', 60),
+
+        // How many of one endpoint's due deliveries a dispatch run queues. The
+        // run takes the projects in turns, so one project's backlog does not
+        // hold the others' behind it.
+        'dispatch_per_endpoint' => (int) env('WEBHOOKS_DISPATCH_PER_ENDPOINT', 50),
 
         // Plain http, for a receiver on a developer's machine or the demo's
         // own. Never outside local and demo: the URL check refuses it there.

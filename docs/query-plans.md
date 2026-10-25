@@ -39,7 +39,7 @@ section says otherwise.
 | 3 | Usage for one customer over a period, `GET /customers/{ref}/usage` | Index range over one customer's buckets | ✅ 0.5ms for a month of 744 buckets; a sequential scan before `b43f5d1` |
 | 4 | Invoice line build: a subscription's aggregates for its period, and what was billed for it | Index range on the aggregate key per meter; billed lines read by subscription | ✅ 0.4ms and 0.05ms |
 | 5 | Outbox poll, `FOR UPDATE SKIP LOCKED` | Partial index used; published rows never read | ✅ 0.07ms under a million published rows |
-| 6 | Webhook deliveries for one endpoint, newest first; the dispatcher's due deliveries | Index scan bounded by the page; partial index over pending rows | ✅ 0.2ms and 2.1ms over 200,000 deliveries |
+| 6 | Webhook deliveries for one endpoint, newest first; the dispatcher's due deliveries, at most 50 per endpoint, projects in turns | Index scan bounded by the page; partial index over pending rows, cost bounded by the due set | ✅ 0.2ms and 2.1ms over 200,000 deliveries; 1.3ms for 186 due rows since 1.1.3 |
 | 7 | Usage explorer and ingestion widget | Rows read bounded by the page, not by the table | ✅ 2.6ms for the first page, 14.7ms for the rarest meter (7c); every statement read the whole table before `3960979` |
 
 Found along the way, and fixed before any of the plans above were captured:
@@ -378,6 +378,56 @@ Captured: 2026-08-26 · 200,002 rows in `webhook_deliveries`, of which 2,000
 pending, 1,000 due — synthetic rows written for the capture and removed after ·
 Commit: `ea620b8`
 
+Since 1.1.3 the dispatcher takes at most 50 due deliveries of one endpoint,
+and takes the projects in turns — every project's oldest due delivery before
+any project's second — so the statement ranks the due rows twice:
+
+```sql
+select * from (
+  select *, row_number() over (partition by project_id order by next_attempt_at, id) as project_rank
+  from (
+    select *, row_number() over (partition by endpoint_id order by next_attempt_at, id) as endpoint_rank
+    from webhook_deliveries
+    where status = 'pending' and next_attempt_at <= now()
+  ) as due
+  where endpoint_rank <= 50
+) as shared
+order by project_rank, next_attempt_at, id
+limit 500
+```
+
+```
+Limit (actual time=1.038..1.060 rows=100.00 loops=1)
+  Buffers: shared hit=133
+  ->  Sort (actual time=1.037..1.051 rows=100.00 loops=1)
+        Sort Key: (row_number() OVER w1), due.next_attempt_at, due.id
+        ->  WindowAgg (actual time=0.774..0.846 rows=100.00 loops=1)
+              Window: w1 AS (PARTITION BY due.project_id ORDER BY due.next_attempt_at, due.id)
+              ->  Sort (actual time=0.769..0.783 rows=100.00 loops=1)
+                    Sort Key: due.project_id, due.next_attempt_at, due.id
+                    ->  Subquery Scan on due (actual time=0.513..0.616 rows=100.00 loops=1)
+                          ->  WindowAgg (actual time=0.512..0.599 rows=100.00 loops=1)
+                                Window: w1 AS (PARTITION BY webhook_deliveries.endpoint_id ORDER BY webhook_deliveries.next_attempt_at, webhook_deliveries.id)
+                                Run Condition: (row_number() OVER w1 <= 50)
+                                ->  Sort (actual time=0.498..0.516 rows=186.00 loops=1)
+                                      Sort Key: webhook_deliveries.endpoint_id, webhook_deliveries.next_attempt_at, webhook_deliveries.id
+                                      ->  Bitmap Heap Scan on webhook_deliveries (actual time=0.070..0.203 rows=186.00 loops=1)
+                                            Recheck Cond: ((next_attempt_at <= now()) AND ((status)::text = 'pending'::text))
+                                            ->  Bitmap Index Scan on webhook_deliveries_due_index (actual time=0.040..0.048 rows=286.00 loops=1)
+                                                  Index Cond: (next_attempt_at <= now())
+Execution Time: 1.3 ms
+```
+
+**Reading:** healthy at this size, and its cost has changed shape. The due
+index still keeps succeeded and dead deliveries out, but every due row is now
+read and sorted, where the old statement stopped after 500. The cost is the due
+set, not the batch. If the due set ever reaches about 10^5 rows, a partial index
+on `(endpoint_id, next_attempt_at) WHERE status = 'pending'` with a `LATERAL`
+read per endpoint keeps it at the batch again.
+
+Captured: 2026-10-24 · the local demo stack, 3,035 rows in `webhook_deliveries`,
+1,744 pending, 186 due across three endpoints · Commit: the 1.1.3 change that added it
+
 On the heavy dataset — 23,435 deliveries, 4,068 of them to the endpoint read —
 the two statements take the same plans in 0.09ms and 0.16ms. The capture above,
 with 200,000 deliveries to one endpoint, stays the one of record because it is
@@ -669,7 +719,7 @@ EXPLAIN (ANALYZE, BUFFERS) :q5;
 EXPLAIN (ANALYZE, BUFFERS) :q5;
 
 \set q6a 'select * from webhook_deliveries where project_id = ' :'prj' ' and organization_id = ' :'org' ' and endpoint_id = ' :'endpoint' ' order by created_at desc, id desc limit 50'
-\set q6b 'select * from webhook_deliveries where status = ''pending'' and next_attempt_at <= now() order by next_attempt_at limit 500'
+\set q6b 'select * from (select *, row_number() over (partition by project_id order by next_attempt_at, id) as project_rank from (select *, row_number() over (partition by endpoint_id order by next_attempt_at, id) as endpoint_rank from webhook_deliveries where status = ''pending'' and next_attempt_at <= now()) as due where endpoint_rank <= 50) as shared order by project_rank, next_attempt_at, id limit 500'
 EXPLAIN (ANALYZE, BUFFERS) :q6a; EXPLAIN (ANALYZE, BUFFERS) :q6b;
 \echo === 6. deliveries of one endpoint, then what is due
 EXPLAIN (ANALYZE, BUFFERS) :q6a; EXPLAIN (ANALYZE, BUFFERS) :q6b;

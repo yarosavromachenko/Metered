@@ -7,6 +7,7 @@ namespace Metered\Webhooks\Infrastructure\Persistence;
 use Illuminate\Contracts\Encryption\StringEncrypter;
 use Illuminate\Database\DatabaseManager;
 use Illuminate\Database\Query\Builder;
+use Illuminate\Database\QueryException;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
 use Metered\Shared\Infrastructure\Persistence\RowReader;
@@ -16,6 +17,7 @@ use Metered\Webhooks\Domain\Endpoint\Endpoint;
 use Metered\Webhooks\Domain\Endpoint\EndpointRepository;
 use Metered\Webhooks\Domain\Endpoint\EndpointUrl;
 use Metered\Webhooks\Domain\Endpoint\EventType;
+use Metered\Webhooks\Domain\Exception\InvalidEndpoint;
 use Metered\Webhooks\Domain\Signing\SecretKey;
 use RuntimeException;
 use stdClass;
@@ -34,25 +36,17 @@ final readonly class DatabaseEndpointRepository implements EndpointRepository
 
     public function save(Endpoint $endpoint): void
     {
-        $this->db->connection()->table('webhook_endpoints')->upsert([
-            'id' => $endpoint->id->value,
-            'organization_id' => $endpoint->tenant->organizationId->value,
-            'project_id' => $endpoint->tenant->projectId->value,
-            'url' => $endpoint->url->value,
-            'description' => $endpoint->description,
-            'event_types' => json_encode(array_map(static fn(EventType $t): string => $t->value, $endpoint->eventTypes), JSON_THROW_ON_ERROR),
-            'secret' => $this->encrypter->encryptString($endpoint->secret->reveal()),
-            'previous_secret' => $endpoint->previousSecret instanceof SecretKey ? $this->encrypter->encryptString($endpoint->previousSecret->reveal()) : null,
-            'previous_secret_expires_at' => $endpoint->previousSecretExpiresAt?->format(self::INSTANT),
-            'enabled' => $endpoint->enabled,
-            'breaker_state' => $endpoint->breaker->state->value,
-            'consecutive_failures' => $endpoint->breaker->consecutiveFailures,
-            'breaker_changed_at' => $endpoint->breaker->changedAt?->format(self::INSTANT),
-            'created_at' => $endpoint->createdAt->format(self::INSTANT),
-        ], ['id'], [
-            'url', 'description', 'event_types', 'secret', 'previous_secret', 'previous_secret_expires_at',
-            'enabled', 'breaker_state', 'consecutive_failures', 'breaker_changed_at',
-        ]);
+        try {
+            // A savepoint inside a caller's transaction, so a refusal leaves it usable.
+            $this->db->connection()->transaction(fn() => $this->upsert($endpoint));
+        } catch (QueryException $failure) {
+            // Raised by the trigger webhook_endpoints_per_project_limit.
+            if ((string) $failure->getCode() === '23514' && str_contains($failure->getMessage(), 'webhook_endpoints_per_project_limit')) {
+                throw InvalidEndpoint::tooMany();
+            }
+
+            throw $failure;
+        }
     }
 
     public function find(TenantContext $tenant, Uuid $id): ?Endpoint
@@ -102,6 +96,29 @@ final readonly class DatabaseEndpointRepository implements EndpointRepository
             ->delete();
 
         return $this->scoped($tenant)->where('id', $id->value)->delete() > 0;
+    }
+
+    private function upsert(Endpoint $endpoint): void
+    {
+        $this->db->connection()->table('webhook_endpoints')->upsert([
+            'id' => $endpoint->id->value,
+            'organization_id' => $endpoint->tenant->organizationId->value,
+            'project_id' => $endpoint->tenant->projectId->value,
+            'url' => $endpoint->url->value,
+            'description' => $endpoint->description,
+            'event_types' => json_encode(array_map(static fn(EventType $type): string => $type->value, $endpoint->eventTypes), JSON_THROW_ON_ERROR),
+            'secret' => $this->encrypter->encryptString($endpoint->secret->reveal()),
+            'previous_secret' => $endpoint->previousSecret instanceof SecretKey ? $this->encrypter->encryptString($endpoint->previousSecret->reveal()) : null,
+            'previous_secret_expires_at' => $endpoint->previousSecretExpiresAt?->format(self::INSTANT),
+            'enabled' => $endpoint->enabled,
+            'breaker_state' => $endpoint->breaker->state->value,
+            'consecutive_failures' => $endpoint->breaker->consecutiveFailures,
+            'breaker_changed_at' => $endpoint->breaker->changedAt?->format(self::INSTANT),
+            'created_at' => $endpoint->createdAt->format(self::INSTANT),
+        ], ['id'], [
+            'url', 'description', 'event_types', 'secret', 'previous_secret', 'previous_secret_expires_at',
+            'enabled', 'breaker_state', 'consecutive_failures', 'breaker_changed_at',
+        ]);
     }
 
     private function scoped(TenantContext $tenant): Builder

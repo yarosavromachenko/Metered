@@ -60,16 +60,16 @@ function attemptMeteredDelivery(TenantContext $tenant): void
     app(AttemptDeliveryHandler::class)->handle(new AttemptDelivery($tenant, Uuid::fromString(is_string($id) ? $id : '')));
 }
 
-it('counts a delivered attempt by endpoint and times the answer', function (): void {
+it('counts a delivered attempt by project and endpoint and times the answer', function (): void {
     $metrics = InMemoryMetrics::install();
     ['tenant' => $tenant, 'endpoint' => $registered] = meteredWebhookTenant(AttemptResult::responded(200, 120, 'ok'));
 
     attemptMeteredDelivery($tenant);
 
-    $endpoint = $registered->endpoint->id->value;
+    $labels = ['project' => $tenant->projectId->value, 'endpoint' => $registered->endpoint->id->value];
 
-    expect($metrics->counted('webhook.deliveries', ['endpoint' => $endpoint, 'outcome' => 'delivered']))->toBe(1)
-        ->and($metrics->histogram('webhook.delivery.duration', ['endpoint' => $endpoint]))->toBe(['count' => 1, 'sum' => 0.12]);
+    expect($metrics->counted('webhook.deliveries', [...$labels, 'outcome' => 'delivered']))->toBe(1)
+        ->and($metrics->histogram('webhook.delivery.duration', $labels))->toBe(['count' => 1, 'sum' => 0.12]);
 });
 
 it('counts an attempt the receiver failed as one to retry', function (): void {
@@ -78,7 +78,7 @@ it('counts an attempt the receiver failed as one to retry', function (): void {
 
     attemptMeteredDelivery($tenant);
 
-    expect($metrics->counted('webhook.deliveries', ['endpoint' => $registered->endpoint->id->value, 'outcome' => 'retry']))->toBe(1);
+    expect($metrics->counted('webhook.deliveries', ['project' => $tenant->projectId->value, 'endpoint' => $registered->endpoint->id->value, 'outcome' => 'retry']))->toBe(1);
 });
 
 it('counts a refused destination without timing a call that was never made', function (): void {
@@ -87,23 +87,25 @@ it('counts a refused destination without timing a call that was never made', fun
 
     attemptMeteredDelivery($tenant);
 
-    expect($metrics->counted('webhook.deliveries', ['endpoint' => $registered->endpoint->id->value, 'outcome' => 'refused']))->toBe(1)
-        ->and($metrics->histogram('webhook.delivery.duration', ['endpoint' => $registered->endpoint->id->value])['count'])->toBe(0);
+    $labels = ['project' => $tenant->projectId->value, 'endpoint' => $registered->endpoint->id->value];
+
+    expect($metrics->counted('webhook.deliveries', [...$labels, 'outcome' => 'refused']))->toBe(1)
+        ->and($metrics->histogram('webhook.delivery.duration', $labels)['count'])->toBe(0);
 });
 
-it('reads each enabled endpoint\'s breaker as open or not', function (): void {
-    ['endpoint' => $registered] = meteredWebhookTenant(AttemptResult::responded(200, 5, 'ok'));
+it('reads each enabled endpoint\'s breaker as open or not, with its project', function (): void {
+    ['tenant' => $tenant, 'endpoint' => $registered] = meteredWebhookTenant(AttemptResult::responded(200, 5, 'ok'));
     $endpoint = $registered->endpoint->id->value;
 
     $read = static fn(): array => array_map(
-        static fn(GaugeReading $reading): array => [$reading->labels['endpoint'] ?? '', $reading->value],
+        static fn(GaugeReading $reading): array => [$reading->labels['project'] ?? '', $reading->labels['endpoint'] ?? '', $reading->value],
         array_values(array_filter(app(BreakerGauges::class)->read(), static fn(GaugeReading $reading): bool => ($reading->labels['endpoint'] ?? '') === $endpoint)),
     );
 
-    expect($read())->toBe([[$endpoint, 0]]);
+    expect($read())->toBe([[$tenant->projectId->value, $endpoint, 0]]);
 
     DB::table('webhook_endpoints')->where('id', $endpoint)->update(['breaker_state' => 'open', 'breaker_changed_at' => now()]);
-    expect($read())->toBe([[$endpoint, 1]]);
+    expect($read())->toBe([[$tenant->projectId->value, $endpoint, 1]]);
 
     // Stopped by its owner: nothing is failing, and nothing is reported.
     DB::table('webhook_endpoints')->where('id', $endpoint)->update(['enabled' => false]);

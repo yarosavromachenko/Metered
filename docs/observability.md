@@ -61,10 +61,12 @@ metric goes out over OTLP; Prometheus scrapes the collector and nothing else.
 | `usage_events_rejected_total` | By reason. A spike is a client integration breaking. |
 | `outbox_unpublished_age_seconds` | The age of the oldest unpublished row — a far better alarm than a count. |
 | `queue_depth` | Jobs waiting, by queue. |
-| `webhook_deliveries_total`, `webhook_delivery_duration_seconds` | By outcome and endpoint. Success rate per endpoint. |
-| `webhook_breaker_open` | Which endpoints are currently cut off. |
+| `webhook_deliveries_total`, `webhook_delivery_duration_seconds` | By outcome, project and endpoint. Success rate per endpoint; by project, who is using the workers. |
+| `webhook_breaker_open` | Which endpoints are currently cut off, with their project. |
 | `invoices_finalized_total`, `billing_close_duration_seconds` | Whether period close keeps up. |
+| `invoices_drafts_overdue` | Drafts older than the grace window. The close finalizes what it builds, so each one is a finalization that failed. |
 | `dlq_size` | Anything in a dead-letter queue is work someone must decide about. |
+| `usage_dead_letters_total` | By reason. What was set aside since the consumer started. |
 
 Ages beat counts for queue alarms: a backlog of 10,000 rows draining in two
 seconds is healthy, while three rows stuck for an hour is an incident.

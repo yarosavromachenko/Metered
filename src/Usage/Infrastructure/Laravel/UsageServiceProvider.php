@@ -16,6 +16,8 @@ use Metered\Shared\Application\Health\ReadinessCheck;
 use Metered\Shared\Application\Metrics\GaugeSource;
 use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
+use Metered\Shared\Infrastructure\Health\DatabaseCheck;
+use Metered\Shared\Infrastructure\Persistence\DatabaseOutage;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Tenancy\Application\Contract\ProjectDirectory;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
@@ -189,6 +191,8 @@ final class UsageServiceProvider extends ServiceProvider
                 self::configInt($app, 'metered.usage.consumer.block_milliseconds', 2000),
                 self::configInt($app, 'metered.usage.consumer.reclaim_idle_milliseconds', 60_000),
                 self::configInt($app, 'metered.usage.consumer.max_deliveries', 5),
+                new DatabaseCheck($app->make(DatabaseManager::class), self::connection($app)),
+                $app->make(DatabaseOutage::class),
                 $app->make(Tracing::class),
                 $app->make(Metrics::class),
             ),

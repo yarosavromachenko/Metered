@@ -3,10 +3,13 @@
 declare(strict_types=1);
 
 use Illuminate\Support\Facades\DB;
+use Metered\Shared\Domain\Access\Actor;
 use Metered\Shared\Domain\Access\PermissionDenied;
+use Metered\Tenancy\Domain\Project;
 use Metered\Tenancy\Domain\Role;
 use Metered\Webhooks\Application\Command\ReconfigureEndpoint;
 use Metered\Webhooks\Application\Command\ReconfigureEndpointHandler;
+use Metered\Webhooks\Application\Command\RegisteredEndpoint;
 use Metered\Webhooks\Application\Command\RegisterEndpoint;
 use Metered\Webhooks\Application\Command\RegisterEndpointHandler;
 use Metered\Webhooks\Application\Command\RemoveEndpoint;
@@ -115,3 +118,75 @@ it('finds no endpoint of another project', function (): void {
 
     app(RotateEndpointSecretHandler::class)->handle(new RotateEndpointSecret($rival->tenant(), $id, TenantFactory::member($rival->organizationId)));
 })->throws(WebhookNotFound::class);
+
+/**
+ * @return list<RegisteredEndpoint>
+ */
+function registerEndpoints(Project $project, Actor $actor, int $count): array
+{
+    $registered = [];
+
+    foreach (range(1, $count) as $index) {
+        $registered[] = app(RegisterEndpointHandler::class)->handle(new RegisterEndpoint(
+            $project->tenant(),
+            sprintf('https://hooks.example.com/metered/%d', $index),
+            '',
+            ['invoice.paid'],
+            $actor,
+        ));
+    }
+
+    return $registered;
+}
+
+it('refuses an eleventh endpoint in a project, and lets another project register', function (): void {
+    $full = TenantFactory::tenant('full');
+    $other = TenantFactory::tenant('other');
+    $fullAdmin = TenantFactory::member($full->organizationId, Role::Admin);
+    registerEndpoints($full, $fullAdmin, 10);
+
+    expect(registerEndpoints($other, TenantFactory::member($other->organizationId, Role::Admin, 'other-admin@example.com'), 1))->toHaveCount(1)
+        ->and(DB::table('webhook_endpoints')->where('project_id', $full->id->value)->count())->toBe(10);
+
+    expect(static fn(): array => registerEndpoints($full, $fullAdmin, 1))
+        ->toThrow(InvalidEndpoint::class, 'at most 10 webhook endpoints');
+});
+
+it('counts a disabled endpoint toward the limit', function (): void {
+    $project = TenantFactory::tenant();
+    $actor = TenantFactory::member($project->organizationId, Role::Admin);
+    [$first] = registerEndpoints($project, $actor, 10);
+
+    app(ReconfigureEndpointHandler::class)->handle(new ReconfigureEndpoint(
+        $project->tenant(),
+        $first->endpoint->id,
+        $first->endpoint->url->value,
+        '',
+        ['invoice.paid'],
+        false,
+        $actor,
+    ));
+
+    expect(static fn(): array => registerEndpoints($project, $actor, 1))
+        ->toThrow(InvalidEndpoint::class, 'at most 10 webhook endpoints');
+});
+
+it('still saves an endpoint of a project at its limit', function (): void {
+    $project = TenantFactory::tenant();
+    $actor = TenantFactory::member($project->organizationId, Role::Admin);
+    [$first] = registerEndpoints($project, $actor, 10);
+
+    // The breaker and every other change go through the same upsert.
+    app(ReconfigureEndpointHandler::class)->handle(new ReconfigureEndpoint(
+        $project->tenant(),
+        $first->endpoint->id,
+        'https://hooks.example.com/moved',
+        'Moved',
+        ['invoice.paid'],
+        true,
+        $actor,
+    ));
+
+    expect(app(EndpointRepository::class)->find($project->tenant(), $first->endpoint->id)?->url->value)
+        ->toBe('https://hooks.example.com/moved');
+});

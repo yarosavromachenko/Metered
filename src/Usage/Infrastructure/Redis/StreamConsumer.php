@@ -6,10 +6,12 @@ namespace Metered\Usage\Infrastructure\Redis;
 
 use Illuminate\Database\QueryException;
 use Illuminate\Redis\Connections\PhpRedisConnection;
+use Metered\Shared\Application\Health\ReadinessCheck;
 use Metered\Shared\Application\Metrics\Metrics;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Shared\Infrastructure\Persistence\DatabaseOutage;
 use Metered\Shared\Infrastructure\Tracing\Tracing;
 use Metered\Tenancy\Application\Contract\ProjectDirectory;
 use Metered\Usage\Application\Ingestion\BatchProcessor;
@@ -23,6 +25,7 @@ use OpenTelemetry\API\Trace\SpanKind;
 use OpenTelemetry\API\Trace\StatusCode;
 use Psr\Clock\ClockInterface;
 use Redis;
+use RuntimeException;
 use Throwable;
 
 /**
@@ -34,6 +37,10 @@ use Throwable;
  * Each tenant is written separately; a failure leaves only that tenant's
  * messages pending and is rethrown after the others. Each write is a span
  * linked to the originating requests (ADR-0012).
+ *
+ * A pass that cannot reach PostgreSQL does not count as a delivery: it reads
+ * nothing when the database does not answer first, and gives back the
+ * delivery counts of what it had read when the database goes away mid-pass.
  */
 final readonly class StreamConsumer
 {
@@ -56,6 +63,8 @@ final readonly class StreamConsumer
         private int $blockMilliseconds,
         private int $reclaimIdleMilliseconds,
         private int $maxDeliveries,
+        private ReadinessCheck $database,
+        private DatabaseOutage $outage,
         private Tracing $tracing,
         private Metrics $metrics,
     ) {}
@@ -78,6 +87,12 @@ final readonly class StreamConsumer
 
     public function consumeOnce(string $consumer): ConsumeReport
     {
+        $unreachable = $this->unreachable();
+
+        if ($unreachable instanceof Throwable) {
+            throw DatabaseUnavailable::because($unreachable);
+        }
+
         $reclaimed = $this->reclaim($consumer);
         $fresh = $this->read($consumer);
 
@@ -87,8 +102,20 @@ final readonly class StreamConsumer
             return new ConsumeReport();
         }
 
-        $deadLettered = $this->setAsidePoison($deliveries);
-        $outcome = $this->handle(array_values(array_diff_key($deliveries, $deadLettered)));
+        try {
+            $deadLettered = $this->setAsidePoison($deliveries);
+            $outcome = $this->handle(array_values(array_diff_key($deliveries, $deadLettered)));
+        } catch (Throwable $failure) {
+            // A database that answers again at once lost one connection; the
+            // message may be what broke it, so the delivery counts.
+            if (! $this->outage->causedBy($failure) || ! $this->unreachable() instanceof Throwable) {
+                throw $failure;
+            }
+
+            $this->restoreDeliveryCounts($consumer, $reclaimed, $fresh);
+
+            throw DatabaseUnavailable::because($failure);
+        }
 
         return new ConsumeReport(
             read: count($fresh),
@@ -160,6 +187,11 @@ final readonly class StreamConsumer
             try {
                 $outcome = $outcome->plus($this->writeGroup($group['tenant'], $group['events'], $group['ids'], array_values($group['traces'] ?? [])));
             } catch (Throwable $groupFailure) {
+                // The other tenants would fail the same way.
+                if ($this->outage->causedBy($groupFailure)) {
+                    throw $groupFailure;
+                }
+
                 // Left pending; continue with the other tenants.
                 $failure ??= $groupFailure;
             }
@@ -204,6 +236,10 @@ final readonly class StreamConsumer
                     $traces,
                 ));
             } catch (Throwable $halfFailure) {
+                if ($this->outage->causedBy($halfFailure)) {
+                    throw $halfFailure;
+                }
+
                 $refusal ??= $halfFailure;
             }
         }
@@ -307,8 +343,9 @@ final readonly class StreamConsumer
 
         $key = $this->deadLetterKey;
         $at = $this->clock->now()->format(DATE_ATOM);
+        $written = 0;
 
-        $this->connection->pipeline(static function (Redis $pipe) use ($ids, $byId, $key, $reason, $at): void {
+        $this->connection->pipeline(static function (Redis $pipe) use ($ids, $byId, $key, $reason, $at, &$written): void {
             foreach ($ids as $id) {
                 $delivery = $byId[$id] ?? null;
 
@@ -323,10 +360,61 @@ final readonly class StreamConsumer
                     DeadLetters::DELIVERIES => (string) $delivery->deliveries,
                     DeadLetters::DEAD_LETTERED_AT => $at,
                 ]);
+                $written++;
             }
         });
 
+        if ($written > 0) {
+            $this->metrics->add(UsageMetrics::deadLettered(), $written, ['reason' => $reason]);
+        }
+
         $this->acknowledge($ids);
+    }
+
+    /**
+     * Null when PostgreSQL answers a query.
+     */
+    private function unreachable(): ?Throwable
+    {
+        try {
+            $result = $this->database->check();
+        } catch (Throwable $failure) {
+            return $failure;
+        }
+
+        return $result->passed ? null : new RuntimeException('The database check failed: ' . $result->detail);
+    }
+
+    /**
+     * Sets each message's delivery count back to what it was before this pass,
+     * so time spent waiting for the database does not make it poison. An id
+     * acknowledged earlier in the pass is no longer pending and is skipped.
+     *
+     * @param  list<Delivery>  $reclaimed
+     * @param  list<Delivery>  $fresh
+     */
+    private function restoreDeliveryCounts(string $consumer, array $reclaimed, array $fresh): void
+    {
+        $byCount = [];
+
+        foreach ($reclaimed as $delivery) {
+            $byCount[$delivery->deliveries][] = $delivery->id;
+        }
+
+        foreach ($fresh as $delivery) {
+            $byCount[0][] = $delivery->id;
+        }
+
+        foreach ($byCount as $count => $ids) {
+            $this->connection->command('xclaim', [
+                $this->key,
+                $this->group,
+                $consumer,
+                0,
+                $ids,
+                ['RETRYCOUNT' => $count, 'JUSTID'],
+            ]);
+        }
     }
 
     /**

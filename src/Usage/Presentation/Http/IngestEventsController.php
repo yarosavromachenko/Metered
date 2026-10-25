@@ -40,12 +40,12 @@ final readonly class IngestEventsController
         $payload = Validator::make($request->all(), [
             'events' => ['required', 'array', 'min:1', 'max:' . $this->batchLimit],
             'events.*.event_id' => ['required', 'string', 'max:128'],
-            'events.*.meter_code' => ['required', 'string', 'max:64'],
-            'events.*.customer_ref' => ['required', 'string', 'max:128'],
+            'events.*.meter_code' => ['required', 'string', 'max:64', 'not_regex:/[\x00-\x1F\x7F]/'],
+            'events.*.customer_ref' => ['required', 'string', 'max:128', 'not_regex:/[\x00-\x1F\x7F]/'],
             // A non-negative decimal below 10^14, with at most six decimal
             // places. Send it as a string ("2.5") to keep its precision; a
-            // JSON number is accepted too, and is turned into a decimal
-            // string before anything adds it up.
+            // JSON number is accepted too, but it is read as a float and
+            // keeps only 14 significant digits.
             'events.*.quantity' => ['required', 'numeric'],
             'events.*.occurred_at' => ['required', 'date'],
             /**
@@ -113,7 +113,7 @@ final readonly class IngestEventsController
     }
 
     /**
-     * Accepts an unquoted JSON number as a quantity.
+     * A JSON number arrives as a float; the cast keeps 14 significant digits (PHP's `precision`).
      */
     private function string(mixed $value): string
     {

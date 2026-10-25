@@ -37,6 +37,11 @@ final readonly class Properties
                 throw InvalidProperties::unnamed();
             }
 
+            // PostgreSQL refuses \u0000 in jsonb, and the event could never be stored.
+            if (self::hasControlCharacter($key) || (is_string($value) && self::hasControlCharacter($value))) {
+                throw InvalidProperties::controlCharacter($key);
+            }
+
             if ($value !== null && ! is_scalar($value)) {
                 throw InvalidProperties::nested($key);
             }
@@ -67,5 +72,10 @@ final readonly class Properties
     public function isEmpty(): bool
     {
         return $this->values === [];
+    }
+
+    private static function hasControlCharacter(string $text): bool
+    {
+        return preg_match('/[\x00-\x1F\x7F]/', $text) === 1;
     }
 }
