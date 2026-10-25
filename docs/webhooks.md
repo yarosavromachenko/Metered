@@ -189,12 +189,26 @@ again. A probe that never reports back — a worker killed mid-request — is
 replaced after another five minutes, so a breaker cannot stay half-open for
 good.
 
-What counts as a failure is what says the receiver is down: a timeout, a
-refused connection, a `5xx`, `408` or `429`. A receiver that answered `400` is
-up, even though it refused that delivery.
+What counts as a failure is what says the receiver is down or struggling: a
+timeout, a refused connection, a `5xx`, `408` or `429`, and any answer that
+took five seconds or longer. A receiver that answered `400` at once is up, even
+though it refused that delivery. A slow `2xx` is still a successful delivery;
+it only counts toward opening the breaker, because a slow receiver holds a
+delivery worker as long as a dead one. Answer at once and do the work
+afterwards.
 
-The threshold and the cooldown are `WEBHOOKS_BREAKER_THRESHOLD` and
-`WEBHOOKS_BREAKER_COOLDOWN_SECONDS`. The state is on the endpoint in the panel
+The threshold, the cooldown and the slow-answer limit are
+`WEBHOOKS_BREAKER_THRESHOLD`, `WEBHOOKS_BREAKER_COOLDOWN_SECONDS` and
+`WEBHOOKS_BREAKER_SLOW_MS` (0 turns the last off).
+
+## Sharing the workers
+
+A project has at most ten endpoints, disabled ones included; the eleventh is
+answered `422`. Every ten seconds `webhooks:dispatch` queues due deliveries
+taking the projects in turns — each project's oldest, then each one's next — and
+at most 50 of any one endpoint (`WEBHOOKS_DISPATCH_PER_ENDPOINT`), so one
+project's backlog drains steadily without holding other projects' deliveries
+behind it. The state is on the endpoint in the panel
 and in the API's `breaker` field. Pointing an endpoint at a new URL resets it.
 
 ## How a delivery travels

@@ -261,6 +261,14 @@ and a correction is a credit note.
 6. Nothing is being attempted at all? `webhooks:dispatch` runs every ten seconds
    from the `scheduler` service, and the `webhooks` queue runs on Horizon —
    check both are up, and restart Horizon after a deploy.
+7. Every project's deliveries slow? Find the project using the workers:
+   `sum by (project) (rate(webhook_deliveries_total[5m]))` and
+   `sum by (project) (rate(webhook_delivery_duration_seconds_sum[5m]))`. An
+   endpoint answering in five seconds or more opens its breaker after five
+   such answers; a backlog drains 50 deliveries per endpoint per dispatch run,
+   and other projects' deliveries are taken first in each run.
+   Neither needs action unless the receiver's owner asks why — the answer is
+   [Sharing the workers](webhooks.md#sharing-the-workers).
 
 ## Rotating a webhook secret
 
