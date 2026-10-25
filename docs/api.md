@@ -150,7 +150,8 @@ POST /api/v1/webhook-endpoints
 ```
 
 `signing_secret` appears in this answer and in the answer to `rotate-secret`,
-and nowhere else, ever. Store it then. `PATCH` changes only the fields it names
+and nowhere else, ever. Store it then. A project has at most ten endpoints,
+disabled ones included; registering an eleventh is a `422 rule-violated`. `PATCH` changes only the fields it names
 (`url`, `description`, `events`, `enabled`). `DELETE` removes the endpoint and
 its delivery log; `"enabled": false` keeps both, and holds its deliveries until
 it is enabled again.

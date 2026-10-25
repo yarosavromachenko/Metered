@@ -23,6 +23,11 @@ final class InvalidEndpoint extends DomainException
         return new self('A webhook secret is "whsec_" followed by at least 32 URL-safe characters.');
     }
 
+    public static function tooMany(): self
+    {
+        return new self('A project has at most 10 webhook endpoints, disabled ones included; remove one first.');
+    }
+
     public static function descriptionTooLong(int $limit): self
     {
         return new self(sprintf('A webhook description is at most %d characters.', $limit));

@@ -6,9 +6,13 @@ namespace Metered\Webhooks\Domain\Endpoint;
 
 use Metered\Shared\Domain\Identifier\Uuid;
 use Metered\Shared\Domain\Tenant\TenantContext;
+use Metered\Webhooks\Domain\Exception\InvalidEndpoint;
 
 interface EndpointRepository
 {
+    /**
+     * @throws InvalidEndpoint when a new endpoint's project already has as many as it may
+     */
     public function save(Endpoint $endpoint): void;
 
     public function find(TenantContext $tenant, Uuid $id): ?Endpoint;

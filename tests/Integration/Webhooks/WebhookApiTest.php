@@ -101,6 +101,19 @@ it('refuses what an endpoint cannot be, in the problem format', function (array 
     'an unknown event' => [['url' => 'https://hooks.example.com', 'events' => ['invoice.pay']], '"invoice.pay" is not an event an endpoint can listen to; the events are subscription.created, subscription.canceled, invoice.finalized, invoice.paid, invoice.voided.'],
 ]);
 
+it('answers 422 rule-violated when the project already has ten endpoints', function (): void {
+    $headers = webhookKey();
+
+    foreach (range(1, 10) as $index) {
+        registerEndpoint($headers, 'https://hooks.example.com/metered/' . $index)->assertCreated();
+    }
+
+    registerEndpoint($headers, 'https://hooks.example.com/metered/11')->assertUnprocessable()
+        ->assertHeader('Content-Type', 'application/problem+json')
+        ->assertJsonPath('type', 'https://metered.dev/problems/rule-violated')
+        ->assertJsonPath('detail', 'A project has at most 10 webhook endpoints, disabled ones included; remove one first.');
+});
+
 it('lists deliveries and replays a dead one', function (): void {
     $headers = webhookKey();
     $endpoint = idOf(registerEndpoint($headers));
