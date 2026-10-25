@@ -203,6 +203,26 @@ tests:
         alertname: UsageDeadLettersGrowing
         exp_alerts: []
 
+  - name: a draft left behind by a failed finalization
+    interval: 1m
+    input_series:
+      - series: 'invoices_drafts_overdue{instance="observer"}'
+        values: '0x5 1x30 0x10'
+    alert_rule_test:
+      - eval_time: 15m
+        alertname: InvoiceDraftStuck
+        exp_alerts: []
+      - eval_time: 25m
+        alertname: InvoiceDraftStuck
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: An invoice has been a draft for longer than the grace window; its finalization failed.
+              runbook: docs/runbook.md#an-invoice-is-stuck-as-a-draft
+      - eval_time: 45m
+        alertname: InvoiceDraftStuck
+        exp_alerts: []
+
   - name: an outbox the relay is not draining
     interval: 1m
     input_series:

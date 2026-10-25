@@ -64,6 +64,7 @@ metric goes out over OTLP; Prometheus scrapes the collector and nothing else.
 | `webhook_deliveries_total`, `webhook_delivery_duration_seconds` | By outcome, project and endpoint. Success rate per endpoint; by project, who is using the workers. |
 | `webhook_breaker_open` | Which endpoints are currently cut off, with their project. |
 | `invoices_finalized_total`, `billing_close_duration_seconds` | Whether period close keeps up. |
+| `invoices_drafts_overdue` | Drafts older than the grace window. The close finalizes what it builds, so each one is a finalization that failed. |
 | `dlq_size` | Anything in a dead-letter queue is work someone must decide about. |
 | `usage_dead_letters_total` | By reason. What was set aside, including what the trimmed dead-letter stream no longer holds. |
 

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Invoicing\Application\Metrics;
 
 use Metered\Shared\Application\Metrics\Counter;
+use Metered\Shared\Application\Metrics\Gauge;
 use Metered\Shared\Application\Metrics\Histogram;
 
 /**
@@ -15,6 +16,11 @@ final class InvoicingMetrics
     public static function invoicesFinalized(): Counter
     {
         return new Counter('invoices.finalized', '{invoice}', 'Invoices finalized');
+    }
+
+    public static function draftsOverdue(): Gauge
+    {
+        return new Gauge('invoices.drafts.overdue', '{invoice}', 'Drafts built longer ago than the grace window: finalizations that failed');
     }
 
     public static function closeDuration(): Histogram

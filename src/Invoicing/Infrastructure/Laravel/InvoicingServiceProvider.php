@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Metered\Invoicing\Infrastructure\Laravel;
 
 use Illuminate\Contracts\Foundation\Application;
+use Illuminate\Database\DatabaseManager;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
 use Metered\Billing\Application\Contract\SubscriptionBilling;
@@ -23,12 +24,14 @@ use Metered\Invoicing\Infrastructure\Persistence\DatabaseDocumentNumbering;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseInvoiceRepository;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseInvoicingPurger;
 use Metered\Invoicing\Infrastructure\Persistence\DatabaseLedger;
+use Metered\Invoicing\Infrastructure\Persistence\DraftGauges;
 use Metered\Invoicing\Presentation\Console\ClosePeriodsCommand;
 use Metered\Invoicing\Presentation\Http\InvoicePdfController;
 use Metered\Invoicing\Presentation\Http\ListInvoicesController;
 use Metered\Invoicing\Presentation\Http\PayInvoiceController;
 use Metered\Invoicing\Presentation\Http\ShowInvoiceController;
 use Metered\Invoicing\Presentation\Http\VoidInvoiceController;
+use Metered\Shared\Application\Metrics\GaugeSource;
 use Metered\Shared\Application\Transaction\Transactions;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Tenancy\Application\Contract\TenantDataPurger;
@@ -64,7 +67,17 @@ final class InvoicingServiceProvider extends ServiceProvider
             ),
         );
 
+        $this->app->bind(
+            DraftGauges::class,
+            static fn(Application $app): DraftGauges => new DraftGauges(
+                $app->make(DatabaseManager::class),
+                $app->make(ClockInterface::class),
+                self::configInt($app, 'metered.invoicing.grace_seconds', 3600),
+            ),
+        );
+
         $this->app->tag([DatabaseInvoicingPurger::class], TenantDataPurger::TAG);
+        $this->app->tag([DraftGauges::class], GaugeSource::TAG);
     }
 
     public function boot(): void

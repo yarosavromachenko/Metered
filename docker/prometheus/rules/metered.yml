@@ -105,6 +105,17 @@ groups:
           summary: Fewer than 90% of webhook attempts are delivered.
           runbook: docs/runbook.md#a-webhook-endpoint-is-failing
 
+  - name: billing
+    rules:
+      - alert: InvoiceDraftStuck
+        expr: max(invoices_drafts_overdue) > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: An invoice has been a draft for longer than the grace window; its finalization failed.
+          runbook: docs/runbook.md#an-invoice-is-stuck-as-a-draft
+
   - name: telemetry
     rules:
       - alert: TelemetryCollectorDown

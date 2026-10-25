@@ -51,6 +51,7 @@ http://localhost:9093.
 | `OutboxLagging` | the oldest unpublished message is over 2 min old, for 2 min | [Outbox is falling behind](#outbox-is-falling-behind) |
 | `WebhookBreakerOpen` | an endpoint's breaker is open, for 1 min (one line per endpoint) | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
 | `WebhookSuccessRateLow` | under 90% of attempts delivered over 15 min, for 10 min | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
+| `InvoiceDraftStuck` | a draft older than the grace window, for 15 min | [An invoice is stuck as a draft](#an-invoice-is-stuck-as-a-draft) |
 | `TelemetryCollectorDown` | Prometheus cannot scrape the collector, for 1 min | [Telemetry is missing](#telemetry-is-missing) |
 | `GaugesMissing` | no gauge reported for 2 min | [Telemetry is missing](#telemetry-is-missing) |
 
@@ -239,8 +240,10 @@ A period is invoiced one grace window (an hour) after it ends, by
 ## An invoice is stuck as a draft
 
 The close finalizes what it builds. A draft left behind means the finalization
-failed after the draft was committed. Open it in the panel and finalize or
-discard it. Never edit an invoice or a ledger row by hand: the schema refuses,
+failed after the draft was committed; `invoices_drafts_overdue` counts drafts
+older than the grace window, and `InvoiceDraftStuck` fires on it. Find why in
+the `billing` queue's failed jobs in Horizon, then open the draft in the panel
+and finalize or discard it. Never edit an invoice or a ledger row by hand: the schema refuses,
 and a correction is a credit note.
 
 ## A webhook endpoint is failing
