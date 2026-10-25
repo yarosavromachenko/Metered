@@ -226,6 +226,10 @@ return [
         'queue' => env('WEBHOOKS_QUEUE', 'webhooks'),
         'breaker_threshold' => (int) env('WEBHOOKS_BREAKER_THRESHOLD', 5),
         'breaker_cooldown_seconds' => (int) env('WEBHOOKS_BREAKER_COOLDOWN_SECONDS', 300),
+
+        // An answer this slow counts against the breaker even when it is a
+        // 2xx: it holds a worker as long as a timeout does. 0 turns it off.
+        'breaker_slow_milliseconds' => (int) env('WEBHOOKS_BREAKER_SLOW_MS', 5000),
         'rotation_grace_seconds' => (int) env('WEBHOOKS_ROTATION_GRACE_SECONDS', 24 * 60 * 60),
 
         // Longer than an attempt can take (10s total), so a delivery is not

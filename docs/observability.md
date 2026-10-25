@@ -61,8 +61,8 @@ metric goes out over OTLP; Prometheus scrapes the collector and nothing else.
 | `usage_events_rejected_total` | By reason. A spike is a client integration breaking. |
 | `outbox_unpublished_age_seconds` | The age of the oldest unpublished row — a far better alarm than a count. |
 | `queue_depth` | Jobs waiting, by queue. |
-| `webhook_deliveries_total`, `webhook_delivery_duration_seconds` | By outcome and endpoint. Success rate per endpoint. |
-| `webhook_breaker_open` | Which endpoints are currently cut off. |
+| `webhook_deliveries_total`, `webhook_delivery_duration_seconds` | By outcome, project and endpoint. Success rate per endpoint; by project, who is using the workers. |
+| `webhook_breaker_open` | Which endpoints are currently cut off, with their project. |
 | `invoices_finalized_total`, `billing_close_duration_seconds` | Whether period close keeps up. |
 | `dlq_size` | Anything in a dead-letter queue is work someone must decide about. |
 | `usage_dead_letters_total` | By reason. What was set aside, including what the trimmed dead-letter stream no longer holds. |

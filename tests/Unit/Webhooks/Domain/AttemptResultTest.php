@@ -32,3 +32,18 @@ it('keeps an error text that is not valid UTF-8 as valid UTF-8', function (Attem
     'unreachable' => [AttemptResult::unreachable("host caf\xE9.example", 3)],
     'refused' => [AttemptResult::refused("host caf\xE9.example")],
 ]);
+
+it('says whether the receiver is struggling', function (AttemptResult $result, int $slowMilliseconds, bool $struggling): void {
+    expect($result->saysReceiverIsStruggling($slowMilliseconds))->toBe($struggling);
+})->with([
+    'a fast 2xx' => [AttemptResult::responded(200, 4999, 'ok'), 5000, false],
+    'a 2xx at the threshold' => [AttemptResult::responded(200, 5000, 'ok'), 5000, true],
+    'a slow 2xx' => [AttemptResult::responded(200, 9000, 'ok'), 5000, true],
+    'a slow 2xx with the threshold off' => [AttemptResult::responded(200, 9000, 'ok'), 0, false],
+    'a 2xx at the lowest threshold' => [AttemptResult::responded(200, 1, 'ok'), 1, true],
+    'a fast 4xx' => [AttemptResult::responded(410, 12, ''), 5000, false],
+    'a slow 4xx' => [AttemptResult::responded(410, 7000, ''), 5000, true],
+    'a fast 5xx' => [AttemptResult::responded(503, 12, ''), 5000, true],
+    'a timeout' => [AttemptResult::unreachable('timed out', 10000), 0, true],
+    'a refused destination' => [AttemptResult::refused('private address'), 5000, true],
+]);

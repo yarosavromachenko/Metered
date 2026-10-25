@@ -58,6 +58,20 @@ final readonly class AttemptResult
     }
 
     /**
+     * Unreachable, refused, a retryable status, or an answer of any status that
+     * took $slowMilliseconds or longer (0 turns that off). A slow receiver holds
+     * a delivery worker as long as a dead one does.
+     */
+    public function saysReceiverIsStruggling(int $slowMilliseconds): bool
+    {
+        if ($this->refusedDestination || $this->verdict() === Verdict::Retry) {
+            return true;
+        }
+
+        return $slowMilliseconds > 0 && $this->durationMs >= $slowMilliseconds;
+    }
+
+    /**
      * The receiver chooses these bytes; PostgreSQL refuses a text value that is not valid UTF-8.
      */
     private static function text(string $bytes): string

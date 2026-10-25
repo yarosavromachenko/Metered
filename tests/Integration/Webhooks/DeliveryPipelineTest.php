@@ -203,6 +203,22 @@ it('dead-letters a delivery after ten failures, and replays it from the start', 
         ->and(DB::table('audit_log')->where('subject_id', $delivery->value)->value('action'))->toBe('webhook_delivery.replayed');
 });
 
+it('opens the breaker after five slow answers in a row, and marks each of them delivered', function (): void {
+    ['tenant' => $tenant, 'endpoint' => $registered] = webhookProject(array_fill(0, 5, AttemptResult::responded(200, 6000, 'ok')));
+    $dispatcher = app(IntegrationEventDispatcher::class);
+
+    foreach (range(1, 5) as $n) {
+        $dispatcher->dispatch(invoicePaidEvent($tenant, sprintf('01924b7c-0000-7000-8000-00000000d2%02d', $n)));
+    }
+
+    foreach (DB::table('webhook_deliveries')->orderBy('event_id')->pluck('id')->all() as $id) {
+        attempt($tenant, Uuid::fromString(is_string($id) ? $id : ''));
+    }
+
+    expect(app(EndpointRepository::class)->find($tenant, $registered->endpoint->id)?->breaker->state)->toBe(BreakerState::Open)
+        ->and(DB::table('webhook_deliveries')->where('project_id', $tenant->projectId->value)->where('status', 'succeeded')->count())->toBe(5);
+});
+
 it('opens the breaker after five failures in a row, holds deliveries back, then lets one probe through', function (): void {
     ['tenant' => $tenant, 'endpoint' => $registered, 'transport' => $transport, 'clock' => $clock] = webhookProject([
         AttemptResult::responded(500, 5, ''),
