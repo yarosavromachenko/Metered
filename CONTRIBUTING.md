@@ -59,10 +59,11 @@ A release is a tag on `main`; CI does the rest.
    dated, and merge that to `main` with a green pipeline.
 2. Tag the merge commit and push the tag: `git tag -a v1.2.0 -m "v1.2.0"`, then
    `git push origin v1.2.0`.
-3. The `v*` tag runs the full pipeline, and the build job pushes the production
-   image to GHCR as `ghcr.io/<owner>/<repository>:1.2.0` and `:1.2`, with OCI
-   labels for the source, revision, version and licence. The image scan gates it
-   like any other build.
+3. The `v*` tag runs the release workflow. It checks that the tagged commit has
+   a green CI run on `main`, then adds `ghcr.io/<owner>/<repository>:1.2.0` and
+   `:1.2` to the production image that run already built and scanned. Nothing is
+   rebuilt, so the tag and the commit's `main` image share one digest. A tag on a
+   commit that never went green on `main` fails.
 4. Create a GitHub release from the tag with that version's changelog section.
 
 ## Adding a dependency

@@ -5,6 +5,19 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
+## [Unreleased]
+
+### Changed
+
+- A `v*` tag no longer re-runs the whole pipeline: a release workflow checks
+  that the commit passed CI on `main` and adds the version tags to that image.
+- Workflows run on `ubuntu-24.04` instead of `ubuntu-latest`.
+
+### Security
+
+- `symfony/mime` is locked at 8.1.10, which fixes CVE-2026-45070 (header
+  injection through non-token characters in MIME parameter names).
+
 ## [1.1.3] - 2026-10-25
 
 Fixes from a review of 1.1.1. One migration; no change to the webhook
