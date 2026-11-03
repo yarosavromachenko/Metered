@@ -3,7 +3,6 @@ name: CI
 on:
   push:
     branches: [main]
-    tags: ['v*']
   pull_request:
     branches: [main]
 
@@ -17,7 +16,7 @@ env:
 jobs:
   lint:
     name: Lint
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -44,7 +43,7 @@ jobs:
 
   static:
     name: Static analysis
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -71,7 +70,7 @@ jobs:
 
   alerts:
     name: Alert rules
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -82,7 +81,7 @@ jobs:
 
   security:
     name: Security
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v7
 
@@ -112,7 +111,7 @@ jobs:
 
   tests:
     name: Tests
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     # Whether the unit suite exists yet. hashFiles() cannot answer this in a
     # job-level `if`, because that is evaluated before any checkout happens.
@@ -221,7 +220,7 @@ jobs:
 
   mutation:
     name: Mutation
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: tests
     # Mutation testing measures unit tests over domain logic. Until a module
     # has both, there is nothing to mutate and the job would only produce a red
@@ -298,7 +297,7 @@ jobs:
 
   build:
     name: Build image
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [lint, static, alerts, security, tests]
     permissions:
       contents: read
@@ -339,12 +338,10 @@ jobs:
           tags: |
             type=raw,value=${{ github.sha }}
             type=raw,value=latest,enable={{is_default_branch}}
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
 
       # A pull request builds into the local daemon instead of pushing, so the
       # OS-package scan below judges the image before it reaches main.
-      - name: Build (push on main/tags, load on pull requests)
+      - name: Build (push on main, load on pull requests)
         uses: docker/build-push-action@v7
         with:
           context: .
