@@ -2,12 +2,15 @@
 
 declare(strict_types=1);
 
+use Illuminate\Database\Connection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Bus;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Sleep;
 use Metered\Shared\Application\Outbox\OutboxWriter;
 use Metered\Shared\Domain\Identifier\IdentifierGenerator;
 use Metered\Shared\Domain\Outbox\OutboxMessage;
+use Metered\Shared\Infrastructure\Outbox\OutboxRelay;
 use Metered\Shared\Infrastructure\Queue\DeliverIntegrationEvent;
 use Psr\Clock\ClockInterface;
 
@@ -64,4 +67,97 @@ it('says nothing and succeeds when there is nothing to publish', function (): vo
     expect(Artisan::call('outbox:relay', ['--once' => true]))->toBe(0);
 
     Bus::assertNothingDispatched();
+});
+
+/**
+ * Registers a connection named "relay_target" that differs from the test
+ * connection by $overrides, and makes the relay use it.
+ *
+ * @param array<string, mixed> $overrides
+ */
+function pointRelayAt(array $overrides): void
+{
+    $connection = config('database.connections.' . testConnection());
+
+    config([
+        'database.connections.relay_target' => [...(is_array($connection) ? $connection : []), ...$overrides],
+        'metered.outbox.connection' => 'relay_target',
+    ]);
+    app()->forgetInstance(OutboxRelay::class);
+    DB::purge('relay_target');
+}
+
+describe('while PostgreSQL is unreachable', function (): void {
+    beforeEach(function (): void {
+        Sleep::fake();
+        Bus::fake();
+    });
+
+    it('waits longer after each failed pass, up to the limit', function (): void {
+        pointRelayAt(['host' => '127.0.0.1', 'port' => 1]);
+        config([
+            'metered.outbox.backoff_initial_milliseconds' => 500,
+            'metered.outbox.backoff_max_milliseconds' => 1500,
+        ]);
+
+        expect(Artisan::call('outbox:relay', ['--max-batches' => '5']))->toBe(0);
+
+        Sleep::assertSequence([
+            Sleep::for(500)->milliseconds(),
+            Sleep::for(1000)->milliseconds(),
+            Sleep::for(1500)->milliseconds(),
+            Sleep::for(1500)->milliseconds(),
+        ]);
+    });
+
+    it('publishes what was waiting once the database is back', function (): void {
+        $message = writeMessage('invoice.finalized');
+        pointRelayAt(['host' => '127.0.0.1', 'port' => 1]);
+
+        // The test runs inside a transaction on its own connection, so the
+        // database "comes back" as that same PDO, at the same transaction level.
+        Sleep::whenFakingSleep(static function (): void {
+            $test = DB::connection(testConnection());
+
+            DB::purge('relay_target');
+            $recovered = DB::connection('relay_target');
+            $recovered->setPdo($test->getPdo());
+            new ReflectionProperty(Connection::class, 'transactions')->setValue($recovered, $test->transactionLevel());
+        });
+
+        expect(Artisan::call('outbox:relay', ['--max-batches' => '3']))->toBe(0);
+
+        Bus::assertDispatched(
+            DeliverIntegrationEvent::class,
+            static fn(DeliverIntegrationEvent $job): bool => $job->id === $message->id->value,
+        );
+        Sleep::assertSleptTimes(1);
+    });
+
+    it('fails the single pass of --once instead of waiting', function (): void {
+        pointRelayAt(['host' => '127.0.0.1', 'port' => 1]);
+
+        expect(static fn(): int => Artisan::call('outbox:relay', ['--once' => true]))->toThrow(PDOException::class);
+
+        Sleep::assertNeverSlept();
+    });
+});
+
+it('does not wait after a pass that succeeds', function (): void {
+    Sleep::fake();
+    Bus::fake();
+
+    expect(Artisan::call('outbox:relay', ['--max-batches' => '3']))->toBe(0);
+
+    Sleep::assertNeverSlept();
+});
+
+it('stops on a failure that is not an outage', function (): void {
+    Sleep::fake();
+    Bus::fake();
+    pointRelayAt(['database' => 'no_such_database']);
+
+    expect(static fn(): int => Artisan::call('outbox:relay', ['--max-batches' => '3']))->toThrow(PDOException::class);
+
+    Sleep::assertNeverSlept();
 });
