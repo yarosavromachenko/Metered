@@ -128,12 +128,14 @@ groups:
           runbook: docs/runbook.md#telemetry-is-missing
 
       # The gauges come from one process, metrics:observe. When it stops,
-      # the collector drops its series five minutes later.
+      # the collector drops its series five minutes later. A source that
+      # cannot be read is skipped, so one gauge of each source stands for it:
+      # the stream depth for Redis, the overdue drafts for PostgreSQL.
       - alert: GaugesMissing
-        expr: absent(usage_stream_pending)
+        expr: absent(usage_stream_pending) or absent(invoices_drafts_overdue)
         for: 2m
         labels:
           severity: warning
         annotations:
-          summary: No gauges are reported; metrics:observe is not running.
+          summary: A gauge is missing; metrics:observe is not running or one of its sources cannot be read.
           runbook: docs/runbook.md#telemetry-is-missing
