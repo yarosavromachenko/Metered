@@ -5,18 +5,40 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
-## [Unreleased]
+## [1.1.4] - 2026-11-05
+
+Maintenance: the relay survives a database outage, one alert gap is closed,
+a security update, and a cheaper release pipeline. No migration and no change
+to the API or the webhook payloads.
 
 ### Changed
 
 - A `v*` tag no longer re-runs the whole pipeline: a release workflow checks
   that the commit passed CI on `main` and adds the version tags to that image.
 - Workflows run on `ubuntu-24.04` instead of `ubuntu-latest`.
+- `composer audit` no longer fails a pull request on a new advisory. It runs
+  every Monday in `dependency-audit.yml` and shows as a warning in the pull
+  request pipeline (ADR-0021).
+
+### Fixed
+
+- `outbox:relay` no longer exits when PostgreSQL cannot be reached. It waits
+  between passes, doubling the wait from 500 ms up to 30 s
+  (`OUTBOX_BACKOFF_INITIAL_MILLISECONDS`, `OUTBOX_BACKOFF_MAX_MILLISECONDS`),
+  and publishes what accumulated once the database is back. Other failures
+  still end the process, and `--once` still fails on an outage.
+- `GaugesMissing` also fires when the overdue-drafts gauge is absent. A gauge
+  source that cannot be read is skipped by the observer, and until now nothing
+  noticed that `InvoiceDraftStuck` had lost its data.
 
 ### Security
 
 - `symfony/mime` is locked at 8.1.10, which fixes CVE-2026-45070 (header
   injection through non-token characters in MIME parameter names).
+- The Symfony components `http-foundation`, `http-kernel`, `routing`,
+  `html-sanitizer`, `config`, `filesystem` and `yaml` are locked at 8.1.11,
+  which fixes the advisories published on 2026-11-04 (among them
+  CVE-2026-118514 and CVE-2026-118516).
 
 ## [1.1.3] - 2026-10-25
 

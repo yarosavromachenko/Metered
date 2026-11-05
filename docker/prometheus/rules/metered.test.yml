@@ -316,7 +316,7 @@ tests:
         exp_alerts:
           - exp_labels: {severity: warning}
             exp_annotations:
-              summary: No gauges are reported; metrics:observe is not running.
+              summary: A gauge is missing; metrics:observe is not running or one of its sources cannot be read.
               runbook: docs/runbook.md#telemetry-is-missing
 
   - name: the gauge observer running
@@ -324,7 +324,37 @@ tests:
     input_series:
       - series: 'usage_stream_pending{instance="observer"}'
         values: '0x5'
+      - series: 'invoices_drafts_overdue{instance="observer"}'
+        values: '0x5'
     alert_rule_test:
       - eval_time: 5m
         alertname: GaugesMissing
         exp_alerts: []
+
+  - name: the stream source cannot be read
+    interval: 1m
+    input_series:
+      - series: 'invoices_drafts_overdue{instance="observer"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GaugesMissing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: A gauge is missing; metrics:observe is not running or one of its sources cannot be read.
+              runbook: docs/runbook.md#telemetry-is-missing
+
+  - name: the draft source cannot be read
+    interval: 1m
+    input_series:
+      - series: 'usage_stream_pending{instance="observer"}'
+        values: '0x5'
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GaugesMissing
+        exp_alerts:
+          - exp_labels: {severity: warning}
+            exp_annotations:
+              summary: A gauge is missing; metrics:observe is not running or one of its sources cannot be read.
+              runbook: docs/runbook.md#telemetry-is-missing

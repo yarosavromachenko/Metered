@@ -30,5 +30,6 @@ that links back, so the reasoning at the time stays readable.
 | [0018](0018-design-principles.md) | Design principles: earn every abstraction | **Accepted** |
 | [0019](0019-metrics-through-opentelemetry.md) | Export metrics through OpenTelemetry, and read gauges in one process | **Accepted** |
 | [0020](0020-audit-chains-per-organization.md) | Audit chains per organization | **Accepted** |
+| [0021](0021-advisory-audit-schedule.md) | Advisory audit runs weekly and does not block pull requests | **Accepted** |
 
 Statuses: **Proposed** → **Accepted** → **Superseded by NNNN** / **Deprecated**.

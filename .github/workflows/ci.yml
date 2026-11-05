@@ -97,7 +97,9 @@ jobs:
 
       - uses: ramsey/composer-install@v4
 
+      # Advisories are reported by dependency-audit.yml every week (ADR-0021).
       - name: composer audit
+        continue-on-error: true
         run: composer audit --locked
 
       - name: Trivy (filesystem)

@@ -53,7 +53,7 @@ http://localhost:9093.
 | `WebhookSuccessRateLow` | under 90% of attempts delivered over 15 min, for 10 min | [A webhook endpoint is failing](#a-webhook-endpoint-is-failing) |
 | `InvoiceDraftStuck` | a draft older than the grace window, for 15 min | [An invoice is stuck as a draft](#an-invoice-is-stuck-as-a-draft) |
 | `TelemetryCollectorDown` | Prometheus cannot scrape the collector, for 1 min | [Telemetry is missing](#telemetry-is-missing) |
-| `GaugesMissing` | no gauge reported for 2 min | [Telemetry is missing](#telemetry-is-missing) |
+| `GaugesMissing` | the stream depth or the overdue-drafts gauge is not reported for 2 min | [Telemetry is missing](#telemetry-is-missing) |
 
 `UsageBacklogHigh` holds its threshold as a number; change it together with
 `USAGE_STREAM_BACKPRESSURE`. Each rule has a test in `metered.test.yml`, run
@@ -155,7 +155,9 @@ The alert is on accepted requests only; a slow 503 is still a 503.
 - `GaugesMissing`: `docker compose ps metrics-observer`, and its log. The
   counters still arrive from the processes; stream depth, outbox lag, queue
   depth and breakers do not. `php artisan metrics:observe --once` reads them
-  once and says how many readings it took.
+  once and says how many readings it took. The alert also fires when the
+  observer runs but cannot read PostgreSQL or Redis: the log then has "A gauge
+  source could not be read", and `InvoiceDraftStuck` cannot fire meanwhile.
 
 ## The consumer died mid-batch
 
@@ -214,7 +216,10 @@ project was deleted since is replayed, and comes back as `project_gone`.
 
 `outbox_unpublished_age_seconds` is the signal.
 
-1. Is `outbox-relay` running?
+1. Is `outbox-relay` running? While PostgreSQL cannot be reached it stays up,
+   logs "PostgreSQL is unreachable, retrying in N ms" and waits up to
+   `OUTBOX_BACKOFF_MAX_MILLISECONDS` (30 s) between passes; the lag then
+   follows the database outage and the backlog drains when it is back.
 2. Are the queues draining? Check Horizon.
 3. The relay uses `FOR UPDATE SKIP LOCKED`, so multiple relays are safe: scale it.
 4. Never delete an unpublished outbox row to clear a backlog. That drops an event whose state change already committed.

@@ -66,6 +66,11 @@ return [
         // How long the daemon waits when it finds nothing to do.
         'idle_sleep_seconds' => (float) env('OUTBOX_IDLE_SLEEP_SECONDS', 0.5),
 
+        // While PostgreSQL is unreachable the daemon waits this long after the
+        // first failed pass, doubling the wait up to the maximum.
+        'backoff_initial_milliseconds' => (int) env('OUTBOX_BACKOFF_INITIAL_MILLISECONDS', 500),
+        'backoff_max_milliseconds' => (int) env('OUTBOX_BACKOFF_MAX_MILLISECONDS', 30_000),
+
         // How long a published message is kept before `outbox:prune` removes
         // it. Unpublished messages are never removed.
         'retention_days' => (int) env('OUTBOX_RETENTION_DAYS', 7),
