@@ -5,7 +5,11 @@ follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the
 project uses [Semantic Versioning](https://semver.org/spec/v2.0.0.html): the
 public API is the HTTP API under `/api/v1` and the webhook payloads.
 
-## [Unreleased]
+## [1.1.4] - 2026-11-05
+
+Maintenance: the relay survives a database outage, one alert gap is closed,
+a security update, and a cheaper release pipeline. No migration and no change
+to the API or the webhook payloads.
 
 ### Changed
 
