@@ -1,0 +1,26 @@
+name: Dependency audit
+
+on:
+  schedule:
+    - cron: '17 6 * * 1'
+  workflow_dispatch:
+
+env:
+  PHP_VERSION: '8.4'
+
+jobs:
+  audit:
+    name: composer audit
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: intl
+          coverage: none
+          tools: composer:v2
+
+      - name: composer audit
+        run: composer audit --locked

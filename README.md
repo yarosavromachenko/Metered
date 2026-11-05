@@ -175,7 +175,7 @@ configurations beside it.
 | Coverage | ≥ 85% on `src/`, ≥ 90% on `Domain` |
 | Mutation | Pest's mutation testing on the five `Domain` layers: score ≥ 85 |
 | Alerts | `promtool` config check and rule unit tests, `amtool` config check (`make alerts-test`) |
-| Security | `composer audit`, Trivy (filesystem + image) |
+| Security | Trivy (filesystem + image); `composer audit` weekly and as a warning on pull requests ([ADR-0021](docs/adr/0021-advisory-audit-schedule.md)) |
 
 Thresholds are never lowered to make a build pass — see
 [`docs/engineering-guidelines.md`](docs/engineering-guidelines.md).

@@ -16,6 +16,9 @@ to the API or the webhook payloads.
 - A `v*` tag no longer re-runs the whole pipeline: a release workflow checks
   that the commit passed CI on `main` and adds the version tags to that image.
 - Workflows run on `ubuntu-24.04` instead of `ubuntu-latest`.
+- `composer audit` no longer fails a pull request on a new advisory. It runs
+  every Monday in `dependency-audit.yml` and shows as a warning in the pull
+  request pipeline (ADR-0021).
 
 ### Fixed
 
