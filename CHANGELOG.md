@@ -32,6 +32,10 @@ to the API or the webhook payloads.
 
 - `symfony/mime` is locked at 8.1.10, which fixes CVE-2026-45070 (header
   injection through non-token characters in MIME parameter names).
+- The Symfony components `http-foundation`, `http-kernel`, `routing`,
+  `html-sanitizer`, `config`, `filesystem` and `yaml` are locked at 8.1.11,
+  which fixes the advisories published on 2026-11-04 (among them
+  CVE-2026-118514 and CVE-2026-118516).
 
 ## [1.1.3] - 2026-10-25
 
