@@ -13,6 +13,17 @@ public API is the HTTP API under `/api/v1` and the webhook payloads.
   that the commit passed CI on `main` and adds the version tags to that image.
 - Workflows run on `ubuntu-24.04` instead of `ubuntu-latest`.
 
+### Fixed
+
+- `outbox:relay` no longer exits when PostgreSQL cannot be reached. It waits
+  between passes, doubling the wait from 500 ms up to 30 s
+  (`OUTBOX_BACKOFF_INITIAL_MILLISECONDS`, `OUTBOX_BACKOFF_MAX_MILLISECONDS`),
+  and publishes what accumulated once the database is back. Other failures
+  still end the process, and `--once` still fails on an outage.
+- `GaugesMissing` also fires when the overdue-drafts gauge is absent. A gauge
+  source that cannot be read is skipped by the observer, and until now nothing
+  noticed that `InvoiceDraftStuck` had lost its data.
+
 ### Security
 
 - `symfony/mime` is locked at 8.1.10, which fixes CVE-2026-45070 (header
